@@ -5,7 +5,7 @@
   "main": "src/index.js",
   "dependencies": {
     "@hapi/hapi": "^20.0.3",
-    "axios": "^0.20.0",
+    "axios": "^0.21.1",
     "bluebird": "^3.7.2",
     "chai-as-promised": "^7.1.1",
     "chalk": "^4.1.0",
@@ -15,7 +15,7 @@
     "gtfs-realtime-bindings": "0.0.6",
     "lodash": "^4.17.20",
     "moment": "^2.29.1",
-    "mssql": "^6.2.3",
+    "mssql": "^7.0.0-alpha.4",
     "node-fetch": "^2.6.1",
     "pretty-error": "^2.1.2",
     "shelljs": "^0.8.4",

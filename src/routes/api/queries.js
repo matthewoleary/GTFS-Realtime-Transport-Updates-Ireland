@@ -28,6 +28,29 @@ module.exports.register = async server => {
 
 	server.route({
 		method: 'GET',
+		path: '/api/stops',
+		handler: async request => {
+			try {
+				const db = request.server.plugins.sql.client;
+				let agencyId = request.query.agency;
+				agencyId = agencyId.toLowerCase();
+				const currentTimestamp = utils.getCurrentTimestamp();
+				const unixTimestamp = utils.getUnixTimestamp();
+				const query = {
+					since_midnight_timestamp: currentTimestamp,
+					query_timestamp: unixTimestamp
+				};
+				const response = await db.queries.getAllStops(agencyId);
+				query.response = response.recordset;
+				return query;
+			} catch (error) {
+				console.log(error);
+			}
+		}
+	});
+
+	server.route({
+		method: 'GET',
 		path: '/api/routes/{id}',
 		handler: async request => {
 			try {
@@ -40,6 +63,29 @@ module.exports.register = async server => {
 					query_timestamp: unixTimestamp
 				};
 				const response = await db.queries.getRouteById(routeId);
+				query.response = response.recordset;
+				return query;
+			} catch (error) {
+				console.log(error);
+			}
+		}
+	});
+
+	server.route({
+		method: 'GET',
+		path: '/api/routes',
+		handler: async request => {
+			try {
+				const db = request.server.plugins.sql.client;
+				let agencyId = request.query.agency;
+				agencyId = agencyId.toLowerCase();
+				const currentTimestamp = utils.getCurrentTimestamp();
+				const unixTimestamp = utils.getUnixTimestamp();
+				const query = {
+					since_midnight_timestamp: currentTimestamp,
+					query_timestamp: unixTimestamp
+				};
+				const response = await db.queries.getAllRoutes(agencyId);
 				query.response = response.recordset;
 				return query;
 			} catch (error) {

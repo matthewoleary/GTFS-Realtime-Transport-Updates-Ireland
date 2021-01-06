@@ -51,7 +51,9 @@ const prod = {
 		password: DOCKER_SQL_PASSWORD,
 		options: {
 			encrypt: sqlEncrypt,
-			enableArithAbort: true
+			enableArithAbort: true,
+			validateBulkLoadParameters: true,
+			trustServerCertificate: true
 		}
 	}
 };
@@ -71,7 +73,9 @@ const test = {
 		password: DOCKER_SQL_PASSWORD,
 		options: {
 			encrypt: sqlEncrypt,
-			enableArithAbort: true
+			enableArithAbort: true,
+			validateBulkLoadParameters: true,
+			trustServerCertificate: true
 		}
 	}
 };
