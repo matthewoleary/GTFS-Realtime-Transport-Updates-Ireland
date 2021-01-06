@@ -101,8 +101,50 @@ const register = async ({ sql, getConnection }) => {
 		return request.query(query);
 	};
 
+	const getAllStops = async agencyId => {
+		const cnx = await getConnection();
+		const request = await cnx.request();
+		if (agencyId) {
+			switch (agencyId) {
+				case '978':
+					return request.query(sqlQueries.getAllDBStops);
+				case '03':
+				case '03c':
+					return request.query(sqlQueries.getAllGDStops);
+				case '01':
+					return request.query(sqlQueries.getAllBStops);
+				default:
+					return request.query(sqlQueries.getAllStops);
+			}
+		} else {
+			return request.query(sqlQueries.getAllStops);
+		}
+	};
+
+	const getAllRoutes = async agencyId => {
+		const cnx = await getConnection();
+		const request = await cnx.request();
+		if (agencyId) {
+			switch (agencyId) {
+				case '978':
+					return request.query(sqlQueries.getAllDBRoutes);
+				case '03':
+				case '03c':
+					return request.query(sqlQueries.getAllGDRoutes);
+				case '01':
+					return request.query(sqlQueries.getAllBRoutes);
+				default:
+					return request.query(sqlQueries.getAllRoutes);
+			}
+		} else {
+			return request.query(sqlQueries.getAllRoutes);
+		}
+	};
+
 	return {
 		getAgencyById,
+		getAllRoutes,
+		getAllStops,
 		getLastStops,
 		getRouteById,
 		getShapeById,
