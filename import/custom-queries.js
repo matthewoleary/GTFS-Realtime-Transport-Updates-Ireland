@@ -110,10 +110,26 @@ const addCustomIndexes = async task => {
 	}
 
 	try {
+		await request.query('DROP INDEX IF EXISTS routes.idx_routes_agency_id');
+		await request.query('CREATE INDEX idx_routes_agency_id ON routes (agency_id);');
+	} catch (error) {
+		task.warn('Error creating index idx_routes_agency_id on routes');
+		throw error;
+	}
+
+	try {
 		await request.query('DROP INDEX IF EXISTS stops.idx_stops_stop_index');
 		await request.query('CREATE INDEX idx_stops_stop_index ON stops (stop_index);');
 	} catch (error) {
 		task.warn('Error creating index idx_stops_stop_index on stops');
+		throw error;
+	}
+
+	try {
+		await request.query('DROP INDEX IF EXISTS stops.idx_stops_stop_id');
+		await request.query('CREATE INDEX idx_stops_stop_id ON stops (stop_id);');
+	} catch (error) {
+		task.warn('Error creating index idx_stops_stop_id on stops');
 		throw error;
 	}
 

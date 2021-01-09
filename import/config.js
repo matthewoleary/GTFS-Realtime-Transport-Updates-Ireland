@@ -30,7 +30,9 @@ const dockerDbConfig = {
 	password: DOCKER_SQL_PASSWORD,
 	requestTimeout: 60000,
 	options: {
-		enableArithAbort: true
+		enableArithAbort: true,
+		validateBulkLoadParameters: true,
+		trustServerCertificate: true
 	}
 };
 
