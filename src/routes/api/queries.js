@@ -32,8 +32,11 @@ module.exports.register = async server => {
 		handler: async request => {
 			try {
 				const db = request.server.plugins.sql.client;
-				let agencyId = request.query.agency;
-				agencyId = agencyId.toLowerCase();
+				let agencyId;
+				if (request.query.agency !== undefined) {
+					agencyId = request.query.agency.toLowerCase();
+				}
+
 				const currentTimestamp = utils.getCurrentTimestamp();
 				const unixTimestamp = utils.getUnixTimestamp();
 				const query = {
@@ -77,8 +80,11 @@ module.exports.register = async server => {
 		handler: async request => {
 			try {
 				const db = request.server.plugins.sql.client;
-				let agencyId = request.query.agency;
-				agencyId = agencyId.toLowerCase();
+				let agencyId;
+				if (request.query.agency !== undefined) {
+					agencyId = request.query.agency.toLowerCase();
+				}
+
 				const currentTimestamp = utils.getCurrentTimestamp();
 				const unixTimestamp = utils.getUnixTimestamp();
 				const query = {
@@ -282,7 +288,7 @@ const getTripsWithMidnightServices = async ({ db, stopId, realtime, query, curre
 	const lastStops = await db.queries.getLastStops(response.recordset);
 	response.recordset = await utils.removeTripsAtLastStop(lastStops, response.recordset);
 	query.response = response.recordset;
-	response.recordset = await realtime.queries.updateResultsWithRealtime(query);
+	query = await realtime.queries.updateResultsWithRealtime(query);
 	return query;
 };
 
@@ -291,6 +297,6 @@ const getTrips = async ({ db, stopId, realtime, query, currentTimestampMinusNumM
 	const lastStops = await db.queries.getLastStops(response.recordset);
 	response.recordset = await utils.removeTripsAtLastStop(lastStops, response.recordset);
 	query.response = response.recordset;
-	response.recordset = await realtime.queries.updateResultsWithRealtime(query);
+	query = await realtime.queries.updateResultsWithRealtime(query);
 	return query;
 };
