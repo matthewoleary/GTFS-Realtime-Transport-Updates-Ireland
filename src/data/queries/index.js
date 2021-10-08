@@ -133,6 +133,8 @@ const register = async ({ sql, getConnection }) => {
 					return request.query(sqlQueries.getAllGDRoutes);
 				case '01':
 					return request.query(sqlQueries.getAllBRoutes);
+				case '01X':
+					return request.query(sqlQueries.getAllEXRoutes);
 				default:
 					return request.query(sqlQueries.getAllRoutes);
 			}

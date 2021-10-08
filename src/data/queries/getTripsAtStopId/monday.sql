@@ -2,6 +2,9 @@ SELECT [t].[trip_id]
     , [t].[trip_index]
     , [t].[trip_headsign]
     , [t].[route_id]
+    , [r].[route_short_name]
+    , [r].[route_long_name]
+    , [r].[agency_id]
     , [st].[stop_id]
     , [st].[stop_headsign]
     , [t].[service_id]
@@ -13,10 +16,11 @@ SELECT [t].[trip_id]
     , [st].[stop_sequence]
     , [t].[shape_id]
     , [st].[shape_dist_traveled]
-FROM stop_times st, trips t
+FROM stop_times st, trips t, routes r
 WHERE [st].[stop_index] = (
 	SELECT stop_index FROM stops WHERE stop_id = @stopId
 )
+AND [t].[route_id] = [r].[route_id]
 AND [st].[trip_index] = [t].[trip_index]
 AND [t].[service_id] IN (
     SELECT [service_id]
