@@ -83,6 +83,11 @@ const removeTripsAtLastStop = async (lastStops, trips) => {
 	return trips.filter(result => result.last_stop === false);
 };
 
+// Sort routes response by route short name as an integer; eg. route 1, 2, 3...
+const sortByRouteShortNameAsInt = async routes => {
+	return routes.sort((a, b) => parseInt(a.route_short_name) - parseInt(b.route_short_name));
+}
+
 module.exports = {
 	getCurrentTimestamp,
 	getCurrentTimestampPlusOneHour,
@@ -96,5 +101,6 @@ module.exports = {
 	getWrappedDay,
 	getNextDay,
 	checkIfNightServices,
-	removeTripsAtLastStop
+	removeTripsAtLastStop,
+	sortByRouteShortNameAsInt
 };

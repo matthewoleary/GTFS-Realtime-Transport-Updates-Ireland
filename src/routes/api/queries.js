@@ -6,19 +6,22 @@ const utils = require('../utils');
 module.exports.register = async server => {
 	server.route({
 		method: 'GET',
-		path: '/api/stops/{id}',
+		path: '/api/stops/{id*}',
 		handler: async request => {
 			try {
 				const db = request.server.plugins.sql.client;
-				const stopId = request.params.id;
+				const stopIds = request.params.id.split('/');
 				const currentTimestamp = utils.getCurrentTimestamp();
 				const unixTimestamp = utils.getUnixTimestamp();
 				const query = {
 					since_midnight_timestamp: currentTimestamp,
-					query_timestamp: unixTimestamp
+					query_timestamp: unixTimestamp,
+					response: []
 				};
-				const response = await db.queries.getStopById(stopId);
-				query.response = response.recordset;
+				for (id of stopIds) {
+					const response = await db.queries.getStopById(id)
+					query.response.push(response.recordset[0])
+				}
 				return query; // Returns automatically as JSON
 			} catch (error) {
 				console.log(error);
@@ -36,7 +39,6 @@ module.exports.register = async server => {
 				if (request.query.agency !== undefined) {
 					agencyId = request.query.agency.toLowerCase();
 				}
-
 				const currentTimestamp = utils.getCurrentTimestamp();
 				const unixTimestamp = utils.getUnixTimestamp();
 				const query = {
@@ -92,6 +94,7 @@ module.exports.register = async server => {
 					query_timestamp: unixTimestamp
 				};
 				const response = await db.queries.getAllRoutes(agencyId);
+				response.recordset = await utils.sortByRouteShortNameAsInt(response.recordset)
 				query.response = response.recordset;
 				return query;
 			} catch (error) {
@@ -234,12 +237,12 @@ module.exports.register = async server => {
 
 	server.route({
 		method: 'GET',
-		path: '/api/tripsAtStop/{id}',
+		path: '/api/tripsAtStop/{id*}',
 		handler: async request => {
 			try {
 				const db = request.server.plugins.sql.client;
 				const realtime = request.server.plugins.realtime.client;
-				const stopId = request.params.id;
+				const stopIds = request.params.id.split('/');
 				const currentTimestamp = utils.getCurrentTimestamp();
 				const unixTimestamp = utils.getUnixTimestamp();
 				const currentTimestampMinusNumMinutes = await utils.getTimestampMinusNumMinutes(currentTimestamp, 10); // Num minutes set to 10
@@ -263,16 +266,18 @@ module.exports.register = async server => {
 				if (await utils.checkIfNightServices(currentTimestampPlusOneHour)) {
 					query = {
 						since_midnight_timestamp: await utils.getWrappedTimestamp(currentTimestamp),
-						query_timestamp: unixTimestamp
+						query_timestamp: unixTimestamp,
+						response: []
 					};
-					return await getTripsWithMidnightServices({ db, stopId, realtime, query, currentTimestampMinusNumMinutes, currentTimestampPlusOneHour, scheduleDate, scheduleDay });
+					return await getTripsWithMidnightServices({ db, stopIds, realtime, query, currentTimestampMinusNumMinutes, currentTimestampPlusOneHour, scheduleDate, scheduleDay });
 				}
 
 				query = {
 					since_midnight_timestamp: currentTimestamp,
-					query_timestamp: unixTimestamp
+					query_timestamp: unixTimestamp,
+					response: []
 				};
-				return await getTrips({ db, stopId, realtime, query, currentTimestampMinusNumMinutes, currentTimestampPlusOneHour, scheduleDate, scheduleDay });
+				return await getTrips({ db, stopIds, realtime, query, currentTimestampMinusNumMinutes, currentTimestampPlusOneHour, scheduleDate, scheduleDay });
 			} catch (error) {
 				console.log(error);
 			}
@@ -280,23 +285,27 @@ module.exports.register = async server => {
 	});
 };
 
-const getTripsWithMidnightServices = async ({ db, stopId, realtime, query, currentTimestampMinusNumMinutes, currentTimestampPlusOneHour, scheduleDate, scheduleDay }) => {
+const getTripsWithMidnightServices = async ({ db, stopIds, realtime, query, currentTimestampMinusNumMinutes, currentTimestampPlusOneHour, scheduleDate, scheduleDay }) => {
 	const wrappedCurrentTimestampMinusNumMinutes = await utils.getWrappedTimestamp(currentTimestampMinusNumMinutes);
 	const wrappedCurrentTimestampPlusOneHour = await utils.getWrappedTimestamp(currentTimestampPlusOneHour);
 	const nextDayDate = await utils.checkIfNightServices(currentTimestampMinusNumMinutes) ? utils.getCurrentDate() : utils.getNextDayDate();
-	const response = await db.queries.getTripsAtStopIdWithNightServices({ stopId, scheduleDate, nextDayDate, scheduleDay, currentTimestampPlusOneHour, wrappedCurrentTimestampMinusNumMinutes, wrappedCurrentTimestampPlusOneHour });
-	const lastStops = await db.queries.getLastStops(response.recordset);
-	response.recordset = await utils.removeTripsAtLastStop(lastStops, response.recordset);
-	query.response = response.recordset;
+	for (stopId of stopIds) {
+		const response = await db.queries.getTripsAtStopIdWithNightServices({ stopId, scheduleDate, nextDayDate, scheduleDay, currentTimestampPlusOneHour, wrappedCurrentTimestampMinusNumMinutes, wrappedCurrentTimestampPlusOneHour });
+		const lastStops = await db.queries.getLastStops(response.recordset);
+		response.recordset = await utils.removeTripsAtLastStop(lastStops, response.recordset);
+		query.response.push(response.recordset)
+	}
 	query = await realtime.queries.updateResultsWithRealtime(query);
 	return query;
 };
 
-const getTrips = async ({ db, stopId, realtime, query, currentTimestampMinusNumMinutes, currentTimestampPlusOneHour, scheduleDate, scheduleDay }) => {
-	const response = await db.queries.getTripsAtStopId({ stopId, scheduleDate, scheduleDay, currentTimestampMinusNumMinutes, currentTimestampPlusOneHour });
-	const lastStops = await db.queries.getLastStops(response.recordset);
-	response.recordset = await utils.removeTripsAtLastStop(lastStops, response.recordset);
-	query.response = response.recordset;
+const getTrips = async ({ db, stopIds, realtime, query, currentTimestampMinusNumMinutes, currentTimestampPlusOneHour, scheduleDate, scheduleDay }) => {
+	for (stopId of stopIds) {
+		const response = await db.queries.getTripsAtStopId({ stopId, scheduleDate, scheduleDay, currentTimestampMinusNumMinutes, currentTimestampPlusOneHour });
+		const lastStops = await db.queries.getLastStops(response.recordset);
+		response.recordset = await utils.removeTripsAtLastStop(lastStops, response.recordset);
+		query.response.push(response.recordset)
+	}
 	query = await realtime.queries.updateResultsWithRealtime(query);
 	return query;
 };
