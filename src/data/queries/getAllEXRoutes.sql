@@ -5,4 +5,4 @@ SELECT route_id
     , route_long_name
     , route_type
 FROM [dbo].[routes]
-ORDER BY route_short_name
+WHERE agency_id = '01X'
