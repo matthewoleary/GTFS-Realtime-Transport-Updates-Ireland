@@ -490,6 +490,7 @@ class MysqlImporter {
             parser.on('error', error => { throw error; });
             await new Promise((resolve, reject) => {
                 fs.createReadStream(filepath)
+                    .on('error', reject)
                     .pipe(stripBomStream())
                     .pipe(parser)
                     .on('end', resolve)
