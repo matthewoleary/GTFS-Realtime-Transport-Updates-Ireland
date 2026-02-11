@@ -1,9 +1,11 @@
 'use-strict';
 
-const sql = require('./sql');
-const realtime = require('./realtime');
+import database from './database.js';
+import realtimeTripUpdates from './realtimeTripUpdates.js';
+import realtimeVehiclePositions from './realtimeVehiclePositions.js';
 
-module.exports.register = async server => {
-	await server.register(sql);
-	await server.register(realtime);
-};
+export async function register(server) {
+	await server.register(database);
+	await server.register(realtimeTripUpdates);
+	await server.register(realtimeVehiclePositions);
+}

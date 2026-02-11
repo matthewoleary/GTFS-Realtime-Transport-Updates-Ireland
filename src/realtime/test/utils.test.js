@@ -1,13 +1,13 @@
 // Mocha API
-const { describe, it, beforeEach, afterEach } = require('mocha');
+import { describe, it, beforeEach, afterEach } from 'mocha';
 // Assertions module - chai
-const { assert } = require('chai');
+import { assert } from 'chai';
 // Sinon for fakes, stubs, and spies
-const sinon = require('sinon');
+import { useFakeTimers } from 'sinon';
 
 // The code under test
-const utils = require('../utils');
-const mocks = require('./mocks');
+import utils from '../utils';
+import { elementForNearestStopDelayMock, stopTimeUpdatesNearestStopDelayMocks, mockNearestStopDelayResponseFor151, stopTimeUpdatesNearestStopDelayMocks2, stopTimeUpdatesNearestStopDelayMocksNoUpdates, getMockRealtimeFeed } from './mocks';
 
 /**
  * Tests - Realtime feed based functions:
@@ -16,36 +16,36 @@ const mocks = require('./mocks');
 describe('Realtime feed based functions', () => {
 	describe('findNearestStopDelay', () => {
 		const { findNearestStopDelay } = utils;
-		const element = mocks.elementForNearestStopDelayMock;
+		const element = elementForNearestStopDelayMock;
 
 		describe('Calling findNearestStopDelay for trip: 18.2.60-151-d12-1.90.I at stop: 8220DB000297 using mocks from call obtained at Unix time 1606738523', () => {
-			const stopTimeUpdates = mocks.stopTimeUpdatesNearestStopDelayMocks.tripUpdate.stopTimeUpdate;
+			const stopTimeUpdates = stopTimeUpdatesNearestStopDelayMocks.tripUpdate.stopTimeUpdate;
 			describe('when nearest update has a delay of 360 seconds', () => {
 				it('Should return element with updated departure and arrival timestamps = 45328, and departure and arrival time = 12:35:28', async () => {
 					const nearestDelay = await findNearestStopDelay(element, stopTimeUpdates);
-					const response = mocks.mockNearestStopDelayResponseFor151;
+					const response = mockNearestStopDelayResponseFor151;
 					assert.deepEqual(nearestDelay, response);
 				});
 			});
 		});
 
 		describe('Calling findNearestStopDelay for trip 18.2.60-151-d12-1.90.I at stop: 8220DB000297', () => {
-			const stopTimeUpdates = mocks.stopTimeUpdatesNearestStopDelayMocks2.tripUpdate.stopTimeUpdate;
+			const stopTimeUpdates = stopTimeUpdatesNearestStopDelayMocks2.tripUpdate.stopTimeUpdate;
 			describe('when nearest update has a delay of 0 seconds', () => {
 				it('Should return element with departure and arrival timestamps unchanged = 44968, and departure and arrival time unchanged = 12:29:28', async () => {
 					const nearestDelay = await findNearestStopDelay(element, stopTimeUpdates);
-					const response = mocks.mockNearestStopDelayResponseFor151;
+					const response = mockNearestStopDelayResponseFor151;
 					assert.deepEqual(nearestDelay, response);
 				});
 			});
 		});
 
 		describe('Calling findNearestStopDelay for trip 18.2.60-151-d12-1.90.I at stop: 8220DB000297', () => {
-			const stopTimeUpdates = mocks.stopTimeUpdatesNearestStopDelayMocksNoUpdates.tripUpdate.stopTimeUpdate;
+			const stopTimeUpdates = stopTimeUpdatesNearestStopDelayMocksNoUpdates.tripUpdate.stopTimeUpdate;
 			describe('when no updates on or before the current stop are in the list', () => {
 				it('Should return element with departure and arrival timestamps unchanged = 44968, and departure and arrival time unchanged = 12:29:28', async () => {
 					const nearestDelay = await findNearestStopDelay(element, stopTimeUpdates);
-					const response = mocks.mockNearestStopDelayResponseFor151;
+					const response = mockNearestStopDelayResponseFor151;
 					assert.deepEqual(nearestDelay, response);
 				});
 			});
@@ -57,7 +57,7 @@ describe('Realtime feed based functions', () => {
 
 		describe('Calling filterFeed with feed captured at Unix time 1606738523', () => {
 			it('Should return a feed with only entities with an id containing d12 or b12', async () => {
-				await mocks.getMockRealtimeFeed(async (error, mockResponse) => {
+				await getMockRealtimeFeed(async (error, mockResponse) => {
 					if (error) {
 						assert.fail(null, null, 'Failed to read mock response');
 					}
@@ -115,7 +115,7 @@ describe('Realtime feed based functions', () => {
 		const { getCurrentTimestamp } = utils;
 		describe('When current time is: 13:43:30', () => {
 			beforeEach(() => {
-				this.clock = sinon.useFakeTimers(Date.UTC(2020, 10, 24, 13, 43, 30));
+				this.clock = useFakeTimers(Date.UTC(2020, 10, 24, 13, 43, 30));
 			});
 
 			afterEach(() => {
@@ -130,7 +130,7 @@ describe('Realtime feed based functions', () => {
 
 		describe('When current time is: 00:00:00', () => {
 			beforeEach(() => {
-				this.clock = sinon.useFakeTimers(Date.UTC(2020, 10, 24, 0, 0, 0));
+				this.clock = useFakeTimers(Date.UTC(2020, 10, 24, 0, 0, 0));
 			});
 
 			afterEach(() => {
@@ -145,7 +145,7 @@ describe('Realtime feed based functions', () => {
 
 		describe('When current time is: 13:43:30', () => {
 			beforeEach(() => {
-				this.clock = sinon.useFakeTimers(Date.UTC(2020, 10, 24, 13, 43, 30));
+				this.clock = useFakeTimers(Date.UTC(2020, 10, 24, 13, 43, 30));
 			});
 
 			afterEach(() => {
@@ -159,30 +159,30 @@ describe('Realtime feed based functions', () => {
 		});
 	});
 
-	describe('getWrappedTimeStampUnwrapped', () => {
-		const { getWrappedTimeStampUnwrapped } = utils;
+	describe('getUnwrappedTimestamp', () => {
+		const { getUnwrappedTimestamp } = utils;
 
-		describe('When calling getWrappedTimeStampUnwrapped with timestamp 69912', () => {
+		describe('When calling getUnwrappedTimestamp with timestamp 69912', () => {
 			it('Should return the timestamp unchanged as 69912', async () => {
-				assert.equal(69912, await getWrappedTimeStampUnwrapped(69912));
+				assert.equal(69912, await getUnwrappedTimestamp(69912));
 			});
 		});
 
-		describe('When calling getWrappedTimeStampUnwrapped with timestamp 0', () => {
+		describe('When calling getUnwrappedTimestamp with timestamp 0', () => {
 			it('Should return the timestamp unchanged as 0', async () => {
-				assert.equal(0, await getWrappedTimeStampUnwrapped(0));
+				assert.equal(0, await getUnwrappedTimestamp(0));
 			});
 		});
 
-		describe('When calling getWrappedTimeStampUnwrapped with timestamp 86400', () => {
+		describe('When calling getUnwrappedTimestamp with timestamp 86400', () => {
 			it('Should return the timestamp 0', async () => {
-				assert.equal(0, await getWrappedTimeStampUnwrapped(86400));
+				assert.equal(0, await getUnwrappedTimestamp(86400));
 			});
 		});
 
-		describe('When calling getWrappedTimeStampUnwrapped with timestamp 103800', () => {
+		describe('When calling getUnwrappedTimestamp with timestamp 103800', () => {
 			it('Should return the timestamp 17400', async () => {
-				assert.equal(17400, await getWrappedTimeStampUnwrapped(103800));
+				assert.equal(17400, await getUnwrappedTimestamp(103800));
 			});
 		});
 	});
@@ -191,7 +191,7 @@ describe('Realtime feed based functions', () => {
 		const { getCurrentTime } = utils;
 		describe('When current time is: 18:02:30', () => {
 			beforeEach(() => {
-				this.clock = sinon.useFakeTimers(Date.UTC(2020, 11, 22, 18, 2, 30));
+				this.clock = useFakeTimers(Date.UTC(2020, 11, 22, 18, 2, 30));
 			});
 
 			afterEach(() => {
@@ -206,7 +206,7 @@ describe('Realtime feed based functions', () => {
 
 		describe('When current time is: 00:00:00', () => {
 			beforeEach(() => {
-				this.clock = sinon.useFakeTimers(Date.UTC(2020, 11, 22, 0, 0, 0));
+				this.clock = useFakeTimers(Date.UTC(2020, 11, 22, 0, 0, 0));
 			});
 
 			afterEach(() => {
