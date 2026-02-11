@@ -1,9 +1,9 @@
 'use-strict';
-const fs = require('fs');
-const path = require('path');
+import { readFile } from 'fs';
+import { join } from 'path';
 
 const getMockRealtimeFeed = async callback => {
-	fs.readFile(path.join(__dirname, 'GTFSR-Output-12.json'), 'utf8', (err, data) => {
+	readFile(join(__dirname, 'GTFSR-Output-12.json'), 'utf8', (err, data) => {
 		callback(null, JSON.parse(data));
 	});
 };
@@ -254,4 +254,4 @@ const mockNearestStopDelayResponseFor151 = {
 	isRealtime: true
 };
 
-module.exports = { getMockRealtimeFeed, elementForNearestStopDelayMock, stopTimeUpdatesNearestStopDelayMocks, stopTimeUpdatesNearestStopDelayMocks2, stopTimeUpdatesNearestStopDelayMocksNoUpdates, mockNearestStopDelayResponseFor151 };
+export default { getMockRealtimeFeed, elementForNearestStopDelayMock, stopTimeUpdatesNearestStopDelayMocks, stopTimeUpdatesNearestStopDelayMocks2, stopTimeUpdatesNearestStopDelayMocksNoUpdates, mockNearestStopDelayResponseFor151 };
