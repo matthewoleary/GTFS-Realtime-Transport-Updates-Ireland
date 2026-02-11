@@ -466,35 +466,25 @@ class MysqlImporter {
                 skip_empty_lines: true,
                 ...task.csvOptions
             });
-            parser.on('readable', async () => {
-                let record;
-                /* eslint-disable-next-line no-cond-assign */
-                while (record = parser.read()) {
-                    try {
-                        totalLineCount += 1;
-                        lines.push(this.formatLine(record, this.customModel, totalLineCount));
-                        // If we have a bunch of lines ready to insert, then do it
-                        if (lines.length >= maxInsertVariables / this.customModel.schema.length) {
-                            /* eslint-disable-next-line no-await-in-loop */
-                            await this.importLines(task, lines, this.customModel, totalLineCount);
-                        }
-                    } catch (error) {
-                        throw error;
-                    }
-                }
-            });
-            parser.on('end', async () => {
-                // Insert all remaining lines
-                await this.importLines(task, lines, this.customModel, totalLineCount);
-            });
-            parser.on('error', error => { throw error; });
             await new Promise((resolve, reject) => {
-                fs.createReadStream(filepath)
-                    .on('error', reject)
-                    .pipe(stripBomStream())
-                    .pipe(parser)
-                    .on('end', resolve)
-                    .on('error', reject);
+                const source = fs.createReadStream(filepath).on('error', reject);
+                const pipeline = source.pipe(stripBomStream()).pipe(parser);
+                (async () => {
+                    try {
+                        for await (const record of parser) {
+                            totalLineCount += 1;
+                            lines.push(this.formatLine(record, this.customModel, totalLineCount));
+                            if (lines.length >= maxInsertVariables / this.customModel.schema.length) {
+                                await this.importLines(task, lines, this.customModel, totalLineCount);
+                            }
+                        }
+                        await this.importLines(task, lines, this.customModel, totalLineCount);
+                        resolve();
+                    } catch (err) {
+                        parser.destroy();
+                        reject(err);
+                    }
+                })();
             });
         });
     }
