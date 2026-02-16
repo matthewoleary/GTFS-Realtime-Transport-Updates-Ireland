@@ -25,7 +25,7 @@ export async function registerRoutes(server) {
  * @returns {object} The SQL database client instance.
  */
 export function getDatabaseClient(request) {
-	return request.server.plugins['database'].client;
+	return request.server.plugins.database.client;
 }
 
 /**
@@ -34,7 +34,7 @@ export function getDatabaseClient(request) {
  * @returns {object|null} The realtime client or null if not available.
  */
 export function getRealtimeTripUpdatesClient(request) {
-	return request.server.plugins['realtimeTripUpdates'].realtimeTripUpdatesClient || null;
+	return request.server.plugins.realtimeTripUpdates.realtimeTripUpdatesClient || null;
 }
 
 /**
@@ -43,5 +43,5 @@ export function getRealtimeTripUpdatesClient(request) {
  * @returns {object|null} The realtime vehicle positions client or null if not available.
  */
 export function getRealtimeVehiclePositionsClient(request) {
-	return request.server.plugins['realtimeVehiclePositions'].realtimeVehiclePositionsClient || null;
+	return request.server.plugins.realtimeVehiclePositions.realtimeVehiclePositionsClient || null;
 }
