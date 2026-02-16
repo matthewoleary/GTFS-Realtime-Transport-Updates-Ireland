@@ -42,7 +42,7 @@ export default function getTripsRoute(server) {
                 if (response.length === 0) {
                     return handler.response({ error: 'No trips found for the specified trip(s)' }).code(404);
                 }
-                const payload = {
+                let payload = {
                     since_midnight_timestamp: currentTimestamp,
                     query_timestamp: unixTimestamp,
                     response: response
