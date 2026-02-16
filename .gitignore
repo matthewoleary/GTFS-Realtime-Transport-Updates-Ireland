@@ -4,6 +4,8 @@ docker-test-db
 GTFSR_Outputs
 unused_files
 .env
+.env-copy
 Dockerfile
 sample-config.js
 docker-compose.yml
+.vscode/launch.json
