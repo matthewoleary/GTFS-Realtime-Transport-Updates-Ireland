@@ -1,13 +1,13 @@
 /* eslint-env mocha */
 // Mocha API
-const { afterEach, beforeEach, describe, it } = require('mocha');
+import { afterEach, beforeEach, describe, it } from 'mocha';
 // Assertions module - chai
-const { assert } = require('chai');
+import { assert } from 'chai';
 // Sinon for fakes, stubs, and spies
-const sinon = require('sinon');
+import { useFakeTimers } from 'sinon';
 
 // The code under test
-const utils = require('../utils');
+import utils from '../utils';
 
 /**
  * Tests - Momentjs based functions:
@@ -17,7 +17,7 @@ describe('Momentjs based functions:', () => {
 		const { getCurrentTimestamp } = utils;
 		describe('when current time is: 13:43:30', () => {
 			beforeEach(() => {
-				this.clock = sinon.useFakeTimers(Date.UTC(2020, 10, 24, 13, 43, 30));
+				this.clock = useFakeTimers(Date.UTC(2020, 10, 24, 13, 43, 30));
 			});
 
 			afterEach(() => {
@@ -32,7 +32,7 @@ describe('Momentjs based functions:', () => {
 
 		describe('when current time is: 00:00:00', () => {
 			beforeEach(() => {
-				this.clock = sinon.useFakeTimers(Date.UTC(2020, 10, 24, 0, 0, 0));
+				this.clock = useFakeTimers(Date.UTC(2020, 10, 24, 0, 0, 0));
 			});
 
 			afterEach(() => {
@@ -47,7 +47,7 @@ describe('Momentjs based functions:', () => {
 
 		describe('When current time is: 13:43:30', () => {
 			beforeEach(() => {
-				this.clock = sinon.useFakeTimers(Date.UTC(2020, 10, 24, 13, 43, 30));
+				this.clock = useFakeTimers(Date.UTC(2020, 10, 24, 13, 43, 30));
 			});
 
 			afterEach(() => {
@@ -66,7 +66,7 @@ describe('Momentjs based functions:', () => {
 
 		describe('When the current time is 18:09:45', () => {
 			beforeEach(() => {
-				this.clock = sinon.useFakeTimers(Date.UTC(2020, 11, 22, 18, 9, 45)); // Months 0-11
+				this.clock = useFakeTimers(Date.UTC(2020, 11, 22, 18, 9, 45)); // Months 0-11
 			});
 
 			afterEach(() => {
@@ -84,7 +84,7 @@ describe('Momentjs based functions:', () => {
 		const { getCurrentTimestampPlusOneHour } = utils;
 		describe('When current time is: 13:43:30', () => {
 			beforeEach(() => {
-				this.clock = sinon.useFakeTimers(Date.UTC(2020, 10, 24, 13, 43, 30));
+				this.clock = useFakeTimers(Date.UTC(2020, 10, 24, 13, 43, 30));
 			});
 
 			afterEach(() => {
@@ -98,7 +98,7 @@ describe('Momentjs based functions:', () => {
 
 		describe('When current time is: 23:59:59', () => {
 			beforeEach(() => {
-				this.clock = sinon.useFakeTimers(Date.UTC(2020, 10, 24, 23, 59, 59));
+				this.clock = useFakeTimers(Date.UTC(2020, 10, 24, 23, 59, 59));
 			});
 
 			afterEach(() => {
@@ -124,7 +124,7 @@ describe('Momentjs based functions:', () => {
 		const { getCurrentDay } = utils;
 		describe('When current day is: Tuesday', async () => {
 			beforeEach(() => {
-				this.clock = sinon.useFakeTimers(Date.UTC(2020, 10, 24, 13, 43, 30));
+				this.clock = useFakeTimers(Date.UTC(2020, 10, 24, 13, 43, 30));
 			});
 
 			afterEach(() => {
@@ -141,7 +141,7 @@ describe('Momentjs based functions:', () => {
 		const { getCurrentDate } = utils;
 		describe('When current date is: 24th November 2020', async () => {
 			beforeEach(() => {
-				this.clock = sinon.useFakeTimers(Date.UTC(2020, 10, 24, 13, 43, 30));
+				this.clock = useFakeTimers(Date.UTC(2020, 10, 24, 13, 43, 30));
 			});
 
 			afterEach(() => {
@@ -159,7 +159,7 @@ describe('Momentjs based functions:', () => {
 		const { getNextDay } = utils;
 		describe('When current day is Friday', () => {
 			beforeEach(() => {
-				this.clock = sinon.useFakeTimers(Date.UTC(2020, 10, 27, 11, 27, 30));
+				this.clock = useFakeTimers(Date.UTC(2020, 10, 27, 11, 27, 30));
 			});
 
 			afterEach(() => {
@@ -174,7 +174,7 @@ describe('Momentjs based functions:', () => {
 
 		describe('When current day is Thursday on 31st Dec 2020', () => {
 			beforeEach(() => {
-				this.clock = sinon.useFakeTimers(Date.UTC(2020, 11, 31, 23, 0, 0));
+				this.clock = useFakeTimers(Date.UTC(2020, 11, 31, 23, 0, 0));
 			});
 
 			afterEach(() => {
@@ -192,7 +192,7 @@ describe('Momentjs based functions:', () => {
 		const { getNextDayDate } = utils;
 		describe('When current date is Friday 27th November 2020', () => {
 			beforeEach(() => {
-				this.clock = sinon.useFakeTimers(Date.UTC(2020, 10, 27, 11, 27, 30));
+				this.clock = useFakeTimers(Date.UTC(2020, 10, 27, 11, 27, 30));
 			});
 
 			afterEach(() => {
@@ -207,7 +207,7 @@ describe('Momentjs based functions:', () => {
 
 		describe('When current date is 31st December 2020', () => {
 			beforeEach(() => {
-				this.clock = sinon.useFakeTimers(Date.UTC(2020, 11, 31, 23, 0, 0));
+				this.clock = useFakeTimers(Date.UTC(2020, 11, 31, 23, 0, 0));
 			});
 
 			afterEach(() => {
@@ -230,7 +230,7 @@ describe('Wrapped time / Night Services functions:', () => {
 		const { getCurrentTimestamp, checkIfNightServices } = utils;
 		describe('When current time is 01:15:00', () => {
 			beforeEach(() => {
-				this.clock = sinon.useFakeTimers(Date.UTC(2020, 10, 24, 1, 15, 0)); // 24 Nov 2020, 01:15:00
+				this.clock = useFakeTimers(Date.UTC(2020, 10, 24, 1, 15, 0)); // 24 Nov 2020, 01:15:00
 			});
 
 			afterEach(() => {
@@ -245,7 +245,7 @@ describe('Wrapped time / Night Services functions:', () => {
 
 		describe('When current time is 23:59:59', () => {
 			beforeEach(() => {
-				this.clock = sinon.useFakeTimers(Date.UTC(2020, 10, 24, 23, 59, 59)); // 23 Nov 2020, 23:50:00
+				this.clock = useFakeTimers(Date.UTC(2020, 10, 24, 23, 59, 59)); // 23 Nov 2020, 23:50:00
 			});
 
 			afterEach(() => {
@@ -260,7 +260,7 @@ describe('Wrapped time / Night Services functions:', () => {
 
 		describe('When current time is 00:00:00', () => {
 			beforeEach(() => {
-				this.clock = sinon.useFakeTimers(Date.UTC(2020, 10, 24, 0, 0, 0)); // 23 Nov 2020, 23:50:00
+				this.clock = useFakeTimers(Date.UTC(2020, 10, 24, 0, 0, 0)); // 23 Nov 2020, 23:50:00
 			});
 
 			afterEach(() => {
@@ -275,7 +275,7 @@ describe('Wrapped time / Night Services functions:', () => {
 
 		describe('When current time is 06:00:00', () => {
 			beforeEach(() => {
-				this.clock = sinon.useFakeTimers(Date.UTC(2020, 10, 24, 6, 0, 0)); // 23 Nov 2020, 06:00:00
+				this.clock = useFakeTimers(Date.UTC(2020, 10, 24, 6, 0, 0)); // 23 Nov 2020, 06:00:00
 			});
 
 			afterEach(() => {
@@ -290,7 +290,7 @@ describe('Wrapped time / Night Services functions:', () => {
 
 		describe('When current time is 05:59:59', () => {
 			beforeEach(() => {
-				this.clock = sinon.useFakeTimers(Date.UTC(2020, 10, 24, 5, 59, 59)); // 23 Nov 2020, 05:59:59
+				this.clock = useFakeTimers(Date.UTC(2020, 10, 24, 5, 59, 59)); // 23 Nov 2020, 05:59:59
 			});
 
 			afterEach(() => {
@@ -308,7 +308,7 @@ describe('Wrapped time / Night Services functions:', () => {
 		const { getCurrentTimestamp, getWrappedTimestamp } = utils;
 		describe('When provided timestamp is: 2715 (00:45:15)', () => {
 			beforeEach(() => {
-				this.clock = sinon.useFakeTimers(Date.UTC(2020, 10, 24, 0, 45, 15)); // 24 Nov 2020, 00:45:15
+				this.clock = useFakeTimers(Date.UTC(2020, 10, 24, 0, 45, 15)); // 24 Nov 2020, 00:45:15
 			});
 
 			afterEach(() => {
@@ -323,7 +323,7 @@ describe('Wrapped time / Night Services functions:', () => {
 
 		describe('When provided timestamp is: 49410 (13:43:30)', () => {
 			beforeEach(() => {
-				this.clock = sinon.useFakeTimers(Date.UTC(2020, 10, 24, 13, 43, 30)); // 24 Nov 2020, 13:43:30
+				this.clock = useFakeTimers(Date.UTC(2020, 10, 24, 13, 43, 30)); // 24 Nov 2020, 13:43:30
 			});
 
 			afterEach(() => {
@@ -341,7 +341,7 @@ describe('Wrapped time / Night Services functions:', () => {
 		const { getWrappedDate } = utils;
 		describe('When current date is Friday 27th November 00:30:00', () => {
 			beforeEach(() => {
-				this.clock = sinon.useFakeTimers(Date.UTC(2020, 10, 27, 0, 0, 30)); // 27 Nov 2020, 00:00:30
+				this.clock = useFakeTimers(Date.UTC(2020, 10, 27, 0, 0, 30)); // 27 Nov 2020, 00:00:30
 			});
 
 			afterEach(() => {
@@ -359,7 +359,7 @@ describe('Wrapped time / Night Services functions:', () => {
 		const { getWrappedDay } = utils;
 		describe('When current date is Friday 27th November 00:30:00', () => {
 			beforeEach(() => {
-				this.clock = sinon.useFakeTimers(Date.UTC(2020, 10, 27, 0, 0, 30)); // 27 Nov 2020, 00:00:30
+				this.clock = useFakeTimers(Date.UTC(2020, 10, 27, 0, 0, 30)); // 27 Nov 2020, 00:00:30
 			});
 
 			afterEach(() => {
