@@ -65,4 +65,4 @@ export function buildServiceDay(dayColumn, date, lower, upper, wrap = false) {
 		lowerBoundTimestamp: lower,
 		upperBoundTimestamp: upper
 	};
-}
+};
