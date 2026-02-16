@@ -1,5 +1,3 @@
-'use-strict';
-
 const tripsMock1 = [
 	{
 		trip_id: '5651.2.60-14-b12-1.126.I',

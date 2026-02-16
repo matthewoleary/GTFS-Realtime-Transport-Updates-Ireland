@@ -1,4 +1,3 @@
-'use-strict';
 
 // Here we bundle all routes we add to the API into the index.js
 import getStopsRoute from './routes/getStops.js';

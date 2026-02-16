@@ -1,4 +1,3 @@
-'use-strict';
 
 export const addCustomTimestampColumns = async (task, model) => {
 	try {

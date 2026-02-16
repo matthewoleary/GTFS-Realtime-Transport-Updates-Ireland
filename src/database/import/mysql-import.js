@@ -1,5 +1,3 @@
-'use-strict';
-
 import { extname, join } from 'path';
 import fetch from 'node-fetch';
 import fs from 'fs-extra';

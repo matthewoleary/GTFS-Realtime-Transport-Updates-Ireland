@@ -1,4 +1,3 @@
-'use-strict';
 
 import database from './database.js';
 import realtimeTripUpdates from './realtimeTripUpdates.js';

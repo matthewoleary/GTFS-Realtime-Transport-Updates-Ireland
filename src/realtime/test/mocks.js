@@ -1,4 +1,3 @@
-'use-strict';
 import { readFile } from 'fs';
 import { join } from 'path';
 
