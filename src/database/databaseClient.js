@@ -1,4 +1,3 @@
-'use strict';
 
 import * as mysql2 from 'mysql2/promise';
 import fs from 'fs';

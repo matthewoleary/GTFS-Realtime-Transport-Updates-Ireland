@@ -1,4 +1,3 @@
-'use-strict';
 
 import { getWrappedTimestamp } from '../../../utils/timestampUtils.js';
 
