@@ -58,7 +58,7 @@ export function extractIdsFromParam(param) {
  * @param {number} upper - The upper bound timestamp (seconds since midnight).
  * @returns {Object} Service day object with dayColumn, date, lowerBoundTimestamp, and upperBoundTimestamp.
  */
-export function buildServiceDay(dayColumn, date, lower, upper, wrap = false) {
+export function buildServiceDay(dayColumn, date, lower, upper) {
 	return {
 		dayColumn,
 		date,
