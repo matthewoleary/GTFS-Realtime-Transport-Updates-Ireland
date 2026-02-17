@@ -1,4 +1,5 @@
 import { createRealtimeVehiclePositionsClient } from '../realtime/clients/realtimeVehiclePositionsClient.js';
+
 export default {
     name: "realtimeVehiclePositions",
     version: "1.0.0",

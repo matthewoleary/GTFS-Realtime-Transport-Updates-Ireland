@@ -1,6 +1,7 @@
 import { server } from '@hapi/hapi';
 import { register as pluginsRegister } from './plugins/index.js';
 import { register as routesRegister } from './server/index.js';
+
 const app = async config => {
 	const { host, port } = config;
 
