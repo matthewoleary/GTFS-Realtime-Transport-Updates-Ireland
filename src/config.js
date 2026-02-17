@@ -15,9 +15,7 @@ const {
 	DOCKER_SQL_DATABASE,
 	GTFSR_API_KEY,
 	GTFSR_API_TRIP_UPDATES_URL,
-	GTFSR_API_VEHICLE_POSITIONS_URL,
-	GTFSR_TEST_API_KEY,
-	GTFSR_TEST_API_URL
+	GTFSR_API_VEHICLE_POSITIONS_URL
 } = process.env;
 
 const sqlEncrypt = process.env.SQL_ENCRYPT === 'true';
@@ -56,29 +54,6 @@ const prod = {
 	}
 };
 
-const test = {
-	port: PORT,
-	host: HOST,
-	url: HOST_URL,
-	gtfsr: {
-		apiKey: GTFSR_TEST_API_KEY,
-		apiUrl: GTFSR_TEST_API_URL
-	},
-	sql: {
-		host: DOCKER_SQL_HOST,
-		database: DOCKER_SQL_DATABASE,
-		user: DOCKER_SQL_USER,
-		password: DOCKER_SQL_PASSWORD,
-		options: {
-			encrypt: sqlEncrypt,
-			enableArithAbort: true,
-			validateBulkLoadParameters: true,
-			trustServerCertificate: true
-		}
-	}
-};
-
 export default {
-	prod,
-	test
+	prod
 };
