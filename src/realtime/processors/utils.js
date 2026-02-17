@@ -40,13 +40,17 @@ export function getTripDescriptorScheduleRelationshipName(value) {
 * @returns {Array<Object>} Sorted list by arrival time.
 */
 export function sortByArrival(tripList) {
-    return tripList.sort((a, b) => (a.arrival_timestamp >= b.arrival_timestamp) ? 1 : -1);
+    return tripList.sort((a, b) =>
+        a.arrival_timestamp > b.arrival_timestamp ? 1 :
+        a.arrival_timestamp < b.arrival_timestamp ? -1 : 0
+    );
 }
 
 /**
 * Unwraps departure and arrival timestamps that exceed 86400 seconds (24 hours).
-* @param {Object} element - The stop/trip object.
-* @returns {Object} The updated element with unwrapped times.
+* Mutates the input element in place.
+* @param {Object} element - The stop/trip object. This object will be modified directly.
+* @returns {Object} The same element object with unwrapped times.
 */
 export function unwrapTimes(element) {
     if (element.departure_timestamp >= 86400) {

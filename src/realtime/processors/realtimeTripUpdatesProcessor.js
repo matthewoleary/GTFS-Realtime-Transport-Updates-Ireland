@@ -51,8 +51,8 @@ class RealtimeTripUpdatesProcessor {
 	 * @returns {Promise<Array<Object>>} Filtered and sorted array of updated stop/trip elements.
 	 */
 	async processStopResponse(stopResponse, feedEntityMap, secondsSinceMidnightTimestamp) {
-		let filteredResponse = await stopResponse.reduce(async (filtered, element) => {
-			const syncFiltered = await filtered || [];
+		const filteredResponse = [];
+		for (const element of stopResponse) {
 			const feedEntity = findFeedEntityForTrip(element, feedEntityMap);
 			const scheduleRelationshipValue = feedEntity ? feedEntity.tripUpdate.trip.scheduleRelationship : 0;
 			element.tripScheduleRelationship = getTripDescriptorScheduleRelationshipName(scheduleRelationshipValue);
@@ -60,7 +60,7 @@ class RealtimeTripUpdatesProcessor {
 			// If a scheduleRelationship is present, update element.scheduleRelationship to that value.
 			this.applyStopScheduleRelationshipIfPresent(element, feedEntity);
 			// If the tripScheduleRelationship is not CANCELED (3), apply real-time delay
-			if (feedEntity && element.tripScheduleRelationship !== 3) {
+			if (feedEntity && element.tripScheduleRelationship !== 'CANCELED') {
 				element = this.applyRealtimeDelay(element, feedEntity);
 			} else if (element.vehicle) {
 				element.is_realtime = true;
@@ -69,11 +69,10 @@ class RealtimeTripUpdatesProcessor {
 			}
 			element = this.markArrivalAndDueIn(element, secondsSinceMidnightTimestamp);
 			element = unwrapTimes(element);
-			if (!element.arrived && element.tripScheduleRelationship !== 7) {
-				syncFiltered.push(element);
+			if (!element.arrived) {
+				filteredResponse.push(element);
 			}
-			return syncFiltered;
-		}, Promise.resolve([]));
+		}
 		return sortByArrival(filteredResponse);
 	}
 
@@ -174,7 +173,7 @@ class RealtimeTripUpdatesProcessor {
 			}
 		} else {
 			// Error handling for missing timestamps
-			console.log('Error, no departure or arrival timestamp available...');
+			this.logger.error('No departure or arrival timestamp available for element:', element);
 		}
 		return element;
 	}

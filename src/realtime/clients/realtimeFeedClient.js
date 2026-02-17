@@ -15,7 +15,6 @@ export default class RealtimeFeedClient {
      * @param {Function} buildTripIdMapFn - Function to build tripId map from feed
      * @param {number} [dayServiceInterval] - Polling interval for day service
      * @param {number} [nightServiceInterval] - Polling interval for night service
-     * @param {Function} [logger] - Optional logging function (string => void)
      */
     constructor(logger, apiKey, apiURL, processor, buildTripIdMapFn, dayServiceInterval = 60000, nightServiceInterval = 180000) {
         this.logger = logger;
@@ -30,16 +29,26 @@ export default class RealtimeFeedClient {
         this.started = false;
     }
 
+    /**
+     * Starts polling the GTFS-realtime feed at a regular interval.
+     *
+     * The polling interval is measured from the start of each poll, not the end. This ensures
+     * that network delays or slow requests do not cause drift in the polling schedule. If a request
+     * takes longer than the interval, the next poll will occur immediately after the previous one completes.
+     */
     async start() {
         if (this.started) return;
         this.started = true;
         const poll = async () => {
+            const start = Date.now();
             const interval = getCurrentTimestamp() < 21600
                 ? this.nightServiceInterval
-                : this.dayServiceInterval;   
+                : this.dayServiceInterval;
             this.logger.updateFeed();
             await this.sendGetRequest();
-            setTimeout(poll, interval);
+            const elapsed = Date.now() - start;
+            const nextPollIn = Math.max(0, interval - elapsed);
+            setTimeout(poll, nextPollIn);
         };
         poll();
     }
@@ -61,12 +70,14 @@ export default class RealtimeFeedClient {
             });
             if (response.status === 200) {
                 const buffer = Buffer.from(response.data);
-                this.feed = await this.decodeFeedMessage(buffer);
-                this.feedTripIdMap = this.buildTripIdMapFn(this.feed);
+                const newFeed = await this.decodeFeedMessage(buffer);
+                const newFeedTripIdMap = this.buildTripIdMapFn(newFeed);
+                this.feed = newFeed;
+                this.feedTripIdMap = newFeedTripIdMap;
                 this.logger.success();
             }
         } catch (error) {
-            this.logger.errorFetchingFeed();
+            this.logger.errorFetchingFeed(error);
         }
     }
 

@@ -7,7 +7,7 @@ import Logger from '../logger.js';
 export default class RealtimeLogger extends Logger {
     constructor(options = {}) {
         super({
-            client: options.client || 'REALTIMELLOGGER',
+            client: options.client || 'REALTIMELOGGER',
             successMessage: options.successMessage || 'Successful GTFS-R response.',
             errorMessage: options.errorFetchingFeedMessage || 'Error fetching GTFS-R feed.'
         });

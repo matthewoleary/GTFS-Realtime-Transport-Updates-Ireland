@@ -15,8 +15,7 @@ class RealtimeVehiclePositionsProcessor {
 					payload.realtime_vehicle_positions_feed_timestamp = feedTimestamp;
 					payload.response = await processor.processVehicleResponse(payload.response, feedTripIdMap);
 				} catch (error) {
-					console.log('No realtime vehicle positions information available...');
-					console.error(error);
+					this.logger.error('No realtime vehicle positions information available.', error);
 				}
 			}
 			return payload;
