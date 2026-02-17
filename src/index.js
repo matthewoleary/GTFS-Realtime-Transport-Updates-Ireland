@@ -3,6 +3,7 @@ import app from './app.js';
 import config from './config.js';
 import { runImport } from './database/import/gtfs-import.js';
 import Logger from './logger.js';
+
 const logger = new Logger({ client: 'APP' });
 
 const startServer = async env => {
@@ -15,7 +16,7 @@ const startServer = async env => {
 
 		// Every hour will check for GTFS static schedule updates and import if available.
 		logger.info('Scheduling GTFS static schedule updates every hour');
-		const job = new CronJob('0 * * * *', async () => {
+		new CronJob('0 * * * *', async () => {
 			try {
 				logger.info('Running scheduled GTFS static schedule update check and import if available. Time: ' + new Date().toISOString());
 				await executeRunImport();
@@ -47,8 +48,10 @@ startServer(process.argv[2]).catch(error => {
 
 process.on('unhandledRejection', (err) => {
 	logger.error('Unhandled Rejection: ' + err);
+	process.exit(1);
 });
 
 process.on('uncaughtException', (err) => {
 	logger.error('Uncaught Exception: ' + err);
+	process.exit(1);
 });
