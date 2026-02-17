@@ -1,4 +1,5 @@
 import { createRealtimeTripUpdatesClient } from '../realtime/clients/realtimeTripUpdatesClient.js';
+
 export default {
 	name: "realtimeTripUpdates",
 	version: "2.0.0",
