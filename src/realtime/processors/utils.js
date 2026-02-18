@@ -67,8 +67,8 @@ export function unwrapTimes(element) {
 }
 
 export function getTimestampAsTimeFormatted(timestamp) {
-	const h = String(Math.floor(Math.floor(timestamp / 3600))).padStart(2, '0');
-	const m = String(Math.floor(Math.floor(timestamp / 60) % 60) % 60).padStart(2, '0');
-	const s = String(timestamp % 60).padStart(2, '0');
-	return `${h}:${m}:${s}`;
+    const h = String(Math.floor(timestamp / 3600)).padStart(2, '0');
+    const m = String(Math.floor(timestamp / 60) % 60).padStart(2, '0');
+    const s = String(timestamp % 60).padStart(2, '0');
+    return `${h}:${m}:${s}`;
 }

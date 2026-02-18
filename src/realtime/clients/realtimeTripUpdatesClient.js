@@ -58,6 +58,6 @@ export async function createRealtimeTripUpdatesClient(server, config, dayService
 	await client.start();
 	return {
 		start: client.start.bind(client),
-		queryProcessor: await client.registerQueryProcessor()
+		queryProcessor: await client.registerQueryProcessor(logger)
 	};
 }

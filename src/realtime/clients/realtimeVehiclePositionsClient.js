@@ -49,6 +49,6 @@ export async function createRealtimeVehiclePositionsClient(server, config, daySe
 	await client.start();
 	return {
 		start: client.start.bind(client),
-		queryProcessor: await client.registerQueryProcessor()
+		queryProcessor: await client.registerQueryProcessor(logger)
 	};
 }
