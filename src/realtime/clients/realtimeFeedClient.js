@@ -85,11 +85,11 @@ export default class RealtimeFeedClient {
         return gtfsRealtimeBindings.transit_realtime.FeedMessage.decode(new Uint8Array(buffer));
     }
 
-    async getFeedTimestamp() {
+    getFeedTimestamp() {
         return this.feed?.header?.timestamp?.low;
     }
 
-    async getFeedTripIdMap() {
+    getFeedTripIdMap() {
         return this.feedTripIdMap;
     }
 
