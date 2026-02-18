@@ -24,8 +24,7 @@ class RealtimeTripUpdatesProcessor {
 					query.response = await processor.processStopResponse(query.response, feedTripIdMap, secondsSinceMidnightTimestamp);
 				} catch (error) {
 					// Log error if realtime information is unavailable
-					console.log('No realtime trip updates information available...');
-					console.error(error);
+					this.logger.error('No realtime trip updates information available. Error:', error);
 				}
 			}
 			return query;
