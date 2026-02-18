@@ -54,8 +54,7 @@ export default class RealtimeFeedClient {
     }
 
     /**
-     * Fetches the GTFS-realtime feed from the configured or provided URL.
-     * @param {string} [url] - Optional override for the feed URL. Defaults to this.apiURL.
+     * Fetches the GTFS-realtime feed from the configured URL.
      */
     async sendGetRequest() {
         try {
@@ -100,9 +99,10 @@ export default class RealtimeFeedClient {
      * and passes them to the processor's register method. The returned query processor
      * can be used to process queries with the latest real-time feed data.
      *
+     * @param {Object} [logger] - Optional logger instance to pass to the processor.
      * @returns {Promise<Object>} An object containing query processing functions for real-time data.
      */
-    async registerQueryProcessor() {
-        return await this.processor.register(this.getFeedTimestamp.bind(this), this.getFeedTripIdMap.bind(this));
+    async registerQueryProcessor(logger) {
+        return await this.processor.register(this.getFeedTimestamp.bind(this), this.getFeedTripIdMap.bind(this), logger);
     }
 }
