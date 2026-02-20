@@ -1,4 +1,21 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+
+vi.mock('../realtimeFeedClient.js', () => {
+  const MockFeedClient = vi.fn().mockImplementation(function () {
+    this.start = vi.fn();
+    this.registerQueryProcessor = vi.fn().mockResolvedValue({ process: vi.fn() });
+  });
+  return { default: MockFeedClient };
+});
+vi.mock('../realtimeLogger.js', () => {
+  const mockLogger = {};
+  return { default: vi.fn(() => mockLogger) };
+});
+vi.mock('../processors/realtimeVehiclePositionsProcessor.js', () => {
+  const mockProcessor = { register: vi.fn().mockResolvedValue({ process: vi.fn() }) };
+  return { default: mockProcessor };
+});
+
 import * as vehiclePositionsClient from '../realtimeVehiclePositionsClient.js';
 
 // Test buildFeedVehiclePositionsTripIdMap
@@ -45,30 +62,7 @@ describe('buildFeedVehiclePositionsTripIdMap', () => {
 
 // Test createRealtimeVehiclePositionsClient (integration)
 describe('createRealtimeVehiclePositionsClient', () => {
-  beforeEach(() => {
-    vi.resetModules();
-  });
-
   it('creates and starts client, returns queryProcessor', async () => {
-    // Mock dependencies
-    vi.mock('../realtimeFeedClient.js', () => {
-      class MockFeedClient {
-        constructor() {
-          this.start = vi.fn();
-          this.registerQueryProcessor = vi.fn().mockResolvedValue({ process: vi.fn() });
-        }
-      }
-      return { default: MockFeedClient };
-    });
-    vi.mock('../realtimeLogger.js', () => {
-      const mockLogger = {};
-      return { default: vi.fn(() => mockLogger) };
-    });
-    vi.mock('../processors/realtimeVehiclePositionsProcessor.js', () => {
-      const mockProcessor = { register: vi.fn().mockResolvedValue({ process: vi.fn() }) };
-      return { default: mockProcessor };
-    });
-
     const config = { apiKey: 'key', apiVehiclePositionsUrl: 'url' };
     const { createRealtimeVehiclePositionsClient } = await import('../realtimeVehiclePositionsClient.js');
     const result = await createRealtimeVehiclePositionsClient({}, config, 10, 20);
@@ -76,5 +70,9 @@ describe('createRealtimeVehiclePositionsClient', () => {
     expect(result).toHaveProperty('queryProcessor');
     expect(typeof result.start).toBe('function');
     expect(result.queryProcessor).toHaveProperty('process');
+    // Assert that client.start() was called during initialization
+    const { default: ImportedMockFeedClient } = await import('../realtimeFeedClient.js');
+    const mockInstance = ImportedMockFeedClient.mock.instances[0];
+    expect(mockInstance.start).toHaveBeenCalled();
   });
 });
