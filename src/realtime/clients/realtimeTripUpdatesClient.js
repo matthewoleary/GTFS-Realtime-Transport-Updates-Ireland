@@ -3,7 +3,7 @@ import RealtimeLogger from '../realtimeLogger.js';
 import processor from '../processors/realtimeTripUpdatesProcessor.js';
 
 // Mapping function for TripUpdates feed
-function buildFeedTripIdMap(feed) {
+export function buildFeedTripIdMap(feed) {
 	const tripIdMap = new Map();
 	for (const entity of feed.entity) {
 		if (
@@ -18,7 +18,7 @@ function buildFeedTripIdMap(feed) {
 }
 
 // Filter feed to only include specific agencies. If no agencies provided, return full feed.
-function filterFeed(feed, agencies = []) {
+export function filterFeed(feed, agencies = []) {
 	if (!feed?.entity) return feed;
 	feed.entity = feed.entity.filter(entity => 
 		agencies.length === 0 || agencies.some(agency => entity.id.includes(agency))
