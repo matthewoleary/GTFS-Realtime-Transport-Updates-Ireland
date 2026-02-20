@@ -1,4 +1,23 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+
+vi.mock('../realtimeFeedClient.js', () => {
+  class MockFeedClient {
+    constructor() {
+      this.start = vi.fn();
+      this.registerQueryProcessor = vi.fn().mockResolvedValue({ process: vi.fn() });
+    }
+  }
+  return { default: MockFeedClient };
+});
+vi.mock('../realtimeLogger.js', () => {
+  const mockLogger = {};
+  return { default: vi.fn(() => mockLogger) };
+});
+vi.mock('../processors/realtimeTripUpdatesProcessor.js', () => {
+  const mockProcessor = { register: vi.fn().mockResolvedValue({ process: vi.fn() }) };
+  return { default: mockProcessor };
+});
+
 import * as tripUpdatesClient from '../realtimeTripUpdatesClient.js';
 
 // Test buildFeedTripIdMap
@@ -67,30 +86,8 @@ describe('filterFeed', () => {
   });
 });
 
-// Test createRealtimeTripUpdatesClient (integration)
 describe('createRealtimeTripUpdatesClient', () => {
-  beforeEach(() => {
-    vi.resetModules();
-  });
-
   it('creates and starts client, returns queryProcessor', async () => {
-    // Mock dependencies
-    vi.mock('../realtimeFeedClient.js', () => {
-      const mockFeedClient = vi.fn().mockImplementation(() => ({
-        start: vi.fn(),
-        registerQueryProcessor: vi.fn().mockResolvedValue({ process: vi.fn() })
-      }));
-      return { default: mockFeedClient };
-    });
-    vi.mock('../realtimeLogger.js', () => {
-      const mockLogger = {};
-      return { default: vi.fn(() => mockLogger) };
-    });
-    vi.mock('../processors/realtimeTripUpdatesProcessor.js', () => {
-      const mockProcessor = { register: vi.fn().mockResolvedValue({ process: vi.fn() }) };
-      return { default: mockProcessor };
-    });
-
     const config = { apiKey: 'key', apiTripUpdatesUrl: 'url' };
     const { createRealtimeTripUpdatesClient } = await import('../realtimeTripUpdatesClient.js');
     const result = await createRealtimeTripUpdatesClient({}, config, 10, 20);

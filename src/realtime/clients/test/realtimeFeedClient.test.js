@@ -95,4 +95,10 @@ describe('RealtimeFeedClient', () => {
     expect(client.getFeedTimestamp()).toBe(54321);
     expect(client.getFeedTripIdMap()).toEqual({ trip1: {} });
   });
+
+  it('should return undefined when feed is null', () => {
+    const client = createClient();
+    client.feed = null;
+    expect(client.getFeedTimestamp()).toBeUndefined();
+  });
 });
