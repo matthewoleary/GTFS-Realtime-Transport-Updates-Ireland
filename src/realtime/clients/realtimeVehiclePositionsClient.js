@@ -3,7 +3,7 @@ import RealtimeLogger from '../realtimeLogger.js';
 import processor from '../processors/realtimeVehiclePositionsProcessor.js';
 
 // Mapping function for VehiclePositions feed
-function buildFeedVehiclePositionsTripIdMap(feed) {
+export function buildFeedVehiclePositionsTripIdMap(feed) {
 	const tripIdMap = new Map();
 	for (const entity of feed.entity) {
 		if (
