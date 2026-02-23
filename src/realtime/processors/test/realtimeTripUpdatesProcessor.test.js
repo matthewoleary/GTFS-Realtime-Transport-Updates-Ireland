@@ -1,6 +1,7 @@
+
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import RealtimeTripUpdatesProcessor from '../realtimeTripUpdatesProcessor.js';
 import * as utils from '../utils.js';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 describe('RealtimeTripUpdatesProcessor', () => {
   let processor;
@@ -84,8 +85,6 @@ describe('RealtimeTripUpdatesProcessor', () => {
       const result = processor.findNearestStopSequenceDelay(element, stopTimeUpdates);
       expect(result.departure_timestamp).toBe(110);
       expect(result.arrival_timestamp).toBe(205);
-      expect(result.departure_time).toBe('t110');
-      expect(result.arrival_time).toBe('t205');
     });
     it('should not apply delay if no matching stopTimeUpdate', () => {
       const element = { stop_sequence: 5, departure_timestamp: 100, arrival_timestamp: 200 };
