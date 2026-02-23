@@ -1,13 +1,5 @@
 import ServerLogger from '../serverLogger.js';
-import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
-
-vi.mock('../logger.js', () => ({
-  default: class MockLogger {
-    constructor(options) {
-      this.options = options;
-    }
-  }
-}));
+import { vi, describe, it, expect } from 'vitest';
 
 describe('ServerLogger', () => {
   it('should set default server messages and client', () => {
