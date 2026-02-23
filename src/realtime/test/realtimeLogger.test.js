@@ -15,6 +15,22 @@ describe('RealtimeLogger', () => {
     });
   });
 
+  it('should set default values when no options are provided', () => {
+    const defaultLogger = new RealtimeLogger();
+    expect(defaultLogger.client).toBe('REALTIMELOGGER');
+    expect(defaultLogger.successMessage).toBe('Successful GTFS-R response.');
+    expect(defaultLogger.errorMessage).toBe('Error fetching GTFS-R feed.');
+    expect(defaultLogger.updateFeedMessage).toBe('Updating realtime feed.');
+  });
+
+  it('should set default values for missing options', () => {
+    const partialLogger = new RealtimeLogger({ client: 'X' });
+    expect(partialLogger.client).toBe('X');
+    expect(partialLogger.successMessage).toBe('Successful GTFS-R response.');
+    expect(partialLogger.errorMessage).toBe('Error fetching GTFS-R feed.');
+    expect(partialLogger.updateFeedMessage).toBe('Updating realtime feed.');
+  });
+  
   it('should set default and custom messages', () => {
     expect(logger.client).toBe('RT');
     expect(logger.successMessage).toBe('success');
