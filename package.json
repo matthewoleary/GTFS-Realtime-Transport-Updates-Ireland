@@ -4,6 +4,9 @@
   "description": "App which retrieves gtfs realtime data from Transport for Ireland GTFS-R API",
   "main": "src/index.js",
   "type": "module",
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "dependencies": {
     "@hapi/hapi": "^21.4.4",
     "axios": "^1.13.5",
@@ -31,7 +34,7 @@
     "vitest": "^4.0.18"
   },
   "scripts": {
-    "start": "node .",
+    "start": "node . prod",
     "prod": "node . prod",
     "test": "vitest",
     "import": "node ./import/gtfs-import",
