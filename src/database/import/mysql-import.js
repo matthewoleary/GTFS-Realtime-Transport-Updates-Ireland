@@ -7,7 +7,7 @@ import { dir } from 'tmp-promise';
 import untildify from 'untildify';
 import Promise from 'bluebird';
 
-import models from '../models/models.js';
+import modelsDefault from '../models/models.js';
 import { unzip } from './utils/file-utils.js';
 import { calculateHourTimestamp, pluralize } from './utils/utils.js';
 import { addFeedInfoLastUpdatedColumn, updateFeedInfoLastUpdatedValues, addCustomTimestampColumns } from '../queries/custom-queries.js';
@@ -17,9 +17,10 @@ import { databaseClient } from '../databaseClient.js';
  * MysqlImporter class for importing GTFS data into MySQL.
  */
 class MysqlImporter {
-    constructor(config, logger) {
+    constructor(config, logger, models = modelsDefault) {
         this.config = config;
         this.logger = logger;
+        this.models = models;
         this.cnx = null;
         // List of models used including those with additional modifications made, e.g. custom timestamp columns
         this.customModels = [];
@@ -116,7 +117,7 @@ class MysqlImporter {
      * @returns {Promise<void>}
      */
     async createEmptyTable(model) {
-        if (!model.schema) return;
+        if (!model.schema || model.schema.length === 0) return;
         // Collect primary key columns first
         const primaryKeys = model.schema.filter(column => column.primary).map(column => column.name);
         const columns = model.schema.map(column => {
@@ -146,7 +147,7 @@ class MysqlImporter {
         await this.cnx.query('SET FOREIGN_KEY_CHECKS = 0;');
 
         // Dropping tables sequentially to prevent potential deadlock of concurrent drops using mapAll.
-        await Promise.mapSeries(models, async model => {
+        await Promise.mapSeries(this.models, async model => {
             if (!model.schema) return;
             await this.cnx.query(`DROP TABLE IF EXISTS ${model.filenameBase};`);
         });
@@ -401,7 +402,7 @@ class MysqlImporter {
      */
     async importFiles(task) {
         // Loop through each GTFS file
-        return Promise.mapSeries(models, async model => {
+        return Promise.mapSeries(this.models, async model => {
             // Filter out excluded files from config
             if (task.exclude && task.exclude.includes(model.filenameBase)) {
                 task.log(`Skipping - ${model.filenameBase}.txt\r`);
