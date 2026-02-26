@@ -35,14 +35,30 @@ describe('file-utils', () => {
 
   describe('unzip', () => {
     it('pipes and resolves promise', async () => {
-      const createReadStream = vi.spyOn(fs, 'createReadStream').mockReturnValue({
-        pipe: vi.fn().mockReturnThis(),
+      // Mock the Extract constructor
+      const unzipper = await import('unzipper');
+      const Extract = unzipper.Extract;
+      Extract.mockClear();
+
+      // Create the piped stream mock (the result of .pipe)
+      const pipedStream = {
         on: vi.fn().mockReturnThis(),
         promise: vi.fn().mockResolvedValue('done'),
+      };
+      // fs.createReadStream returns a stream with .pipe
+      const createReadStream = vi.spyOn(fs, 'createReadStream').mockReturnValue({
+        pipe: vi.fn().mockReturnValue(pipedStream),
       });
+
       const result = await fileUtils.unzip('file.zip', 'out/dir');
       expect(createReadStream).toHaveBeenCalledWith('file.zip');
+      expect(Extract).toHaveBeenCalledWith({ path: 'out/dir' });
       expect(result).toBe('done');
+      // Assert .on was called with 'entry' and a function
+      const onCalls = pipedStream.on.mock.calls;
+      const entryCall = onCalls.find(call => call[0] === 'entry');
+      expect(entryCall).toBeDefined();
+      expect(typeof entryCall[1]).toBe('function');
       createReadStream.mockRestore();
     });
   });

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import MysqlImporter from '../mysql-import.js';
 
-vi.mock('./utils/file-utils.js', () => ({
+vi.mock('../utils/file-utils.js', () => ({
     unzip: vi.fn().mockResolvedValue(),
 }));
 
@@ -23,6 +23,14 @@ vi.mock('fs-extra', () => ({
         lstatSync: vi.fn(() => ({ isDirectory: () => false })),
         rename: vi.fn(),
     },
+}));
+
+vi.mock('path', () => ({
+    extname: vi.fn(() => '.txt'),
+}));
+
+vi.mock('untildify', () => ({
+    default: vi.fn(v => v),
 }));
 
 const fetch = (await import('node-fetch')).default;
@@ -47,6 +55,11 @@ describe('MysqlImporter', () => {
             expect(imp.cnx).toBeNull();
             expect(Array.isArray(imp.customModels)).toBe(true);
             expect(imp.customModels.length).toBe(0);
+            // Check that models is an array of objects with filenameBase and schema
+            expect(Array.isArray(imp.models)).toBe(true);
+            expect(imp.models.length).toBeGreaterThan(0);
+            expect(imp.models[0]).toHaveProperty('filenameBase');
+            expect(imp.models[0]).toHaveProperty('schema');
         });
     });
 
@@ -105,6 +118,9 @@ describe('MysqlImporter', () => {
             expect(formatted.arrival_time).toBe('10:00:00');
             expect(formatted.departure_time).toBe('11:00:00');
             expect(formatted.extra).toBeUndefined();
+            // Check timestamp fields
+            expect(formatted.arrival_timestamp).toBe(36000); // 10:00:00 => 36000
+            expect(formatted.departure_timestamp).toBe(39600); // 11:00:00 => 39600
             // Required missing (id is required, present but empty)
             expect(() => imp.formatLine({ id: '', val: '1.1' }, model, 0)).toThrow(/Missing required value/);
             // Min/max
@@ -179,19 +195,9 @@ describe('MysqlImporter', () => {
                 downloadDir: '/dest',
                 log: vi.fn(),
             };
-            // Mock extname to return non-.zip
-            const origExtname = importer.constructor.prototype.__proto__.extname || null;
-            importer.constructor.prototype.__proto__.extname = () => '.txt';
-            // Mock untildify to identity
-            const origUntildify = importer.constructor.prototype.__proto__.untildify || null;
-            importer.constructor.prototype.__proto__.untildify = v => v;
-            // Mock fs.copy
             fs.copy = vi.fn().mockResolvedValue();
             await importer.readFiles(task);
             expect(fs.copy).toHaveBeenCalledWith('/some/file.txt', '/dest');
-            // Restore
-            if (origExtname) importer.constructor.prototype.__proto__.extname = origExtname;
-            if (origUntildify) importer.constructor.prototype.__proto__.untildify = origUntildify;
         });
 
         it('should unzip and move .txt files from zip', async () => {
@@ -202,21 +208,18 @@ describe('MysqlImporter', () => {
                 log: vi.fn(),
                 error: vi.fn(),
             };
-            // Mock extname to return .zip
-            const origExtname = importer.constructor.prototype.__proto__.extname || null;
-            importer.constructor.prototype.__proto__.extname = () => '.zip';
-            // Mock untildify to identity
-            const origUntildify = importer.constructor.prototype.__proto__.untildify || null;
-            importer.constructor.prototype.__proto__.untildify = v => v;
+            // Temporarily mock path.extname to return '.zip' for this test
+            const path = await import('path');
+            const origExtname = path.extname;
+            path.extname = vi.fn(() => '.zip');
             // Mock unzip
             importer.unzip = vi.fn().mockResolvedValue();
             // Mock getTextFiles to return .txt files
             importer.getTextFiles = vi.fn().mockResolvedValue(['stops.txt']);
             await importer.readFiles(task);
             expect(importer.getTextFiles).toHaveBeenCalledWith('/dest');
-            // Restore
-            if (origExtname) importer.constructor.prototype.__proto__.extname = origExtname;
-            if (origUntildify) importer.constructor.prototype.__proto__.untildify = origUntildify;
+            // Restore path.extname
+            path.extname = origExtname;
         });
     });
 
@@ -486,23 +489,18 @@ describe('MysqlImporter', () => {
     });
 
     describe('executeCustomSqlQueries', () => {
-        it('should call all custom query functions', async () => {
-            const importer = new MysqlImporter({ agencies: [] }, { info: vi.fn(), warn: vi.fn(), error: vi.fn() });
-            const task = { log: vi.fn() };
+        it('should call the correct custom SQL query functions', async () => {
+            const { default: MysqlImporter } = await import('../mysql-import.js');
             const addFeedInfoLastUpdatedColumn = vi.fn().mockResolvedValue();
             const updateFeedInfoLastUpdatedValues = vi.fn().mockResolvedValue();
-            const addCustomTimestampColumns = vi.fn().mockResolvedValue();
-            // Patch the imported functions
-            importer.executeCustomSqlQueries = (async (task) => {
-                await addFeedInfoLastUpdatedColumn(task);
-                await updateFeedInfoLastUpdatedValues(task);
-                await addCustomTimestampColumns(task);
-                task.log('Successfully executed custom SQL queries.');
+            const importer = new MysqlImporter({ agencies: [] }, { info: vi.fn(), warn: vi.fn(), error: vi.fn() });
+            const task = { log: vi.fn(), warn: vi.fn(), cnx: { query: vi.fn().mockResolvedValue() } };
+            await importer.executeCustomSqlQueries(task, {
+                addFeedInfoLastUpdatedColumn,
+                updateFeedInfoLastUpdatedValues,
             });
-            await importer.executeCustomSqlQueries(task);
             expect(addFeedInfoLastUpdatedColumn).toHaveBeenCalledWith(task);
             expect(updateFeedInfoLastUpdatedValues).toHaveBeenCalledWith(task);
-            expect(addCustomTimestampColumns).toHaveBeenCalledWith(task);
             expect(task.log).toHaveBeenCalledWith('Successfully executed custom SQL queries.');
         });
     });
