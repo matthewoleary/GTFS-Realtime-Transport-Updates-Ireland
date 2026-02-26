@@ -1,13 +1,15 @@
+
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+vi.mock('fs-extra', () => ({
+  default: {
+    writeFile: vi.fn(),
+    existsSync: vi.fn(),
+  },
+}));
 
 describe('MysqlImporter (isolated importFiles skip test)', () => {
   it('should skip excluded files and handle missing files', async () => {
-    vi.mock('fs-extra', () => ({
-      default: {
-        writeFile: vi.fn(),
-        existsSync: vi.fn(),
-      },
-    }));
     const fs = (await import('fs-extra')).default;
     const { default: MysqlImporter } = await import('../mysql-import.js');
     const models = [
