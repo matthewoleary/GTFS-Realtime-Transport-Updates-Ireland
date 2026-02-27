@@ -8,9 +8,10 @@ import getMaximumDepartureTimestampQuery from './mysql/stopTimes/getMaximumDepar
 
 /* eslint-disable new-cap, no-await-in-loop */
 
-const register = async ({ getConnection }) => {
+const register = async ({ getConnection, loadSqlQueries: injectedLoadSqlQueries } = {}) => {
 	const sqlQueriesPath = `queries/mysql`;
-	const sqlQueries = await loadSqlQueries(sqlQueriesPath);
+	const loadSql = injectedLoadSqlQueries || loadSqlQueries;
+	const sqlQueries = await loadSql(sqlQueriesPath);
 
 	const getStopById = async stopId => {
 		const cnx = await getConnection();
