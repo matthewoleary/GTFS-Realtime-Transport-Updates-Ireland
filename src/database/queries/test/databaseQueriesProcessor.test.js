@@ -1,3 +1,8 @@
+// Patch dynamic query functions (must be hoisted for Vitest)
+vi.mock('../mysql/trips/getTripsAtStopId/getTripsAtStopIdQuery.js', () => ({ default: vi.fn(() => 'DYNAMIC_QUERY') }));
+vi.mock('../mysql/trips/getTripsAtStopId/getTripsAtStopIdNightServicesQuery.js', () => ({ default: vi.fn(() => 'DYNAMIC_NIGHT_QUERY') }));
+vi.mock('../mysql/stopTimes/getMaximumDepartureTimestampQuery.js', () => ({ default: vi.fn(() => 'MAX_DEPARTURE_QUERY') }));
+
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import register from '../databaseQueriesProcessor.js';
 
@@ -31,10 +36,6 @@ describe('databaseQueriesProcessor', () => {
       getAllAgencies: 'SELECT * FROM agencies',
     };
     getConnection = vi.fn().mockResolvedValue(createMockConnection());
-    // Patch dynamic query functions
-    vi.mock('../mysql/trips/getTripsAtStopId/getTripsAtStopIdQuery.js', () => ({ default: vi.fn(() => 'DYNAMIC_QUERY') }));
-    vi.mock('../mysql/trips/getTripsAtStopId/getTripsAtStopIdNightServicesQuery.js', () => ({ default: vi.fn(() => 'DYNAMIC_NIGHT_QUERY') }));
-    vi.mock('../mysql/stopTimes/getMaximumDepartureTimestampQuery.js', () => ({ default: vi.fn(() => 'MAX_DEPARTURE_QUERY') }));
     // Import after mocks, inject loadSqlQueries
     processor = await register({ getConnection, loadSqlQueries: vi.fn().mockResolvedValue(sqlQueries) });
   });
@@ -100,7 +101,12 @@ describe('databaseQueriesProcessor', () => {
 
   it('should call getTripsAtStopId with dynamic query', async () => {
     const stopId = 444;
-    const serviceDay = '2026-02-27';
+    const serviceDay = {
+      dayColumn: 'monday',
+      date: '20260227',
+      lowerBoundTimestamp: 36000,
+      upperBoundTimestamp: 39600
+    };
     await processor.getTripsAtStopId({ stopId, serviceDay });
     const cnx = await getConnection.mock.results[0].value;
     expect(cnx.query).toHaveBeenCalledWith('DYNAMIC_QUERY', [stopId]);
@@ -108,8 +114,18 @@ describe('databaseQueriesProcessor', () => {
 
   it('should call getTripsAtStopIdWithNightServices with dynamic query', async () => {
     const stopId = 555;
-    const wrappedServiceDay = '2026-02-27';
-    const unwrappedServiceDay = '2026-02-26';
+    const wrappedServiceDay = {
+      dayColumn: 'tuesday',
+      date: '20260227',
+      lowerBoundTimestamp: 36000,
+      upperBoundTimestamp: 39600
+    };
+    const unwrappedServiceDay = {
+      dayColumn: 'monday',
+      date: '20260226',
+      lowerBoundTimestamp: 36000,
+      upperBoundTimestamp: 39600
+    };
     await processor.getTripsAtStopIdWithNightServices({ stopId, wrappedServiceDay, unwrappedServiceDay });
     const cnx = await getConnection.mock.results[0].value;
     expect(cnx.query).toHaveBeenCalledWith('DYNAMIC_NIGHT_QUERY', [stopId, stopId]);
@@ -117,7 +133,7 @@ describe('databaseQueriesProcessor', () => {
 
   it('should call getMaximumDepartureTimestamp with dynamic query', async () => {
     const dayColumn = 'monday';
-    const dateValue = '2026-02-27';
+    const dateValue = '20260227';
     await processor.getMaximumDepartureTimestamp(dayColumn, dateValue);
     const cnx = await getConnection.mock.results[0].value;
     expect(cnx.query).toHaveBeenCalledWith('MAX_DEPARTURE_QUERY');
