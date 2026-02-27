@@ -29,10 +29,14 @@ describe('models export', () => {
     ]);
   });
 
-  it('each model should be an object', () => {
+  it('each model should be an object with required properties', () => {
     for (const model of models) {
       expect(typeof model).toBe('object');
       expect(model).not.toBeNull();
+      expect(model).toHaveProperty('filenameBase');
+      expect(typeof model.filenameBase).toBe('string');
+      expect(model).toHaveProperty('schema');
+      expect(Array.isArray(model.schema)).toBe(true);
     }
   });
 });
