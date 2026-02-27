@@ -12,12 +12,12 @@ class ServiceDayQueryOptions {
    */
   constructor({ dayColumn, date, upperBoundTimestamp, lowerBoundTimestamp }) {
     if (
-      dayColumn === undefined ||
-      date === undefined ||
-      upperBoundTimestamp === undefined ||
-      lowerBoundTimestamp === undefined
+      dayColumn == null ||
+      date == null ||
+      upperBoundTimestamp == null ||
+      lowerBoundTimestamp == null
     ) {
-      throw new Error('All properties are required and cannot be undefined');
+      throw new Error('All properties are required and cannot be undefined or null');
     }
     /**
      * The name of the day column (e.g., 'monday').
