@@ -1,15 +1,24 @@
 /**
-  * Represents options for a GTFS service day query (e.g., for night services).
-*/
+ * Represents options for a GTFS service day query (e.g., for night services).
+ * All properties are required and must not be undefined.
+ */
 class ServiceDayQueryOptions {
   /**
    * @param {Object} options
-   * @param {string} options.dayColumn - The name of the day column (e.g., 'monday').
-   * @param {string} options.date - The service date in YYYYMMDD format.
-   * @param {number} options.upperBoundTimestamp - The upper bound timestamp (in seconds).
-   * @param {number} options.lowerBoundTimestamp - The lower bound timestamp (in seconds).
+   * @param {string} options.dayColumn - The name of the day column (e.g., 'monday'). Required.
+   * @param {string} options.date - The service date in YYYYMMDD format. Required.
+   * @param {number} options.upperBoundTimestamp - The upper bound timestamp (in seconds). Required.
+   * @param {number} options.lowerBoundTimestamp - The lower bound timestamp (in seconds). Required.
    */
   constructor({ dayColumn, date, upperBoundTimestamp, lowerBoundTimestamp }) {
+    if (
+      dayColumn === undefined ||
+      date === undefined ||
+      upperBoundTimestamp === undefined ||
+      lowerBoundTimestamp === undefined
+    ) {
+      throw new Error('All properties are required and cannot be undefined');
+    }
     /**
      * The name of the day column (e.g., 'monday').
      * @type {string}
