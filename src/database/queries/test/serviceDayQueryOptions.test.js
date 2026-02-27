@@ -3,12 +3,29 @@ import ServiceDayQueryOptions from '../serviceDayQueryOptions.js';
 
 describe('ServiceDayQueryOptions', () => {
 
-    it('should throw if any required property is undefined', () => {
-        expect(() => new ServiceDayQueryOptions({})).toThrow('All properties are required and cannot be undefined');
-        expect(() => new ServiceDayQueryOptions({ dayColumn: 'monday', date: '20260227', upperBoundTimestamp: 39600 })).toThrow('All properties are required and cannot be undefined');
-        expect(() => new ServiceDayQueryOptions({ dayColumn: 'monday', date: '20260227', lowerBoundTimestamp: 36000 })).toThrow('All properties are required and cannot be undefined');
-        expect(() => new ServiceDayQueryOptions({ dayColumn: 'monday', upperBoundTimestamp: 39600, lowerBoundTimestamp: 36000 })).toThrow('All properties are required and cannot be undefined');
-        expect(() => new ServiceDayQueryOptions({ date: '20260227', upperBoundTimestamp: 39600, lowerBoundTimestamp: 36000 })).toThrow('All properties are required and cannot be undefined');
+    describe('ServiceDayQueryOptions constructor argument errors', () => {
+        it('throws TypeError when called with no arguments', () => {
+            // @ts-expect-error: intentionally calling with no args
+            expect(() => new ServiceDayQueryOptions()).toThrow(TypeError);
+        });
+
+        it('throws TypeError when called with null', () => {
+            // @ts-expect-error: intentionally calling with null
+            expect(() => new ServiceDayQueryOptions(null)).toThrow(TypeError);
+        });
+
+        it('throws TypeError when called with undefined', () => {
+            // @ts-expect-error: intentionally calling with undefined
+            expect(() => new ServiceDayQueryOptions(undefined)).toThrow(TypeError);
+        });
+
+        it('should throw if any required property is undefined', () => {
+            expect(() => new ServiceDayQueryOptions({})).toThrow('All properties are required and cannot be undefined');
+            expect(() => new ServiceDayQueryOptions({ dayColumn: 'monday', date: '20260227', upperBoundTimestamp: 39600 })).toThrow('All properties are required and cannot be undefined');
+            expect(() => new ServiceDayQueryOptions({ dayColumn: 'monday', date: '20260227', lowerBoundTimestamp: 36000 })).toThrow('All properties are required and cannot be undefined');
+            expect(() => new ServiceDayQueryOptions({ dayColumn: 'monday', upperBoundTimestamp: 39600, lowerBoundTimestamp: 36000 })).toThrow('All properties are required and cannot be undefined');
+            expect(() => new ServiceDayQueryOptions({ date: '20260227', upperBoundTimestamp: 39600, lowerBoundTimestamp: 36000 })).toThrow('All properties are required and cannot be undefined');
+        });
     });
 
     it('should set all properties from constructor options', () => {
