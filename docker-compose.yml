@@ -1,12 +1,11 @@
 services:
     mysqldb:
         container_name: mysql-tfi-db
-        image: mysql
+        image: mysql:9.0
         restart: always
         environment:
             MYSQL_USER: ${DOCKER_SQL_USER}
             MYSQL_PASSWORD: ${DOCKER_SQL_PASSWORD}
-            MYSQL_ROOT_PASSWORD: ${DOCKER_SQL_PASSWORD}
             MYSQL_ROOT_PASSWORD: ${DOCKER_SQL_ROOT_PASSWORD}
             MYSQL_DATABASE: ${DOCKER_SQL_DATABASE}
         ports:
