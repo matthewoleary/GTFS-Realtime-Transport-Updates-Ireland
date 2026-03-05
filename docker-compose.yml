@@ -1,10 +1,17 @@
-version: '3.7'
 services:
-    docker-gtfs-db:
-        container_name: docker-gtfs-db
-        image: mcr.microsoft.com/mssql/server:2019-latest
+    mysqldb:
+        container_name: mysql-tfi-db
+        image: mysql
+        restart: always
+        environment:
+            MYSQL_USER: ${DOCKER_SQL_USER}
+            MYSQL_PASSWORD: ${DOCKER_SQL_PASSWORD}
+            MYSQL_ROOT_PASSWORD: ${DOCKER_SQL_PASSWORD}
+            MYSQL_DATABASE: ${DOCKER_SQL_DATABASE}
         ports:
-            - '1433:1433'
-        environment: 
-            SA_PASSWORD: 'YOUR_PASSWORD_HERE'
-            ACCEPT_EULA: 'Y'
+            - '3306:3306'
+        volumes:
+            - mysql-tfi-data:/var/lib/mysql
+
+volumes:
+    mysql-tfi-data:
