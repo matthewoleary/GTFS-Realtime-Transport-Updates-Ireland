@@ -7,6 +7,7 @@ services:
             MYSQL_USER: ${DOCKER_SQL_USER}
             MYSQL_PASSWORD: ${DOCKER_SQL_PASSWORD}
             MYSQL_ROOT_PASSWORD: ${DOCKER_SQL_PASSWORD}
+            MYSQL_ROOT_PASSWORD: ${DOCKER_SQL_ROOT_PASSWORD}
             MYSQL_DATABASE: ${DOCKER_SQL_DATABASE}
         ports:
             - '3306:3306'
