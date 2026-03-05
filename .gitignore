@@ -3,9 +3,7 @@ docker-test-db
 .nyc_output
 GTFSR_Outputs
 unused_files
-.env
 .env-copy
 Dockerfile
 sample-config.js
-docker-compose.yml
 .vscode/launch.json
