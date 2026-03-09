@@ -132,13 +132,67 @@ describe('RealtimeFeedClient', () => {
             10
         );
         await client.sendGetRequest();
-        // Should call errorFetchingFeed with fallback message
-        expect(mockLogger.errorFetchingFeed).toHaveBeenCalledWith(expect.any(Error), expect.stringContaining('Falling back to backup URL'));
-        // Should update apiURL to fallback and clear apiURLFallback
-        expect(client.apiURL).toBe(fallbackUrl);
-        expect(client.apiURLFallback).toBeNull();
-        // Should update feed and call success
+        // Check logger call sequence
+        const calls = mockLogger.errorFetchingFeed.mock.calls;
+        expect(calls.length).toBe(1);
+        expect(calls[0][1]).toContain('Retrying (1/3) for https://fake-url.com/feed');
+        expect(client.apiURL).toBe(mockApiURL);
         expect(client.feed).toEqual({ entity: [{}] });
+        expect(mockLogger.success).toHaveBeenCalled();
+    });
+
+    it('should retry primary URL before switching to fallback', async () => {
+        const client = createClient();
+        // Fail primary URL 3 times, then fallback succeeds
+        axios.mockRejectedValueOnce(new Error('Primary fail 1'));
+        axios.mockRejectedValueOnce(new Error('Primary fail 2'));
+        axios.mockRejectedValueOnce(new Error('Primary fail 3'));
+        axios.mockResolvedValueOnce({ status: 200, data: new Uint8Array([1, 2, 3]) });
+        gtfsRealtimeBindings.transit_realtime.FeedMessage.decode.mockReturnValue({ entity: [{}] });
+        await client.sendGetRequest();
+        // Check logger call sequence
+        const calls = mockLogger.errorFetchingFeed.mock.calls;
+        expect(calls.length).toBe(3);
+        expect(calls[0][1]).toContain('Retrying (1/3) for https://fake-url.com/feed');
+        expect(calls[1][1]).toContain('Retrying (2/3) for https://fake-url.com/feed');
+        expect(calls[2][1]).toContain('Switching to backup URL for GTFS-realtime feed.');
+        expect(client.apiURL).toBe(mockApiURLFallback);
+        expect(mockLogger.success).toHaveBeenCalled();
+    });
+
+    it('should retry fallback URL if primary and fallback both fail', async () => {
+        const client = createClient();
+        // Fail primary 3 times, fallback 3 times
+        axios.mockRejectedValue(new Error('Primary fail'));
+        axios.mockRejectedValue(new Error('Fallback fail'));
+        await client.sendGetRequest();
+        // Check logger call sequence
+        const calls = mockLogger.errorFetchingFeed.mock.calls;
+        expect(calls.length).toBe(6);
+        expect(calls[0][1]).toContain('Retrying (1/3) for https://fake-url.com/feed');
+        expect(calls[1][1]).toContain('Retrying (2/3) for https://fake-url.com/feed');
+        expect(calls[2][1]).toContain('Switching to backup URL for GTFS-realtime feed.');
+        expect(calls[3][1]).toContain('Retrying (1/3) for https://fake-url.com/fallback');
+        expect(calls[4][1]).toContain('Retrying (2/3) for https://fake-url.com/fallback');
+        expect(calls[5][1]).toContain('All retries failed for https://fake-url.com/fallback');
+    });
+
+    it('should recover if primary URL becomes available again', async () => {
+        const client = createClient();
+        // Fail primary 3 times, fallback succeeds, then primary succeeds next poll
+        axios.mockRejectedValueOnce(new Error('Primary fail 1'));
+        axios.mockRejectedValueOnce(new Error('Primary fail 2'));
+        axios.mockRejectedValueOnce(new Error('Primary fail 3'));
+        axios.mockResolvedValueOnce({ status: 200, data: new Uint8Array([1, 2, 3]) });
+        gtfsRealtimeBindings.transit_realtime.FeedMessage.decode.mockReturnValue({ entity: [{}] });
+        await client.sendGetRequest();
+        // Now simulate primary recovery
+        client.apiURL = mockApiURL;
+        axios.mockResolvedValueOnce({ status: 200, data: new Uint8Array([4, 5, 6]) });
+        gtfsRealtimeBindings.transit_realtime.FeedMessage.decode.mockReturnValue({ entity: [{ id: 'recovered' }] });
+        await client.sendGetRequest();
+        expect(client.apiURL).toBe(mockApiURL);
+        expect(client.feed).toEqual({ entity: [{ id: 'recovered' }] });
         expect(mockLogger.success).toHaveBeenCalled();
     });
 });
