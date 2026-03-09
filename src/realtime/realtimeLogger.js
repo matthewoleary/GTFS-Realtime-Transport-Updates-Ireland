@@ -25,12 +25,14 @@ export default class RealtimeLogger extends Logger {
     /**
      * Logs an error encountered while fetching the feed.
      * @param {Error|string} [error] - The error to log.
+     * @param {string} [message] - The message to log.
      */
-    errorFetchingFeed(error) {
+    errorFetchingFeed(error, message) {
         if (error) {
-            super.error(error);
+            super.error(error + (message ? ` - ${message}` : ''));
         } else {
-            super.error(this.errorMessage);
+            super.error(this.errorMessage + (message ? ` - ${message}` : ''));
         }
     }
 }
+    
