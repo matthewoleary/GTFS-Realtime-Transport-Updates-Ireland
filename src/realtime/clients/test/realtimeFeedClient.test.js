@@ -32,12 +32,14 @@ const mockBuildTripIdMapFn = vi.fn().mockReturnValue({});
 
 const mockApiKey = 'test-api-key';
 const mockApiURL = 'https://fake-url.com/feed';
+const mockApiURLFallback = 'https://fake-url.com/fallback';
 
 function createClient(overrides = {}) {
     return new RealtimeFeedClient(
         overrides.logger || mockLogger,
         mockApiKey,
         mockApiURL,
+        mockApiURLFallback,
         overrides.processor || mockProcessor,
         overrides.buildTripIdMapFn || mockBuildTripIdMapFn,
         overrides.dayServiceInterval || 10,
@@ -111,5 +113,32 @@ describe('RealtimeFeedClient', () => {
         expect(client.feed).toEqual({ header: { timestamp: { low: 123 } } });
         expect(mockLogger.success).not.toHaveBeenCalled();
         expect(mockBuildTripIdMapFn).not.toHaveBeenCalled();
+    });
+
+    it('should use fallback URL if primary request fails', async () => {
+        const fallbackUrl = 'https://fake-url.com/fallback';
+        // First call: fail, Second call: succeed
+        axios.mockRejectedValueOnce(new Error('Primary failed'));
+        axios.mockResolvedValueOnce({ status: 200, data: new Uint8Array([1, 2, 3]) });
+        gtfsRealtimeBindings.transit_realtime.FeedMessage.decode.mockReturnValue({ entity: [{}] });
+        const client = new RealtimeFeedClient(
+            mockLogger,
+            mockApiKey,
+            mockApiURL,
+            fallbackUrl,
+            mockProcessor,
+            mockBuildTripIdMapFn,
+            10,
+            10
+        );
+        await client.sendGetRequest();
+        // Should call errorFetchingFeed with fallback message
+        expect(mockLogger.errorFetchingFeed).toHaveBeenCalledWith(expect.any(Error), expect.stringContaining('Falling back to backup URL'));
+        // Should update apiURL to fallback and clear apiURLFallback
+        expect(client.apiURL).toBe(fallbackUrl);
+        expect(client.apiURLFallback).toBeNull();
+        // Should update feed and call success
+        expect(client.feed).toEqual({ entity: [{}] });
+        expect(mockLogger.success).toHaveBeenCalled();
     });
 });

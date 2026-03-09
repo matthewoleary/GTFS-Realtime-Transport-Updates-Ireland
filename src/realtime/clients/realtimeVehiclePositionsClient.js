@@ -41,6 +41,7 @@ export async function createRealtimeVehiclePositionsClient(server, config, daySe
 		logger,
 		config.apiKey,
 		config.apiVehiclePositionsUrl,
+		config.apiVehiclePositionsUrlFallback,
 		processor,
 		buildFeedVehiclePositionsTripIdMap,
 		dayServiceInterval,

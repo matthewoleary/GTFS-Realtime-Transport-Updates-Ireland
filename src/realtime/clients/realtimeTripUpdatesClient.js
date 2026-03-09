@@ -50,6 +50,7 @@ export async function createRealtimeTripUpdatesClient(server, config, dayService
 		logger,
 		config.apiKey,
 		config.apiTripUpdatesUrl,
+		config.apiTripUpdatesUrlFallback,
 		processor,
 		buildFeedTripIdMap,
 		dayServiceInterval,
