@@ -9,17 +9,19 @@ import { getCurrentTimestamp } from '../../utils/timestampUtils.js';
 export default class RealtimeFeedClient {
     /**
      * @param {Object} logger - Logger instance for logging feed events.
-     * @param {string} apiKey - API key for GTFS-realtime feed
-     * @param {string} apiURL - URL for GTFS-realtime feed
+     * @param {string} apiKey - API key for GTFS-realtime feed.
+     * @param {string} apiURL - URL for GTFS-realtime feed.
+     * @param {string} apiURLFallback - Fallback URL for GTFS-realtime feed if primary URL fails.
      * @param {Object} processor - Processor module for processing the query object.
      * @param {Function} buildTripIdMapFn - Function to build tripId map from feed
      * @param {number} [dayServiceInterval] - Polling interval for day service
      * @param {number} [nightServiceInterval] - Polling interval for night service
      */
-    constructor(logger, apiKey, apiURL, processor, buildTripIdMapFn, dayServiceInterval = 60000, nightServiceInterval = 180000) {
+    constructor(logger, apiKey, apiURL, apiURLFallback, processor, buildTripIdMapFn, dayServiceInterval = 60000, nightServiceInterval = 180000) {
         this.logger = logger;
         this.apiKey = apiKey;
         this.apiURL = apiURL;
+        this.apiURLFallback = apiURLFallback;
         this.processor = processor;
         this.buildTripIdMapFn = buildTripIdMapFn;
         this.dayServiceInterval = dayServiceInterval;
@@ -76,7 +78,14 @@ export default class RealtimeFeedClient {
                 this.logger.success();
             }
         } catch (error) {
-            this.logger.errorFetchingFeed(error);
+            if (this.apiURLFallback) {
+                this.logger.errorFetchingFeed(error, 'Falling back to backup URL for GTFS-realtime feed.');
+                this.apiURL = this.apiURLFallback;
+                this.apiURLFallback = null; // Prevent infinite fallback loop
+                await this.sendGetRequest();
+            } else {
+                this.logger.errorFetchingFeed(error);
+            }
         }
     }
 
