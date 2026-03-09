@@ -11,7 +11,7 @@ export default class RealtimeFeedClient {
      * @param {Object} logger - Logger instance for logging feed events.
      * @param {string} apiKey - API key for GTFS-realtime feed.
      * @param {string} apiURL - URL for GTFS-realtime feed.
-     * @param {string} apiURLFallback - Fallback URL for GTFS-realtime feed if primary URL fails.
+     * @param {string} [apiURLFallback] - Fallback URL for GTFS-realtime feed if primary URL fails.
      * @param {Object} processor - Processor module for processing the query object.
      * @param {Function} buildTripIdMapFn - Function to build tripId map from feed
      * @param {number} [dayServiceInterval] - Polling interval for day service
@@ -57,34 +57,51 @@ export default class RealtimeFeedClient {
 
     /**
      * Fetches the GTFS-realtime feed from the configured URL.
+     * Implements retry logic and fallback URL handling. If the primary URL fails, it will switch to the fallback URL (if provided) and retry.
      */
     async sendGetRequest() {
-        try {
-            const response = await axios({
-                method: 'GET',
-                timeout: 15000,
-                url: this.apiURL,
-                responseType: 'arraybuffer',
-                headers: {
-                    'x-api-key': this.apiKey
+        const maxRetries = 3;
+        let urls = [this.apiURL];
+        // If a fallback URL is set and it's not the same as the primary,
+        // add it to the list of URLs to try after the primary fails.
+        if (this.apiURLFallback && this.apiURL !== this.apiURLFallback) {
+            urls.push(this.apiURLFallback);
+        }
+        let lastError = null;
+        for (let urlIndex = 0; urlIndex < urls.length; urlIndex++) {
+            const url = urls[urlIndex];
+            for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                try {
+                    const response = await axios({
+                        method: 'GET',
+                        timeout: 15000,
+                        url,
+                        responseType: 'arraybuffer',
+                        headers: {
+                            'x-api-key': this.apiKey
+                        }
+                    });
+                    if (response.status === 200) {
+                        const buffer = Buffer.from(response.data);
+                        const newFeed = await this.decodeFeedMessage(buffer);
+                        const newFeedTripIdMap = this.buildTripIdMapFn(newFeed);
+                        this.feed = newFeed;
+                        this.feedTripIdMap = newFeedTripIdMap;
+                        this.logger.success();
+                        // If we switched to fallback, update apiURL
+                        this.apiURL = url;
+                        return;
+                    }
+                } catch (error) {
+                    lastError = error;
+                    if (attempt < maxRetries) {
+                        this.logger.errorFetchingFeed(error, `Retrying (${attempt}/${maxRetries}) for ${url}`);
+                    } else if (urlIndex === 0 && urls.length > 1) {
+                        this.logger.errorFetchingFeed(error, 'Switching to backup URL for GTFS-realtime feed.');
+                    } else {
+                        this.logger.errorFetchingFeed(error, `All retries failed for ${url}`);
+                    }
                 }
-            });
-            if (response.status === 200) {
-                const buffer = Buffer.from(response.data);
-                const newFeed = await this.decodeFeedMessage(buffer);
-                const newFeedTripIdMap = this.buildTripIdMapFn(newFeed);
-                this.feed = newFeed;
-                this.feedTripIdMap = newFeedTripIdMap;
-                this.logger.success();
-            }
-        } catch (error) {
-            if (this.apiURLFallback) {
-                this.logger.errorFetchingFeed(error, 'Falling back to backup URL for GTFS-realtime feed.');
-                this.apiURL = this.apiURLFallback;
-                this.apiURLFallback = null; // Prevent infinite fallback loop
-                await this.sendGetRequest();
-            } else {
-                this.logger.errorFetchingFeed(error);
             }
         }
     }
