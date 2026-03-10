@@ -130,7 +130,7 @@ describe('RealtimeFeedClient', () => {
         expect(calls.length).toBe(3);
         expect(calls[0][1]).toContain('Retrying (1/3) for https://fake-url.com/feed');
         expect(calls[1][1]).toContain('Retrying (2/3) for https://fake-url.com/feed');
-        expect(calls[2][1]).toContain('Switching to backup URL for GTFS-realtime feed.');
+        expect(calls[2][1]).toContain('Switching GTFS-realtime feed URL from https://fake-url.com/feed to https://fake-url.com/fallback.');
         expect(client.activeURL).toBe(mockApiURLFallback);
         expect(mockLogger.success).toHaveBeenCalled();
     });
@@ -150,7 +150,7 @@ describe('RealtimeFeedClient', () => {
         expect(calls.length).toBe(6);
         expect(calls[0][1]).toContain('Retrying (1/3) for https://fake-url.com/feed');
         expect(calls[1][1]).toContain('Retrying (2/3) for https://fake-url.com/feed');
-        expect(calls[2][1]).toContain('Switching to backup URL for GTFS-realtime feed.');
+        expect(calls[2][1]).toContain('Switching GTFS-realtime feed URL from https://fake-url.com/feed to https://fake-url.com/fallback.');
         expect(calls[3][1]).toContain('Retrying (1/3) for https://fake-url.com/fallback');
         expect(calls[4][1]).toContain('Retrying (2/3) for https://fake-url.com/fallback');
         expect(calls[5][1]).toContain('All retries failed for https://fake-url.com/fallback');
@@ -171,6 +171,41 @@ describe('RealtimeFeedClient', () => {
         expect(client.activeURL).toBe(mockApiURL);
         expect(mockLogger.success).toHaveBeenCalledWith('Primary URL recovered, switching back.');
         expect(client.recoveryTimer).toBeNull();
+        vi.useRealTimers();
+    });
+
+    it('should reschedule recovery check if primary URL is still unavailable', async () => {
+        vi.useFakeTimers();
+        const client = createClient();
+        client.activeURL = mockApiURLFallback;
+        client.recoveryInterval = 5;
+        client.apiURL = mockApiURL;
+        client.logger = mockLogger;
+        axios.mockRejectedValueOnce(new Error('HEAD fail 1'));
+        client.startRecoveryCheck();
+        vi.advanceTimersByTime(5);
+        await Promise.resolve();
+        // Timer should be rescheduled
+        expect(client.recoveryTimer).not.toBeNull();
+        expect(mockLogger.errorFetchingFeed).toHaveBeenCalledWith(expect.any(Error), 'Primary URL still unavailable during recovery check.');
+        vi.useRealTimers();
+    });
+
+    it('should not reschedule recovery check after primary URL recovers', async () => {
+        vi.useFakeTimers();
+        const client = createClient();
+        client.activeURL = mockApiURLFallback;
+        client.recoveryInterval = 5;
+        client.apiURL = mockApiURL;
+        client.logger = mockLogger;
+        axios.mockResolvedValueOnce({ status: 200 });
+        client.startRecoveryCheck();
+        vi.advanceTimersByTime(5);
+        await Promise.resolve();
+        // Timer should be cleared
+        expect(client.recoveryTimer).toBeNull();
+        expect(client.activeURL).toBe(mockApiURL);
+        expect(mockLogger.success).toHaveBeenCalledWith('Primary URL recovered, switching back.');
         vi.useRealTimers();
     });
 });
