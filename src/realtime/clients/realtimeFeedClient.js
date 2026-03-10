@@ -128,29 +128,33 @@ export default class RealtimeFeedClient {
     }
 
     startRecoveryCheck() {
-        this.recoveryTimer = setInterval(() => {
-            (async () => {
-                try {
-                    const response = await axios({
-                        method: 'HEAD',
-                        timeout: 5000,
-                        url: this.apiURL,
-                        responseType: 'arraybuffer',
-                        headers: {
-                            'x-api-key': this.apiKey
-                        }
-                    });
-                    if (response.status === 200) {
-                        this.logger.success('Primary URL recovered, switching back.');
-                        this.activeURL = this.apiURL;
-                        clearInterval(this.recoveryTimer);
-                        this.recoveryTimer = null;
+        const recoveryCheck = async () => {
+            try {
+                const response = await axios({
+                    method: 'HEAD',
+                    timeout: 5000,
+                    url: this.apiURL,
+                    responseType: 'arraybuffer',
+                    headers: {
+                        'x-api-key': this.apiKey
                     }
-                } catch (error) {
-                    this.logger.errorFetchingFeed(error, 'Primary URL still unavailable during recovery check.');
+                });
+                if (response.status === 200) {
+                    this.logger.success('Primary URL recovered, switching back.');
+                    this.activeURL = this.apiURL;
+                    clearTimeout(this.recoveryTimer);
+                    this.recoveryTimer = null;
                 }
-            })();
-        }, this.recoveryInterval);
+            } catch (error) {
+                this.logger.errorFetchingFeed(error, 'Primary URL still unavailable during recovery check.');
+            } finally {
+                // Schedule the next recovery check only if recovery is still in progress
+                if (this.recoveryTimer) {
+                    this.recoveryTimer = setTimeout(recoveryCheck, this.recoveryInterval);
+                }
+            }
+        };
+        this.recoveryTimer = setTimeout(recoveryCheck, this.recoveryInterval);
     }
 
     getFeedTimestamp() {
