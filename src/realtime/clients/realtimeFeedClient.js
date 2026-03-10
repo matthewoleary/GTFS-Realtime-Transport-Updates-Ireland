@@ -12,12 +12,12 @@ export default class RealtimeFeedClient {
      * @param {string} apiKey - API key for GTFS-realtime feed.
      * @param {string} apiURL - URL for GTFS-realtime feed.
      * @param {string} [apiURLFallback] - Fallback URL for GTFS-realtime feed if primary URL fails.
-     * @param {string} [activeURL] - The currently active URL being used to fetch the feed.
      * @param {Object} processor - Processor module for processing the query object.
      * @param {Function} buildTripIdMapFn - Function to build tripId map from feed
      * @param {number} [dayServiceInterval] - Polling interval for day service
      * @param {number} [nightServiceInterval] - Polling interval for night service
      * @param {number} [recoveryInterval] - Interval for checking recovery of primary URL when fallback is active.
+     * @property {string} activeURL - The currently active URL being used to fetch the feed.
      */
     constructor(logger, apiKey, apiURL, apiURLFallback, processor, buildTripIdMapFn, dayServiceInterval = 60000, nightServiceInterval = 180000, recoveryInterval = 300000) {
         this.logger = logger;
