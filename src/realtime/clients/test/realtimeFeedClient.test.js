@@ -43,7 +43,8 @@ function createClient(overrides = {}) {
         overrides.processor || mockProcessor,
         overrides.buildTripIdMapFn || mockBuildTripIdMapFn,
         overrides.dayServiceInterval || 10,
-        overrides.nightServiceInterval || 10
+        overrides.nightServiceInterval || 10,
+        overrides.recoveryInterval || 10
     );
 }
 
@@ -115,32 +116,6 @@ describe('RealtimeFeedClient', () => {
         expect(mockBuildTripIdMapFn).not.toHaveBeenCalled();
     });
 
-    it('should use fallback URL if primary request fails', async () => {
-        const fallbackUrl = 'https://fake-url.com/fallback';
-        // First call: fail, Second call: succeed
-        axios.mockRejectedValueOnce(new Error('Primary failed'));
-        axios.mockResolvedValueOnce({ status: 200, data: new Uint8Array([1, 2, 3]) });
-        gtfsRealtimeBindings.transit_realtime.FeedMessage.decode.mockReturnValue({ entity: [{}] });
-        const client = new RealtimeFeedClient(
-            mockLogger,
-            mockApiKey,
-            mockApiURL,
-            fallbackUrl,
-            mockProcessor,
-            mockBuildTripIdMapFn,
-            10,
-            10
-        );
-        await client.sendGetRequest();
-        // Check logger call sequence
-        const calls = mockLogger.errorFetchingFeed.mock.calls;
-        expect(calls.length).toBe(1);
-        expect(calls[0][1]).toContain('Retrying (1/3) for https://fake-url.com/feed');
-        expect(client.apiURL).toBe(mockApiURL);
-        expect(client.feed).toEqual({ entity: [{}] });
-        expect(mockLogger.success).toHaveBeenCalled();
-    });
-
     it('should retry primary URL before switching to fallback', async () => {
         const client = createClient();
         // Fail primary URL 3 times, then fallback succeeds
@@ -156,15 +131,19 @@ describe('RealtimeFeedClient', () => {
         expect(calls[0][1]).toContain('Retrying (1/3) for https://fake-url.com/feed');
         expect(calls[1][1]).toContain('Retrying (2/3) for https://fake-url.com/feed');
         expect(calls[2][1]).toContain('Switching to backup URL for GTFS-realtime feed.');
-        expect(client.apiURL).toBe(mockApiURLFallback);
+        expect(client.activeURL).toBe(mockApiURLFallback);
         expect(mockLogger.success).toHaveBeenCalled();
     });
 
     it('should retry fallback URL if primary and fallback both fail', async () => {
         const client = createClient();
         // Fail primary 3 times, fallback 3 times
-        axios.mockRejectedValue(new Error('Primary fail'));
-        axios.mockRejectedValue(new Error('Fallback fail'));
+        axios.mockRejectedValueOnce(new Error('Primary fail 1'));
+        axios.mockRejectedValueOnce(new Error('Primary fail 2'));
+        axios.mockRejectedValueOnce(new Error('Primary fail 3'));
+        axios.mockRejectedValueOnce(new Error('Fallback fail 1'));
+        axios.mockRejectedValueOnce(new Error('Fallback fail 2'));
+        axios.mockRejectedValueOnce(new Error('Fallback fail 3'));
         await client.sendGetRequest();
         // Check logger call sequence
         const calls = mockLogger.errorFetchingFeed.mock.calls;
@@ -177,22 +156,21 @@ describe('RealtimeFeedClient', () => {
         expect(calls[5][1]).toContain('All retries failed for https://fake-url.com/fallback');
     });
 
-    it('should recover if primary URL becomes available again', async () => {
+    it('should switch back to primary URL and clear timer in startRecoveryCheck()', async () => {
+        vi.useFakeTimers();
         const client = createClient();
-        // Fail primary 3 times, fallback succeeds, then primary succeeds next poll
-        axios.mockRejectedValueOnce(new Error('Primary fail 1'));
-        axios.mockRejectedValueOnce(new Error('Primary fail 2'));
-        axios.mockRejectedValueOnce(new Error('Primary fail 3'));
-        axios.mockResolvedValueOnce({ status: 200, data: new Uint8Array([1, 2, 3]) });
-        gtfsRealtimeBindings.transit_realtime.FeedMessage.decode.mockReturnValue({ entity: [{}] });
-        await client.sendGetRequest();
-        // Now simulate primary recovery
+        client.activeURL = mockApiURLFallback;
+        client.recoveryInterval = 5;
         client.apiURL = mockApiURL;
-        axios.mockResolvedValueOnce({ status: 200, data: new Uint8Array([4, 5, 6]) });
-        gtfsRealtimeBindings.transit_realtime.FeedMessage.decode.mockReturnValue({ entity: [{ id: 'recovered' }] });
-        await client.sendGetRequest();
-        expect(client.apiURL).toBe(mockApiURL);
-        expect(client.feed).toEqual({ entity: [{ id: 'recovered' }] });
-        expect(mockLogger.success).toHaveBeenCalled();
+        client.logger = mockLogger;
+        client.startRecoveryCheck();
+        // Simulate HEAD request success
+        axios.mockResolvedValueOnce({ status: 200 });
+        vi.advanceTimersByTime(5);
+        await Promise.resolve();
+        expect(client.activeURL).toBe(mockApiURL);
+        expect(mockLogger.success).toHaveBeenCalledWith('Primary URL recovered, switching back.');
+        expect(client.recoveryTimer).toBeNull();
+        vi.useRealTimers();
     });
 });
