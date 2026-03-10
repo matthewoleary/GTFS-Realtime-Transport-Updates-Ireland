@@ -208,4 +208,34 @@ describe('RealtimeFeedClient', () => {
         expect(mockLogger.success).toHaveBeenCalledWith('Primary URL recovered, switching back.');
         vi.useRealTimers();
     });
+
+    it('should not attempt fallback or log switching when no fallback URL is configured', async () => {
+        vi.clearAllMocks();
+        const client = new RealtimeFeedClient(
+            mockLogger,
+            mockApiKey,
+            mockApiURL,
+            undefined, // no fallback
+            mockProcessor,
+            mockBuildTripIdMapFn,
+            10,
+            10,
+            10
+        );
+        // Fail primary URL 3 times
+        axios.mockRejectedValueOnce(new Error('Primary fail 1'));
+        axios.mockRejectedValueOnce(new Error('Primary fail 2'));
+        axios.mockRejectedValueOnce(new Error('Primary fail 3'));
+        await client.sendGetRequest();
+        // Only primary URL should be attempted, no switching log
+        const calls = mockLogger.errorFetchingFeed.mock.calls;
+        expect(calls.length).toBe(3);
+        expect(calls[0][1]).toContain('Retrying (1/3) for https://fake-url.com/feed');
+        expect(calls[1][1]).toContain('Retrying (2/3) for https://fake-url.com/feed');
+        expect(calls[2][1]).toContain('All retries failed for https://fake-url.com/feed');
+        // Should not log switching behavior
+        expect(calls.some(call => call[1]?.includes('Switching'))).toBe(false);
+        // Should not attempt undefined URL
+        expect(client.activeURL).toBe(mockApiURL);
+    });
 });
