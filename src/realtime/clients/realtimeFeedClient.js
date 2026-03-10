@@ -97,7 +97,7 @@ export default class RealtimeFeedClient {
                         this.logger.success();
                         this.activeURL = url; // Update active URL on successful fetch
                         if (url === this.apiURL && this.recoveryTimer) {
-                            clearInterval(this.recoveryTimer);
+                            clearTimeout(this.recoveryTimer);
                             this.recoveryTimer = null;
                         }
                         return;
