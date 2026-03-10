@@ -96,6 +96,10 @@ export default class RealtimeFeedClient {
                         this.feedTripIdMap = newFeedTripIdMap;
                         this.logger.success();
                         this.activeURL = url; // Update active URL on successful fetch
+                        if (url === this.apiURL && this.recoveryTimer) {
+                            clearInterval(this.recoveryTimer);
+                            this.recoveryTimer = null;
+                        }
                         return;
                     }
                 } catch (error) {
