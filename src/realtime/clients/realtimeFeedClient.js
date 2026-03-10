@@ -67,9 +67,11 @@ export default class RealtimeFeedClient {
     async sendGetRequest() {
         const maxRetries = 3;
         let urls = [this.activeURL];
-        // Add either the fallback URL or the primary URL (if fallback is currently active) to the list of URLs to try
+        // Add either the fallback URL (if configured and different) or the primary URL (if fallback is currently active) to the list of URLs to try
         if (this.activeURL === this.apiURL) {
-            urls.push(this.apiURLFallback);
+            if (this.apiURLFallback && this.apiURLFallback !== this.apiURL) {
+                urls.push(this.apiURLFallback);
+            }
         } else if (this.activeURL === this.apiURLFallback) {
             urls.push(this.apiURL);
         }
