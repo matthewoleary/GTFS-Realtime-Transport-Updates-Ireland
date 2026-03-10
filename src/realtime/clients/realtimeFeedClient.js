@@ -106,8 +106,11 @@ export default class RealtimeFeedClient {
                     if (attempt < maxRetries) {
                         this.logger.errorFetchingFeed(error, `Retrying (${attempt}/${maxRetries}) for ${url}`);
                     } else if (urlIndex === 0 && urls.length > 1) {
-                        this.logger.errorFetchingFeed(error, 'Switching to backup URL for GTFS-realtime feed.');
-                        // Fallback URL is active, start a recovery check process to see if primary URL becomes available again.
+                        this.logger.errorFetchingFeed(
+                            error,
+                            `Switching GTFS-realtime feed URL from ${urls[0]} to ${urls[1]}.`
+                        );
+                        // When the fallback URL is active, this begins a recovery check to see if the primary becomes available again.
                         // Start recovery timer if not already running
                         if (!this.recoveryTimer) {
                             this.startRecoveryCheck();
