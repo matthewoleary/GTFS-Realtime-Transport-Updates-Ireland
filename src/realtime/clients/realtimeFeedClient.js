@@ -12,20 +12,25 @@ export default class RealtimeFeedClient {
      * @param {string} apiKey - API key for GTFS-realtime feed.
      * @param {string} apiURL - URL for GTFS-realtime feed.
      * @param {string} [apiURLFallback] - Fallback URL for GTFS-realtime feed if primary URL fails.
+     * @param {string} [activeURL] - The currently active URL being used to fetch the feed.
      * @param {Object} processor - Processor module for processing the query object.
      * @param {Function} buildTripIdMapFn - Function to build tripId map from feed
      * @param {number} [dayServiceInterval] - Polling interval for day service
      * @param {number} [nightServiceInterval] - Polling interval for night service
+     * @param {number} [recoveryInterval] - Interval for checking recovery of primary URL when fallback is active.
      */
-    constructor(logger, apiKey, apiURL, apiURLFallback, processor, buildTripIdMapFn, dayServiceInterval = 60000, nightServiceInterval = 180000) {
+    constructor(logger, apiKey, apiURL, apiURLFallback, processor, buildTripIdMapFn, dayServiceInterval = 60000, nightServiceInterval = 180000, recoveryInterval = 300000) {
         this.logger = logger;
         this.apiKey = apiKey;
         this.apiURL = apiURL;
         this.apiURLFallback = apiURLFallback;
+        this.activeURL = apiURL;
         this.processor = processor;
         this.buildTripIdMapFn = buildTripIdMapFn;
         this.dayServiceInterval = dayServiceInterval;
         this.nightServiceInterval = nightServiceInterval;
+        this.recoveryInterval = recoveryInterval;
+        this.recoveryTimer = null;
         this.feed = null;
         this.feedTripIdMap = null;
         this.started = false;
@@ -61,13 +66,13 @@ export default class RealtimeFeedClient {
      */
     async sendGetRequest() {
         const maxRetries = 3;
-        let urls = [this.apiURL];
-        // If a fallback URL is set and it's not the same as the primary,
-        // add it to the list of URLs to try after the primary fails.
-        if (this.apiURLFallback && this.apiURL !== this.apiURLFallback) {
+        let urls = [this.activeURL];
+        // Add either the fallback URL or the primary URL (if fallback is currently active) to the list of URLs to try
+        if (this.activeURL === this.apiURL) {
             urls.push(this.apiURLFallback);
+        } else if (this.activeURL === this.apiURLFallback) {
+            urls.push(this.apiURL);
         }
-        let lastError = null;
         for (let urlIndex = 0; urlIndex < urls.length; urlIndex++) {
             const url = urls[urlIndex];
             for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -88,16 +93,19 @@ export default class RealtimeFeedClient {
                         this.feed = newFeed;
                         this.feedTripIdMap = newFeedTripIdMap;
                         this.logger.success();
-                        // If we switched to fallback, update apiURL
-                        this.apiURL = url;
+                        this.activeURL = url; // Update active URL on successful fetch
                         return;
                     }
                 } catch (error) {
-                    lastError = error;
                     if (attempt < maxRetries) {
                         this.logger.errorFetchingFeed(error, `Retrying (${attempt}/${maxRetries}) for ${url}`);
                     } else if (urlIndex === 0 && urls.length > 1) {
                         this.logger.errorFetchingFeed(error, 'Switching to backup URL for GTFS-realtime feed.');
+                        // Fallback URL is active, start a recovery check process to see if primary URL becomes available again.
+                        // Start recovery timer if not already running
+                        if (!this.recoveryTimer) {
+                            this.startRecoveryCheck();
+                        }
                     } else {
                         this.logger.errorFetchingFeed(error, `All retries failed for ${url}`);
                     }
@@ -108,6 +116,32 @@ export default class RealtimeFeedClient {
 
     async decodeFeedMessage(buffer) {
         return gtfsRealtimeBindings.transit_realtime.FeedMessage.decode(new Uint8Array(buffer));
+    }
+
+    startRecoveryCheck() {
+        this.recoveryTimer = setInterval(() => {
+            (async () => {
+                try {
+                    const response = await axios({
+                        method: 'HEAD',
+                        timeout: 5000,
+                        url: this.apiURL,
+                        responseType: 'arraybuffer',
+                        headers: {
+                            'x-api-key': this.apiKey
+                        }
+                    });
+                    if (response.status === 200) {
+                        this.logger.success('Primary URL recovered, switching back.');
+                        this.activeURL = this.apiURL;
+                        clearInterval(this.recoveryTimer);
+                        this.recoveryTimer = null;
+                    }
+                } catch (error) {
+                    this.logger.errorFetchingFeed(error, 'Primary URL still unavailable during recovery check.');
+                }
+            })();
+        }, this.recoveryInterval);
     }
 
     getFeedTimestamp() {
