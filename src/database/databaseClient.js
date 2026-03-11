@@ -2,7 +2,6 @@
 import * as mysql2 from 'mysql2/promise';
 import fs from 'fs';
 import registerQueries from './queries/databaseQueriesProcessor.js';
-import { dockerDbConfig } from './config.js';
 import DatabaseLogger from './databaseLogger.js';
 
 /**
@@ -60,10 +59,10 @@ class DatabaseClient {
                 return this.pool;
             }
             this.pool = mysql2.createPool({
-                host: dockerDbConfig.host,
-                user: dockerDbConfig.user,
-                password: dockerDbConfig.password,
-                database: dockerDbConfig.database,
+                host: this.config.host,
+                user: this.config.user,
+                password: this.config.password,
+                database: this.config.database,
                 infileStreamFactory: (filename) => fs.createReadStream(filename)
             });
             this.logger.success('Connection pool created.');

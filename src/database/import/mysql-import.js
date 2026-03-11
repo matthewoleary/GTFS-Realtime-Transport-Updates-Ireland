@@ -11,16 +11,16 @@ import modelsDefault from '../models/models.js';
 import { unzip } from './utils/file-utils.js';
 import { calculateHourTimestamp, pluralize } from './utils/utils.js';
 import { addFeedInfoLastUpdatedColumn, updateFeedInfoLastUpdatedValues, addCustomTimestampColumns } from '../queries/custom-queries.js';
-import { databaseClient } from '../databaseClient.js';
 
 /**
  * MysqlImporter class for importing GTFS data into MySQL.
  */
 class MysqlImporter {
-    constructor(config, logger, models = modelsDefault) {
+    constructor(config, logger, dbClientInstance, models = modelsDefault) {
         this.config = config;
         this.logger = logger;
         this.models = models;
+        this.db = dbClientInstance
         this.cnx = null;
         // List of models used including those with additional modifications made, e.g. custom timestamp columns
         this.customModels = [];
@@ -28,9 +28,8 @@ class MysqlImporter {
 
     async connectDb() {
         // Connect to the MySQL database using the database client
-        const db = await databaseClient();
-        this.cnx = await db.getConnection();
-        this.getLastDbUpdate = db.getLastDbUpdate;
+        this.cnx = await this.db.getConnection();
+        this.getLastDbUpdate = this.db.getLastDbUpdate;
     }
 
     /**

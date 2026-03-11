@@ -9,13 +9,13 @@ function handleError(err) {
     process.exit(1);
 }
 
-async function setupImport() {
+async function setupImport(dbClientInstance) {
     const logger = new ImportLogger({ client: 'MYSQL_IMPORTER' });
     const MysqlImporter = (await import('./mysql-import.js')).default;
-    const importer = new MysqlImporter(gtfsImportConfig, logger);
+    const importer = new MysqlImporter(gtfsImportConfig, logger, dbClientInstance);
     await importer.import();
 }
 
-export async function runImport() {
-    await setupImport().catch(handleError);
+export async function runImport(dbClientInstance) {
+    await setupImport(dbClientInstance).catch(handleError);
 }
