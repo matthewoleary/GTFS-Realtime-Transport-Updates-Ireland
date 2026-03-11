@@ -12,14 +12,15 @@ const startServer = async env => {
 		env === 'prod' ? configEnv = config.prod : configEnv = config.test;
 		const appInstance = await app(configEnv);
 
-		await executeRunImport();
+		const dbClientInstance = appInstance.plugins.database.client;
+		await executeRunImport(dbClientInstance);
 
 		// Every hour will check for GTFS static schedule updates and import if available.
 		logger.info('Scheduling GTFS static schedule updates every hour');
 		new CronJob('0 * * * *', async () => {
 			try {
 				logger.info('Running scheduled GTFS static schedule update check and import if available. Time: ' + new Date().toISOString());
-				await executeRunImport();
+				await executeRunImport(dbClientInstance);
 			} catch (error) {
 				logger.error('Scheduled GTFS import failed: ' + error);
 			}
@@ -32,9 +33,9 @@ const startServer = async env => {
 	}
 };
 
-const executeRunImport = async () => {
+const executeRunImport = async (dbClientInstance) => {
 	try {
-		await runImport();
+		await runImport(dbClientInstance);
 		logger.success('Import completed successfully');
 	} catch (error) {
 		logger.error('Import failed: ' + error.message);
