@@ -1,4 +1,12 @@
 
+/**
+ * Adds departure_timestamp and arrival_timestamp columns to the stop_times table and updates the model schema.
+ *
+ * @param {Object} task - The task object containing database connection and logging functions.
+ * @param {Object} model - The model object whose schema will be updated with new columns.
+ * @returns {Promise<void>} Resolves when columns are added and schema is updated.
+ * @throws Will throw an error if the query fails.
+ */
 export const addCustomTimestampColumns = async (task, model) => {
 	try {
 		const departureTimestamp = {
@@ -25,7 +33,15 @@ export const addCustomTimestampColumns = async (task, model) => {
 
 };
 
-
+/**
+ * Adds custom columns to a specified table in the database.
+ *
+ * @param {Object} task - The task object containing database connection and logging functions.
+ * @param {string} table - The name of the table to modify.
+ * @param {Array<Object>} columns - Array of column definitions to add.
+ * @returns {Promise<void>} Resolves when all columns are added.
+ * @throws Will throw an error if any query fails.
+ */
 export const addCustomColumns = async (task, table, columns) => {
 	for (const column of columns) {
 		const identity = column.identity ? 'AUTO_INCREMENT' : '';
@@ -44,6 +60,13 @@ export const addCustomColumns = async (task, table, columns) => {
 	}
 };
 
+/**
+ * Adds the feed_last_updated column to the feed_info table if it does not exist.
+ *
+ * @param {Object} task - The task object containing database connection and logging functions.
+ * @returns {Promise<void>} Resolves when the column is added or already exists.
+ * @throws Will throw an error if the query fails.
+ */
 export const addFeedInfoLastUpdatedColumn = async task => {
 	try {
 		const column = {
@@ -58,6 +81,13 @@ export const addFeedInfoLastUpdatedColumn = async task => {
 	}
 };
 
+/**
+ * Updates the feed_last_updated column in the feed_info table to the current time.
+ *
+ * @param {Object} task - The task object containing database connection and logging functions.
+ * @returns {Promise<void>} Resolves when the update is complete.
+ * @throws Will throw an error if the query fails.
+ */
 export const updateFeedInfoLastUpdatedValues = async task => {
 	try {
 		await task.cnx.query(`
