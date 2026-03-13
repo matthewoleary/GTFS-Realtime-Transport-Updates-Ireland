@@ -61,11 +61,13 @@ export const addCustomColumns = async (task, table, columns) => {
 };
 
 /**
- * Adds the feed_last_updated column to the feed_info table if it does not exist.
+ * Adds the feed_last_updated column to the feed_info table.
+ *
+ * Note: This will throw an error if the column already exists.
  *
  * @param {Object} task - The task object containing database connection and logging functions.
- * @returns {Promise<void>} Resolves when the column is added or already exists.
- * @throws Will throw an error if the query fails.
+ * @returns {Promise<void>} Resolves when the column is added.
+ * @throws Will throw an error if the query fails or the column already exists.
  */
 export const addFeedInfoLastUpdatedColumn = async task => {
 	try {
