@@ -1,7 +1,6 @@
 import ImportLogger from './importLogger.js';
 import { gtfsImportConfig } from '../config.js';
 
-/* eslint-disable unicorn/no-process-exit */
 function handleError(err) {
     const text = err || 'Unknown Error';
     console.error(`\n${text}\n`);
