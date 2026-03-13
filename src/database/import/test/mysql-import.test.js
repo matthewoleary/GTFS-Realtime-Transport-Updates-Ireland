@@ -37,11 +37,13 @@ const fetch = (await import('node-fetch')).default;
 const fs = (await import('fs-extra')).default;
 
 describe('MysqlImporter', () => {
+    let dbClientInstance;
     let importer;
     let logger;
     beforeEach(() => {
         logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
-        importer = new MysqlImporter({ agencies: [] }, logger);
+        dbClientInstance = {};
+        importer = new MysqlImporter({ agencies: [] }, logger, dbClientInstance);
         vi.clearAllMocks();
     });
 
@@ -49,7 +51,8 @@ describe('MysqlImporter', () => {
         it('should instantiate with config and logger', () => {
             const config = { agencies: [{ agency_key: 'a' }] };
             const loggerObj = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
-            const imp = new MysqlImporter(config, loggerObj);
+            dbClientInstance = {};
+            const imp = new MysqlImporter(config, loggerObj, dbClientInstance);
             expect(imp.config).toBe(config);
             expect(imp.logger).toBe(loggerObj);
             expect(imp.cnx).toBeNull();
@@ -142,7 +145,6 @@ describe('MysqlImporter', () => {
                 status: 200,
                 headers: { get: vi.fn().mockImplementation((h) => h === 'last-modified' ? dateStr : null) }
             });
-            const importer = new MysqlImporter({ agencies: [] }, logger);
             const result = await importer.getFilesLastModifiedDate(task);
             expect(result).toEqual(new Date(dateStr));
         });
@@ -155,7 +157,6 @@ describe('MysqlImporter', () => {
                 log: vi.fn(),
             };
             fetch.mockResolvedValue({ status: 404 });
-            const importer = new MysqlImporter({ agencies: [] }, logger);
             const result = await importer.getFilesLastModifiedDate(task);
             expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Errors code: 404'));
             expect(result).toBeNull();
@@ -164,7 +165,6 @@ describe('MysqlImporter', () => {
 
     describe('getTextFiles', () => {
         it('should return only .txt files from a folder', async () => {
-            const importer = new MysqlImporter({ agencies: [] }, logger);
             // Simulate a list of files as would be found in a GTFS zip
             const files = [
                 'stops.txt',
@@ -189,7 +189,6 @@ describe('MysqlImporter', () => {
 
     describe('readFiles', () => {
         it('should copy unzipped file to downloadDir', async () => {
-            const importer = new MysqlImporter({ agencies: [] }, logger);
             const task = {
                 path: '/some/file.txt',
                 downloadDir: '/dest',
@@ -201,7 +200,6 @@ describe('MysqlImporter', () => {
         });
 
         it('should unzip and move .txt files from zip', async () => {
-            const importer = new MysqlImporter({ agencies: [] }, logger);
             const task = {
                 path: '/some/file.zip',
                 downloadDir: '/dest',
@@ -225,7 +223,6 @@ describe('MysqlImporter', () => {
 
     describe('createEmptyTable', () => {
         it('should handle no primary key', async () => {
-            const importer = new MysqlImporter({ agencies: [] }, logger);
             importer.cnx = { query: vi.fn().mockResolvedValue() };
             const model = {
                 filenameBase: 'no_pk',
@@ -239,7 +236,6 @@ describe('MysqlImporter', () => {
         });
 
         it('should handle composite primary key', async () => {
-            const importer = new MysqlImporter({ agencies: [] }, logger);
             importer.cnx = { query: vi.fn().mockResolvedValue() };
             const model = {
                 filenameBase: 'composite_pk',
@@ -254,7 +250,6 @@ describe('MysqlImporter', () => {
         });
 
         it('should handle min only constraint', async () => {
-            const importer = new MysqlImporter({ agencies: [] }, logger);
             importer.cnx = { query: vi.fn().mockResolvedValue() };
             const model = {
                 filenameBase: 'min_only',
@@ -267,7 +262,6 @@ describe('MysqlImporter', () => {
         });
 
         it('should handle max only constraint', async () => {
-            const importer = new MysqlImporter({ agencies: [] }, logger);
             importer.cnx = { query: vi.fn().mockResolvedValue() };
             const model = {
                 filenameBase: 'max_only',
@@ -280,7 +274,6 @@ describe('MysqlImporter', () => {
         });
 
         it('should handle default value', async () => {
-            const importer = new MysqlImporter({ agencies: [] }, logger);
             importer.cnx = { query: vi.fn().mockResolvedValue() };
             const model = {
                 filenameBase: 'default_val',
@@ -293,7 +286,6 @@ describe('MysqlImporter', () => {
         });
 
         it('should not call query for empty schema', async () => {
-            const importer = new MysqlImporter({ agencies: [] }, logger);
             importer.cnx = { query: vi.fn().mockResolvedValue() };
             const model = {
                 filenameBase: 'empty_schema',
@@ -304,7 +296,6 @@ describe('MysqlImporter', () => {
         });
 
         it('should not call query for null schema', async () => {
-            const importer = new MysqlImporter({ agencies: [] }, logger);
             importer.cnx = { query: vi.fn().mockResolvedValue() };
             const model = {
                 filenameBase: 'null_schema',
@@ -314,7 +305,6 @@ describe('MysqlImporter', () => {
             expect(importer.cnx.query).not.toHaveBeenCalled();
         });
         it('should generate and execute correct CREATE TABLE SQL', async () => {
-            const importer = new MysqlImporter({ agencies: [] }, logger);
             importer.cnx = { query: vi.fn().mockResolvedValue() };
             const model = {
                 filenameBase: 'test_table',
@@ -342,7 +332,6 @@ describe('MysqlImporter', () => {
 
     describe('dropAllTables', () => {
         it('should disable FK checks, drop tables, and re-enable FK checks', async () => {
-            const importer = new MysqlImporter({ agencies: [] }, logger);
             importer.cnx = { query: vi.fn().mockResolvedValue() };
             await importer.dropAllTables();
             // Should disable FK checks
@@ -359,7 +348,6 @@ describe('MysqlImporter', () => {
 
     describe('truncateAllTables', () => {
         it('should disable FK checks, truncate tables, and re-enable FK checks', async () => {
-            const importer = new MysqlImporter({ agencies: [] }, { info: vi.fn(), warn: vi.fn(), error: vi.fn() });
             importer.cnx = { query: vi.fn().mockResolvedValue() };
             importer.customModels = [
                 { filenameBase: 'table1', schema: [{}] },
@@ -372,7 +360,6 @@ describe('MysqlImporter', () => {
             expect(importer.cnx.query).toHaveBeenCalledWith('SET FOREIGN_KEY_CHECKS = 1;');
         });
         it('should not call query for empty customModels', async () => {
-            const importer = new MysqlImporter({ agencies: [] }, { info: vi.fn(), warn: vi.fn(), error: vi.fn() });
             importer.cnx = { query: vi.fn().mockResolvedValue() };
             importer.customModels = [];
             await importer.truncateAllTables();
@@ -385,7 +372,6 @@ describe('MysqlImporter', () => {
 
     describe('createIndexesForAllTables', () => {
         it('should create single and composite indexes', async () => {
-            const importer = new MysqlImporter({ agencies: [] }, { info: vi.fn(), warn: vi.fn(), error: vi.fn() });
             importer.cnx = { query: vi.fn().mockResolvedValue([[{ count: 0 }]]) };
             importer.customModels = [
                 {
@@ -410,7 +396,6 @@ describe('MysqlImporter', () => {
 
     describe('addForeignKeys', () => {
         it('should add foreign key constraints if not present', async () => {
-            const importer = new MysqlImporter({ agencies: [] }, { info: vi.fn(), warn: vi.fn(), error: vi.fn() });
             importer.cnx = { query: vi.fn().mockResolvedValue([[{ count: 0 }]]) };
             importer.customModels = [
                 {
@@ -424,7 +409,6 @@ describe('MysqlImporter', () => {
             expect(importer.cnx.query).toHaveBeenCalledWith(expect.stringContaining('ADD CONSTRAINT fk_table1_col1'));
         });
         it('should not add constraint if already present', async () => {
-            const importer = new MysqlImporter({ agencies: [] }, { info: vi.fn(), warn: vi.fn(), error: vi.fn() });
             importer.cnx = { query: vi.fn().mockResolvedValue([[{ count: 1 }]]) };
             importer.customModels = [
                 {
@@ -441,7 +425,6 @@ describe('MysqlImporter', () => {
 
     describe('addUniqueConstraints', () => {
         it('should add unique constraint if not present', async () => {
-            const importer = new MysqlImporter({ agencies: [] }, { info: vi.fn(), warn: vi.fn(), error: vi.fn() });
             importer.cnx = { query: vi.fn().mockResolvedValue([[{ count: 0 }]]) };
             importer.customModels = [
                 {
@@ -455,7 +438,6 @@ describe('MysqlImporter', () => {
             expect(importer.cnx.query).toHaveBeenCalledWith(expect.stringContaining('CREATE UNIQUE INDEX idx_unique_table1_col1'));
         });
         it('should not add unique constraint if already present', async () => {
-            const importer = new MysqlImporter({ agencies: [] }, { info: vi.fn(), warn: vi.fn(), error: vi.fn() });
             importer.cnx = { query: vi.fn().mockResolvedValue([[{ count: 1 }]]) };
             importer.customModels = [
                 {
@@ -472,7 +454,6 @@ describe('MysqlImporter', () => {
 
     describe('importLines', () => {
         it('should build correct SQL and call query', async () => {
-            const importer = new MysqlImporter({ agencies: [] }, { info: vi.fn(), warn: vi.fn(), error: vi.fn() });
             importer.cnx = { query: vi.fn().mockResolvedValue() };
             const model = {
                 filenameBase: 'table1',
