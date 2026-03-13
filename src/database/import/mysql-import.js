@@ -20,7 +20,7 @@ class MysqlImporter {
         this.config = config;
         this.logger = logger;
         this.models = models;
-        this.db = dbClientInstance
+        this.db = dbClientInstance;
         this.cnx = null;
         // List of models used including those with additional modifications made, e.g. custom timestamp columns
         this.customModels = [];
