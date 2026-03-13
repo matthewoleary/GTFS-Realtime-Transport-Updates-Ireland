@@ -469,20 +469,33 @@ describe('MysqlImporter', () => {
         });
     });
 
-    describe('executeCustomSqlQueries', () => {
-        it('should call the correct custom SQL query functions', async () => {
-            const { default: MysqlImporter } = await import('../mysql-import.js');
-            const addFeedInfoLastUpdatedColumn = vi.fn().mockResolvedValue();
-            const updateFeedInfoLastUpdatedValues = vi.fn().mockResolvedValue();
-            const importer = new MysqlImporter({ agencies: [] }, { info: vi.fn(), warn: vi.fn(), error: vi.fn() });
-            const task = { log: vi.fn(), warn: vi.fn(), cnx: { query: vi.fn().mockResolvedValue() } };
-            await importer.executeCustomSqlQueries(task, {
-                addFeedInfoLastUpdatedColumn,
-                updateFeedInfoLastUpdatedValues,
+    describe('addFeedInfoLastUpdatedColumn', () => {
+        it('should add feed_last_updated column to feed_info table', async () => {
+            const task = { cnx: { query: vi.fn().mockResolvedValue() }, warn: vi.fn() };
+            await import('../../queries/custom-queries.js').then(({ addFeedInfoLastUpdatedColumn }) => addFeedInfoLastUpdatedColumn(task));
+            expect(task.cnx.query).toHaveBeenCalledWith(expect.stringContaining('ALTER TABLE feed_info ADD feed_last_updated DATETIME'));
+        });
+        it('should warn and throw on error', async () => {
+            const task = { cnx: { query: vi.fn().mockRejectedValue(new Error('fail')) }, warn: vi.fn() };
+            await import('../../queries/custom-queries.js').then(async ({ addFeedInfoLastUpdatedColumn }) => {
+                await expect(addFeedInfoLastUpdatedColumn(task)).rejects.toThrow('fail');
+                expect(task.warn).toHaveBeenCalledWith('Error adding feed_last_updated to feed_info');
             });
-            expect(addFeedInfoLastUpdatedColumn).toHaveBeenCalledWith(task);
-            expect(updateFeedInfoLastUpdatedValues).toHaveBeenCalledWith(task);
-            expect(task.log).toHaveBeenCalledWith('Successfully executed custom SQL queries.');
+        });
+    });
+
+    describe('updateFeedInfoLastUpdatedValues', () => {
+        it('should update feed_last_updated values in feed_info table', async () => {
+            const task = { cnx: { query: vi.fn().mockResolvedValue() }, warn: vi.fn() };
+            await import('../../queries/custom-queries.js').then(({ updateFeedInfoLastUpdatedValues }) => updateFeedInfoLastUpdatedValues(task));
+            expect(task.cnx.query).toHaveBeenCalledWith(expect.stringContaining('UPDATE feed_info'));
+        });
+        it('should warn and throw on error', async () => {
+            const task = { cnx: { query: vi.fn().mockRejectedValue(new Error('fail')) }, warn: vi.fn() };
+            await import('../../queries/custom-queries.js').then(async ({ updateFeedInfoLastUpdatedValues }) => {
+                await expect(updateFeedInfoLastUpdatedValues(task)).rejects.toThrow('fail');
+                expect(task.warn).toHaveBeenCalledWith('Error updating feed_last_updated in feed_info');
+            });
         });
     });
 });
