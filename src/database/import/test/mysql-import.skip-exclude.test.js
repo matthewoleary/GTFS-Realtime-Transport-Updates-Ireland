@@ -15,7 +15,8 @@ describe('MysqlImporter (isolated importFiles skip test)', () => {
     const models = [
       { filenameBase: 'table1', schema: [{ name: 'id' }] }
     ];
-    const importer = new MysqlImporter({ agencies: [] }, { info: vi.fn(), warn: vi.fn(), error: vi.fn() }, models);
+    const dbClientInstance = {};
+    const importer = new MysqlImporter({ agencies: [] }, { info: vi.fn(), warn: vi.fn(), error: vi.fn() }, dbClientInstance, models);
     importer.cnx = { query: vi.fn().mockResolvedValue() };
     // Spy on fs.existsSync
     const existsSyncSpy = vi.spyOn(fs, 'existsSync').mockReturnValue(false);
