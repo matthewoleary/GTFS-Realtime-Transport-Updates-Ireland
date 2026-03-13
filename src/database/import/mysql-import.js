@@ -488,18 +488,6 @@ class MysqlImporter {
     }
 
     /**
-     * Execute any custom SQL queries after GTFS import.
-     */
-    async executeCustomSqlQueries(task) {
-        task.log('Executing custom queries.');
-        // Add last updated column to feed_info table
-        await addFeedInfoLastUpdatedColumn(task);
-        // Update last updated column in feed_info table
-        await updateFeedInfoLastUpdatedValues(task);
-        task.log('Successfully executed custom SQL queries.');
-    }
-
-    /**
      * Main import process for all agencies in config.
      */
     async import() {
@@ -569,7 +557,8 @@ class MysqlImporter {
             await this.createIndexesForAllTables();
             await this.addUniqueConstraints();
             await this.addForeignKeys();
-            await this.executeCustomSqlQueries(task);
+            await addFeedInfoLastUpdatedColumn(task); // Add last updated column to feed_info table
+            await updateFeedInfoLastUpdatedValues(task); // Update last updated column in feed_info table
 
             this.logger.info('Completed GTFS import for agency: ' + task.agency_key + '.');
             await cleanup();
