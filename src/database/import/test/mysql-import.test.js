@@ -66,6 +66,21 @@ describe('MysqlImporter', () => {
         });
     });
 
+    describe('connectDb', () => {
+        it('should call dbClientInstance.getConnection() and set importer.cnx', async () => {
+            const fakeConnection = { some: 'connection' };
+            const dbClientInstance = {
+                getConnection: vi.fn().mockResolvedValue(fakeConnection),
+                getLastDbUpdate: vi.fn()
+            };
+            const imp = new MysqlImporter({ agencies: [] }, { info: vi.fn(), warn: vi.fn(), error: vi.fn() }, dbClientInstance);
+            await imp.connectDb();
+            expect(dbClientInstance.getConnection).toHaveBeenCalled();
+            expect(imp.cnx).toBe(fakeConnection);
+            expect(imp.getLastDbUpdate).toBe(dbClientInstance.getLastDbUpdate);
+        });
+    });
+
     describe('downloadFiles', () => {
         it('should download files and write to disk', async () => {
             const task = {
