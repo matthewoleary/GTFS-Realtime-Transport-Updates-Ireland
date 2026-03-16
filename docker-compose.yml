@@ -17,7 +17,7 @@ services:
         image: matthewoleary/gtfs-db-testing:20260316
         restart: always
         ports:
-        - '3307:3306'
+            - '3307:3306'
         environment:
             MYSQL_USER: ${TEST_DOCKER_SQL_USER}
             MYSQL_PASSWORD: ${TEST_DOCKER_SQL_PASSWORD}
