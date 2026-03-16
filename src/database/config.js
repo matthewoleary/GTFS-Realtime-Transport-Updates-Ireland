@@ -49,4 +49,4 @@ export const testDbConfig = {
 	password: TEST_DOCKER_SQL_PASSWORD,
 	port: TEST_DOCKER_SQL_PORT,
 	requestTimeout: 60000
-}
+};
