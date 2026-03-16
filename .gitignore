@@ -7,3 +7,4 @@ unused_files
 Dockerfile
 sample-config.js
 .vscode/launch.json
+.env
