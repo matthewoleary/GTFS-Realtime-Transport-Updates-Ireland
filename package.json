@@ -37,7 +37,8 @@
     "start": "node . prod",
     "test": "vitest",
     "import": "node ./import/gtfs-import",
-    "lint": "xo"
+    "lint": "xo",
+    "test:integration:db": "docker-compose up -d gtfs-db-testing && vitest run src/database/queries/test/mysql-queries.test.js && docker-compose down"
   },
   "author": "Matthew O'Leary",
   "license": "MIT",
