@@ -1,6 +1,6 @@
 
 import { describe, test, expect, vi, beforeEach } from 'vitest';
-import getTripsRoute from '../routes/getTrips.js';
+import getTrips from '../routes/getTrips.js';
 
 
 // Declare mocks before vi.mock
@@ -27,7 +27,7 @@ vi.mock('../../../utils/timestampUtils.js', () => ({
   getUnixTimestamp: (...args) => mockGetUnixTimestamp(...args)
 }));
 
-describe('getTripsRoute', () => {
+describe('getTrips', () => {
   let server;
   let handler;
   let db;
@@ -54,7 +54,7 @@ describe('getTripsRoute', () => {
   });
 
   test('registers the route on the server', () => {
-    getTripsRoute(server);
+    getTrips(server);
     expect(server.route).toHaveBeenCalledWith(expect.objectContaining({
       method: 'GET',
       path: '/api/trips',
@@ -63,7 +63,7 @@ describe('getTripsRoute', () => {
   });
 
   test('returns 400 if no tripId param', async () => {
-    getTripsRoute(server);
+    getTrips(server);
     handler = server.route.mock.calls[0][0].handler;
     const req = { query: {} };
     const res = await handler(req, h);
@@ -73,7 +73,7 @@ describe('getTripsRoute', () => {
   test('returns trips by id if tripId param is present', async () => {
     mockExtractIdsFromParam.mockReturnValue(['T1', 'T2']);
     db.queries.getTripById.mockResolvedValueOnce([{ id: 'T1' }]).mockResolvedValueOnce([{ id: 'T2' }]);
-    getTripsRoute(server);
+    getTrips(server);
     handler = server.route.mock.calls[0][0].handler;
     // Assert the realtime mock is present
     expect(realtime.queryProcessor.updateResultsWithRealtimeVehiclePositions).toBeDefined();
@@ -115,7 +115,7 @@ describe('getTripsRoute', () => {
   test('returns 404 if no trips found', async () => {
     mockExtractIdsFromParam.mockReturnValue(['T1']);
     db.queries.getTripById.mockResolvedValueOnce([]);
-    getTripsRoute(server);
+    getTrips(server);
     handler = server.route.mock.calls[0][0].handler;
     const req = { query: { tripId: 'T1' } };
     const res = await handler(req, h);
@@ -125,7 +125,7 @@ describe('getTripsRoute', () => {
   test('returns 500 on error', async () => {
     mockExtractIdsFromParam.mockReturnValue(['T1']);
     db.queries.getTripById.mockRejectedValue(new Error('fail'));
-    getTripsRoute(server);
+    getTrips(server);
     handler = server.route.mock.calls[0][0].handler;
     const req = { query: { tripId: 'T1' } };
     const res = await handler(req, h);

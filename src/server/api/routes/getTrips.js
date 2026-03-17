@@ -15,8 +15,8 @@ import { getCurrentTimestamp, getUnixTimestamp } from '../../../utils/timestampU
  * @param {object} server - Hapi server instance to register the route on.
  * @returns {void}
  */
-export default function getTripsRoute(server) {
-    const logger = new ServerLogger({ client: 'getTripsRoute' });
+export default function getTrips(server) {
+    const logger = new ServerLogger({ client: 'getTrips' });
     server.route({
         method: 'GET',
         path: '/api/trips',
