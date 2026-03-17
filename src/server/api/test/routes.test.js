@@ -1,5 +1,5 @@
 import { describe, test, expect, vi } from 'vitest';
-import { registerRoutes } from '../routes/routes.js';
+import { registerRoutes } from '../index.js';
 
 vi.mock('../routes/getStops.js', () => ({ default: vi.fn() }));
 vi.mock('../routes/getRoutes.js', () => ({ default: vi.fn() }));
