@@ -4,8 +4,8 @@ const calls = [];
 const mockRoute = name => vi.fn(s => calls.push(name));
 
 vi.doMock('../routes/getStops.js', () => ({ default: mockRoute('getStopsRoute') }));
-vi.doMock('../routes/getAgencies.js', () => ({ default: mockRoute('getAgenciesRoute') }));
 vi.doMock('../routes/getRoutes.js', () => ({ default: mockRoute('getRoutes') }));
+vi.doMock('../routes/getAgencies.js', () => ({ default: mockRoute('getAgencies') }));
 vi.doMock('../routes/getStopTimesForTrip.js', () => ({ default: mockRoute('getStopTimesForTripRoute') }));
 vi.doMock('../routes/getTrips.js', () => ({ default: mockRoute('getTripsRoute') }));
 vi.doMock('../routes/getShapes.js', () => ({ default: mockRoute('getShapesRoute') }));
@@ -19,7 +19,7 @@ describe('registerRoutes (isolated)', () => {
     expect(calls).toEqual([
       'getStopsRoute',
       'getRoutes',
-      'getAgenciesRoute',
+      'getAgencies',
       'getStopTimesForTripRoute',
       'getTripsRoute',
       'getShapesRoute',
