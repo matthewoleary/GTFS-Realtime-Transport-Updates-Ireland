@@ -153,7 +153,7 @@ describe('databaseQueriesProcessor', () => {
     await processor.getAllRoutes(agencyId);
     await processor.getAllRoutes();
     const cnx = await getConnection.mock.results[0].value;
-    expect(cnx.query).toHaveBeenCalledWith(sqlQueries.getAllRoutes, [agencyId]);
+    expect(cnx.query).toHaveBeenCalledWith(sqlQueries.getAllRoutesByAgencyId, [agencyId]);
     expect(cnx.query).toHaveBeenCalledWith(sqlQueries.getAllRoutes);
   });
 
