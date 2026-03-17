@@ -24,9 +24,9 @@ vi.mock('../../../utils/timestampUtils.js', () => ({
 }));
 
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
-import getShapesRoute from '../routes/getShapes.js';
+import getShapes from '../routes/getShapes.js';
 
-describe('getShapesRoute', () => {
+describe('getShapes', () => {
   let server;
   let handler;
   let db;
@@ -42,7 +42,7 @@ describe('getShapesRoute', () => {
   });
 
   test('registers the route on the server', () => {
-    getShapesRoute(server);
+    getShapes(server);
     expect(server.route).toHaveBeenCalledWith(expect.objectContaining({
       method: 'GET',
       path: '/api/shapes',
@@ -51,7 +51,7 @@ describe('getShapesRoute', () => {
   });
 
   test('returns 400 if no shapeId param', async () => {
-    getShapesRoute(server);
+    getShapes(server);
     handler = server.route.mock.calls[0][0].handler;
     const req = { query: {} };
     const res = await handler(req, h);
@@ -61,7 +61,7 @@ describe('getShapesRoute', () => {
   test('returns shapes by id if shapeId param is present', async () => {
     mockExtractIdsFromParam.mockReturnValue(['S1', 'S2']);
     db.queries.getShapeById.mockResolvedValueOnce([{ id: 'S1' }]).mockResolvedValueOnce([{ id: 'S2' }]);
-    getShapesRoute(server);
+    getShapes(server);
     handler = server.route.mock.calls[0][0].handler;
     const req = { query: { shapeId: 'S1,S2' } };
     const res = await handler(req, h);
@@ -75,7 +75,7 @@ describe('getShapesRoute', () => {
   test('returns 404 if no shapes found', async () => {
     mockExtractIdsFromParam.mockReturnValue(['S1']);
     db.queries.getShapeById.mockResolvedValueOnce([]);
-    getShapesRoute(server);
+    getShapes(server);
     handler = server.route.mock.calls[0][0].handler;
     const req = { query: { shapeId: 'S1' } };
     const res = await handler(req, h);
@@ -85,7 +85,7 @@ describe('getShapesRoute', () => {
   test('returns 500 on error', async () => {
     mockExtractIdsFromParam.mockReturnValue(['S1']);
     db.queries.getShapeById.mockRejectedValue(new Error('fail'));
-    getShapesRoute(server);
+    getShapes(server);
     handler = server.route.mock.calls[0][0].handler;
     const req = { query: { shapeId: 'S1' } };
     const res = await handler(req, h);
