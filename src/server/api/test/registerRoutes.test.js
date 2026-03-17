@@ -9,7 +9,7 @@ vi.doMock('../routes/getAgencies.js', () => ({ default: mockRoute('getAgencies')
 vi.doMock('../routes/getStopTimesForTrip.js', () => ({ default: mockRoute('getStopTimesForTrip') }));
 vi.doMock('../routes/getTrips.js', () => ({ default: mockRoute('getTrips') }));
 vi.doMock('../routes/getShapes.js', () => ({ default: mockRoute('getShapes') }));
-vi.doMock('../routes/getTripsAtStop.js', () => ({ default: mockRoute('getTripsAtStopRoute') }));
+vi.doMock('../routes/getTripsAtStop.js', () => ({ default: mockRoute('getTripsAtStop') }));
 
 describe('registerRoutes (isolated)', () => {
   it('should call all route functions with server', async () => {
@@ -23,7 +23,7 @@ describe('registerRoutes (isolated)', () => {
       'getStopTimesForTrip',
       'getTrips',
       'getShapes',
-      'getTripsAtStopRoute',
+      'getTripsAtStop',
     ]);
   });
 });

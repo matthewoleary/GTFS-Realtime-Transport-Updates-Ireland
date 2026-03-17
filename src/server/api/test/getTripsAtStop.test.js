@@ -1,6 +1,6 @@
 
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
-import getTripsAtStopRoute from '../routes/getTripsAtStop.js';
+import getTripsAtStop from '../routes/getTripsAtStop.js';
 
 
 // Declare mocks before vi.mock
@@ -39,7 +39,7 @@ vi.mock('../../../utils/timestampUtils.js', () => ({
   getUnwrappedTimestamp: (...args) => mockGetUnwrappedTimestamp(...args)
 }));
 
-describe('getTripsAtStopRoute', () => {
+describe('getTripsAtStop', () => {
   let server;
   let handler;
   let db;
@@ -64,7 +64,7 @@ describe('getTripsAtStopRoute', () => {
   });
 
   test('registers the route on the server', () => {
-    getTripsAtStopRoute(server);
+    getTripsAtStop(server);
     expect(server.route).toHaveBeenCalledWith(expect.objectContaining({
       method: 'GET',
       path: '/api/tripsAtStop',
@@ -73,7 +73,7 @@ describe('getTripsAtStopRoute', () => {
   });
 
   test('returns 400 if no stopId param', async () => {
-    getTripsAtStopRoute(server);
+    getTripsAtStop(server);
     handler = server.route.mock.calls[0][0].handler;
     const req = { query: {} };
     const res = await handler(req, h);
@@ -82,7 +82,7 @@ describe('getTripsAtStopRoute', () => {
 
   test('returns 500 if realtimeTripUpdates is missing', async () => {
     mockGetRealtimeTripUpdatesClient.mockReturnValue(undefined);
-    getTripsAtStopRoute(server);
+    getTripsAtStop(server);
     handler = server.route.mock.calls[0][0].handler;
     const req = { query: { stopId: 'S1' } };
     const result = await handler(req, h);
@@ -91,7 +91,7 @@ describe('getTripsAtStopRoute', () => {
 
   test('returns 500 if db is missing', async () => {
     mockGetDatabaseClient.mockReturnValue(undefined);
-    getTripsAtStopRoute(server);
+    getTripsAtStop(server);
     handler = server.route.mock.calls[0][0].handler;
     const req = { query: { stopId: 'S1' } };
     const res = await handler(req, h);
