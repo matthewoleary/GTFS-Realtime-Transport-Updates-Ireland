@@ -19,11 +19,11 @@ describe('registerRoutes (isolated)', () => {
     expect(calls).toEqual([
       'getStops',
       'getRoutes',
+      'getTripsAtStop',
       'getAgencies',
       'getStopTimesForTrip',
       'getTrips',
-      'getShapes',
-      'getTripsAtStop',
+      'getShapes'
     ]);
   });
 });
