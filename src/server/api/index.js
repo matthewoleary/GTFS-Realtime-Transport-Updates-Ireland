@@ -10,11 +10,11 @@ import getTripsAtStop from './routes/getTripsAtStop.js';
 export async function registerRoutes(server) {
 	getStops(server);
 	getRoutes(server);
+	getTripsAtStop(server);
 	getAgencies(server);
 	getStopTimesForTrip(server);
 	getTrips(server);
 	getShapes(server);
-	getTripsAtStop(server);
 }
 
 /**
