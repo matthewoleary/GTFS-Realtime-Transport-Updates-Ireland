@@ -26,9 +26,9 @@ vi.mock('../../../utils/timestampUtils.js', () => ({
 }));
 
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
-import getRoutesRoute from '../routes/getRoutes.js';
+import getRoutes from '../routes/getRoutes.js';
 
-describe('getRoutesRoute', () => {
+describe('getRoutes', () => {
   let server;
   let handler;
   let db;
@@ -45,7 +45,7 @@ describe('getRoutesRoute', () => {
   });
 
   test('registers the route on the server', () => {
-    getRoutesRoute(server);
+    getRoutes(server);
     expect(server.route).toHaveBeenCalledWith(expect.objectContaining({
       method: 'GET',
       path: '/api/routes',
@@ -56,7 +56,7 @@ describe('getRoutesRoute', () => {
   test('returns all routes if no routeId param', async () => {
     const routes = [{ id: 1 }, { id: 2 }];
     db.queries.getAllRoutes.mockResolvedValue(routes);
-    getRoutesRoute(server);
+    getRoutes(server);
     handler = server.route.mock.calls[0][0].handler;
     const req = { query: {} };
     const res = await handler(req, h);
@@ -71,7 +71,7 @@ describe('getRoutesRoute', () => {
   test('returns routes by id if routeId param is present', async () => {
     mockExtractIdsFromParam.mockReturnValue(['R1', 'R2']);
     db.queries.getRouteById.mockResolvedValueOnce([{ id: 'R1' }]).mockResolvedValueOnce([{ id: 'R2' }]);
-    getRoutesRoute(server);
+    getRoutes(server);
     handler = server.route.mock.calls[0][0].handler;
     const req = { query: { routeId: 'R1,R2' } };
     const res = await handler(req, h);
@@ -84,7 +84,7 @@ describe('getRoutesRoute', () => {
 
   test('returns 500 on error', async () => {
     db.queries.getAllRoutes.mockRejectedValue(new Error('fail'));
-    getRoutesRoute(server);
+    getRoutes(server);
     handler = server.route.mock.calls[0][0].handler;
     const req = { query: {} };
     const res = await handler(req, h);
