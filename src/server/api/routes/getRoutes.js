@@ -8,7 +8,7 @@ import { getCurrentTimestamp, getUnixTimestamp } from '../../../utils/timestampU
  *
  * - If the optional `routeId` query parameter is provided (as a string or array, comma-separated supported),
  *   returns details for the specified route(s) only.
- * - If `routeId` is omitted, returns all routes, optionally filtered by agency if the `agency` query parameter is provided.
+ * - If `routeId` is omitted, returns all routes, optionally filtered by agency if the `agencyId` query parameter is provided.
  * - Adds current and Unix timestamps to the response payload for client-side reference.
  * - Handles MySQL backend via the dynamic SQL client.
  *
@@ -23,7 +23,7 @@ export default function getRoutes(server) {
         handler: async (request, handler) => {
             try {
                 const db = getDatabaseClient(request);
-                const agencyId = request.query.agency?.toLowerCase();
+                const agencyId = request.query.agencyId; // Optional agencyId for filtering routes by agency
                 const routeIdParam = request.query.routeId;
                 const currentTimestamp = getCurrentTimestamp();
                 const unixTimestamp = getUnixTimestamp();
@@ -38,7 +38,7 @@ export default function getRoutes(server) {
                         }
                     }
                 } else {
-                    response = await db.queries.getAllRoutes(agencyId);
+                    response = await db.queries.getAllRoutes(agencyId); // Pass agencyId to filter routes by agency if provided.
                 }
                 const sortedRecords = await sortByRouteShortNameAsInt(response || []);
                 const payload = {

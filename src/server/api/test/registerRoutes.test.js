@@ -4,7 +4,6 @@ const calls = [];
 const mockRoute = name => vi.fn(s => calls.push(name));
 
 vi.doMock('../routes/getStops.js', () => ({ default: mockRoute('getStopsRoute') }));
-vi.doMock('../routes/getRoutes.js', () => ({ default: mockRoute('getRoutesEndpoint') }));
 vi.doMock('../routes/getAgencies.js', () => ({ default: mockRoute('getAgenciesRoute') }));
 vi.doMock('../routes/getRoutes.js', () => ({ default: mockRoute('getRoutes') }));
 vi.doMock('../routes/getStopTimesForTrip.js', () => ({ default: mockRoute('getStopTimesForTripRoute') }));

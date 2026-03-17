@@ -113,7 +113,7 @@ const register = async ({ getConnection, loadSqlQueries: injectedLoadSqlQueries 
 	const getAllRoutes = async agencyId => {
 		const cnx = await getConnection();
 		if (agencyId) {
-			const [rows] = await cnx.query(sqlQueries.getAllRoutes, [agencyId]);
+			const [rows] = await cnx.query(sqlQueries.getAllRoutesByAgencyId, [agencyId]);
 			return rows;
 		} else {
 			const [rows] = await cnx.query(sqlQueries.getAllRoutes);
