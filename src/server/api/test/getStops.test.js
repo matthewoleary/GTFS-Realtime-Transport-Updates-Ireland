@@ -1,7 +1,7 @@
 
 
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
-import getStopsRoute from '../routes/getStops.js';
+import getStops from '../routes/getStops.js';
 
 
 // Declare mocks before vi.mock
@@ -26,7 +26,7 @@ vi.mock('../../../utils/timestampUtils.js', () => ({
   getUnixTimestamp: (...args) => mockGetUnixTimestamp(...args)
 }));
 
-describe('getStopsRoute', () => {
+describe('getStops', () => {
   let server;
   let handler;
   let db;
@@ -42,7 +42,7 @@ describe('getStopsRoute', () => {
   });
 
   test('registers the route on the server', () => {
-    getStopsRoute(server);
+    getStops(server);
     expect(server.route).toHaveBeenCalledWith(expect.objectContaining({
       method: 'GET',
       path: '/api/stops',
@@ -53,7 +53,7 @@ describe('getStopsRoute', () => {
   test('returns all stops if no stopId param', async () => {
     const stops = [{ id: 1 }, { id: 2 }];
     db.queries.getAllStops.mockResolvedValue(stops);
-    getStopsRoute(server);
+    getStops(server);
     handler = server.route.mock.calls[0][0].handler;
     const req = { query: {} };
     const res = await handler(req, h);
@@ -68,7 +68,7 @@ describe('getStopsRoute', () => {
   test('returns stops by id if stopId param is present', async () => {
     mockExtractIdsFromParam.mockReturnValue(['S1', 'S2']);
     db.queries.getStopById.mockResolvedValueOnce([{ id: 'S1' }]).mockResolvedValueOnce([{ id: 'S2' }]);
-    getStopsRoute(server);
+    getStops(server);
     handler = server.route.mock.calls[0][0].handler;
     const req = { query: { stopId: 'S1,S2' } };
     const res = await handler(req, h);
@@ -81,7 +81,7 @@ describe('getStopsRoute', () => {
 
   test('returns 500 on error', async () => {
     db.queries.getAllStops.mockRejectedValue(new Error('fail'));
-    getStopsRoute(server);
+    getStops(server);
     handler = server.route.mock.calls[0][0].handler;
     const req = { query: {} };
     const res = await handler(req, h);

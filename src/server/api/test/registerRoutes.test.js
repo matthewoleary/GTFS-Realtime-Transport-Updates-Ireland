@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 const calls = [];
 const mockRoute = name => vi.fn(s => calls.push(name));
 
-vi.doMock('../routes/getStops.js', () => ({ default: mockRoute('getStopsRoute') }));
+vi.doMock('../routes/getStops.js', () => ({ default: mockRoute('getStops') }));
 vi.doMock('../routes/getRoutes.js', () => ({ default: mockRoute('getRoutes') }));
 vi.doMock('../routes/getAgencies.js', () => ({ default: mockRoute('getAgencies') }));
 vi.doMock('../routes/getStopTimesForTrip.js', () => ({ default: mockRoute('getStopTimesForTripRoute') }));
@@ -17,7 +17,7 @@ describe('registerRoutes (isolated)', () => {
     const server = {};
     await registerRoutes(server);
     expect(calls).toEqual([
-      'getStopsRoute',
+      'getStops',
       'getRoutes',
       'getAgencies',
       'getStopTimesForTripRoute',
