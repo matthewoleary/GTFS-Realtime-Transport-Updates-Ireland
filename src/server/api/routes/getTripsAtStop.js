@@ -15,8 +15,8 @@ import { getCurrentDay, getCurrentDate, getPreviousDay, getPreviousDate, getNext
  * @param {object} server - Hapi server instance to register the route on.
  * @returns {void}
  */
-export default function getTripsAtStopRoute(server) {
-    const logger = new ServerLogger({ client: 'getTripsAtStopRoute' });
+export default function getTripsAtStop(server) {
+    const logger = new ServerLogger({ client: 'getTripsAtStop' });
     server.route({
         method: 'GET',
         path: '/api/tripsAtStop',
