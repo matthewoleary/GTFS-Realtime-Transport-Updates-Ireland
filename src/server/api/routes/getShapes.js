@@ -15,8 +15,8 @@ import { getCurrentTimestamp, getUnixTimestamp } from '../../../utils/timestampU
  * @param {object} server - Hapi server instance to register the route on.
  * @returns {void}
  */
-export default function getShapesRoute(server) {
-    const logger = new ServerLogger({ client: 'getShapesRoute' });
+export default function getShapes(server) {
+    const logger = new ServerLogger({ client: 'getShapes' });
     server.route({
         method: 'GET',
         path: '/api/shapes',
