@@ -6,8 +6,8 @@ const mockRoute = name => vi.fn(s => calls.push(name));
 vi.doMock('../routes/getStops.js', () => ({ default: mockRoute('getStops') }));
 vi.doMock('../routes/getRoutes.js', () => ({ default: mockRoute('getRoutes') }));
 vi.doMock('../routes/getAgencies.js', () => ({ default: mockRoute('getAgencies') }));
-vi.doMock('../routes/getTrips.js', () => ({ default: mockRoute('getTripsRoute') }));
 vi.doMock('../routes/getStopTimesForTrip.js', () => ({ default: mockRoute('getStopTimesForTrip') }));
+vi.doMock('../routes/getTrips.js', () => ({ default: mockRoute('getTrips') }));
 vi.doMock('../routes/getShapes.js', () => ({ default: mockRoute('getShapesRoute') }));
 vi.doMock('../routes/getTripsAtStop.js', () => ({ default: mockRoute('getTripsAtStopRoute') }));
 
@@ -20,8 +20,8 @@ describe('registerRoutes (isolated)', () => {
       'getStops',
       'getRoutes',
       'getAgencies',
-      'getTripsRoute',
       'getStopTimesForTrip',
+      'getTrips',
       'getShapesRoute',
       'getTripsAtStopRoute',
     ]);
