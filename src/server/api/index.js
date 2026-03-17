@@ -1,20 +1,20 @@
 // Here we bundle all routes we add to the API into the index.js
 import getStopsRoute from './routes/getStops.js';
-import getAgenciesRoute from './routes/getAgencies.js';
 import getRoutes from './routes/getRoutes.js';
 import getStopTimesForTripRoute from './routes/getStopTimesForTrip.js';
 import getTripsRoute from './routes/getTrips.js';
 import getShapesRoute from './routes/getShapes.js';
 import getTripsAtStopRoute from './routes/getTripsAtStop.js';
+import getAgencies from './routes/getAgencies.js';
 
 export async function registerRoutes(server) {
 	getStopsRoute(server);
-	getAgenciesRoute(server);
 	getRoutes(server);
 	getStopTimesForTripRoute(server);
 	getTripsRoute(server);
 	getShapesRoute(server);
 	getTripsAtStopRoute(server);
+	getAgencies(server);
 }
 
 /**

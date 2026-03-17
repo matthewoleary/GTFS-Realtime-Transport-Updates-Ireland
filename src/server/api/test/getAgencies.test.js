@@ -26,9 +26,9 @@ vi.mock('../../../utils/timestampUtils.js', () => ({
 }));
 
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
-import getAgenciesRoute from '../routes/getAgencies.js';
+import getAgencies from '../routes/getAgencies.js';
 
-describe('getAgenciesRoute', () => {
+describe('getAgencies', () => {
   let server;
   let handler;
   let db;
@@ -44,7 +44,7 @@ describe('getAgenciesRoute', () => {
   });
 
   test('registers the route on the server', () => {
-    getAgenciesRoute(server);
+    getAgencies(server);
     expect(server.route).toHaveBeenCalledWith(expect.objectContaining({
       method: 'GET',
       path: '/api/agencies',
@@ -55,7 +55,7 @@ describe('getAgenciesRoute', () => {
   test('returns all agencies if no agencyId param', async () => {
     const agencies = [{ id: 1 }, { id: 2 }, { id: 3}];
     db.queries.getAllAgencies.mockResolvedValue(agencies);
-    getAgenciesRoute(server);
+    getAgencies(server);
     handler = server.route.mock.calls[0][0].handler;
     const req = { query: {}, }; // no agencyId
     const res = await handler(req, h);
@@ -70,7 +70,7 @@ describe('getAgenciesRoute', () => {
   test('returns agencies by id if agencyId param is present', async () => {
     mockExtractIdsFromParam.mockReturnValue(['A1', 'A2']);
     db.queries.getAgencyById.mockResolvedValueOnce([{ id: 'A1' }]).mockResolvedValueOnce([{ id: 'A2' }]);
-    getAgenciesRoute(server);
+    getAgencies(server);
     handler = server.route.mock.calls[0][0].handler;
     const req = { query: { agencyId: 'A1,A2' } };
     const res = await handler(req, h);
@@ -83,7 +83,7 @@ describe('getAgenciesRoute', () => {
 
   test('returns 404 if no agencies found', async () => {
     db.queries.getAllAgencies.mockResolvedValue([]);
-    getAgenciesRoute(server);
+    getAgencies(server);
     handler = server.route.mock.calls[0][0].handler;
     const req = { query: {} };
     const res = await handler(req, h);
@@ -93,7 +93,7 @@ describe('getAgenciesRoute', () => {
 
   test('returns 500 on error', async () => {
     db.queries.getAllAgencies.mockRejectedValue(new Error('fail'));
-    getAgenciesRoute(server);
+    getAgencies(server);
     handler = server.route.mock.calls[0][0].handler;
     const req = { query: {} };
     const res = await handler(req, h);
