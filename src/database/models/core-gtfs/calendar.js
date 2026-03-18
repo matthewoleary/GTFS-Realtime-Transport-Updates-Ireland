@@ -68,5 +68,14 @@ export default {
 			required: true,
 			index: true
 		}
+	],
+	indexes: [
+		{ fields: ['start_date', 'end_date', 'monday'] },
+		{ fields: ['start_date', 'end_date', 'tuesday'] },
+		{ fields: ['start_date', 'end_date', 'wednesday'] },
+		{ fields: ['start_date', 'end_date', 'thursday'] },
+		{ fields: ['start_date', 'end_date', 'friday'] },
+		{ fields: ['start_date', 'end_date', 'saturday'] },
+		{ fields: ['start_date', 'end_date', 'sunday'] }
 	]
 };
