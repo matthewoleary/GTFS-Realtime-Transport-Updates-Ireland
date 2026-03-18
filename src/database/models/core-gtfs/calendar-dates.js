@@ -27,5 +27,8 @@ export default {
 			min: 1,
 			max: 2
 		}
+	],
+	indexes: [
+		{ fields: ['service_id', 'date', 'exception_type'], unique: false }
 	]
 };
