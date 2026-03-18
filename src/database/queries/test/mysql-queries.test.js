@@ -116,7 +116,6 @@ describe('MySQL Query Tests (uses gtfs-db-testing docker container)', () => {
         path.join(__dirname, '../mysql/stops/getAllStopsByAgency.sql'),
         'utf8'
       );
-      // Use a sample agency_id for testing
       const sampleAgencyId = '7778019'; // Dublin Bus sample agency_id for testing
       const [rows] = await connection.query(sql, [sampleAgencyId]);
       expect(Array.isArray(rows)).toBe(true);
@@ -125,20 +124,6 @@ describe('MySQL Query Tests (uses gtfs-db-testing docker container)', () => {
         // Assert that all the resulting stops belong to the specified agency
         const allBelongToAgency = rows.every(row => row.agency_id === sampleAgencyId);
         expect(allBelongToAgency).toBe(true);
-      }
-    });
-
-    it('should return last stop on trip from getLastStopOnTrip.sql', async () => {
-      const sql = fs.readFileSync(
-        path.join(__dirname, '../mysql/stops/getLastStopOnTrip.sql'),
-        'utf8'
-      );
-      // Use a sample trip_id for testing
-      const sampleTripId = 'sample_trip_id';
-      const [rows] = await connection.query(sql, [sampleTripId]);
-      expect(Array.isArray(rows)).toBe(true);
-      if (rows.length > 0) {
-        expect(rows[0]).toHaveProperty('stop_id');
       }
     });
   });
@@ -150,11 +135,14 @@ describe('MySQL Query Tests (uses gtfs-db-testing docker container)', () => {
         'utf8'
       );
       // Use a sample trip_id for testing
-      const sampleTripId = 'sample_trip_id';
+      const sampleTripId = '5512_1219'; // Dublin Bus trip_id for testing
       const [rows] = await connection.query(sql, [sampleTripId]);
       expect(Array.isArray(rows)).toBe(true);
       if (rows.length > 0) {
         expect(rows[0]).toHaveProperty('trip_id');
+        // Assert that all the resulting trips have the expected trip_id
+        const allHaveExpectedTripId = rows.every(row => row.trip_id === sampleTripId);
+        expect(allHaveExpectedTripId).toBe(true);
       }
     });
   });
@@ -165,12 +153,51 @@ describe('MySQL Query Tests (uses gtfs-db-testing docker container)', () => {
         path.join(__dirname, '../mysql/stopTimes/getStopTimesByTripId.sql'),
         'utf8'
       );
-      // Use a sample trip_id for testing
-      const sampleTripId = 'sample_trip_id';
+      const sampleTripId = '5512_1219'; // Dublin Bus trip_id for testing
+      const [rows] = await connection.query(sql, [sampleTripId]);
+      expect(Array.isArray(rows)).toBe(true);
+      if (rows.length > 0) {
+        // Assert that all the resulting stop times belong to the specified trip
+        const allBelongToTrip = rows.every(row => row.trip_id === sampleTripId);
+        expect(allBelongToTrip).toBe(true);
+      }
+    });
+
+    it('should return last stop on trip from getLastStopOnTrip.sql', async () => {
+      const sql = fs.readFileSync(
+        path.join(__dirname, '../mysql/stopTimes/getLastStopOnTrip.sql'),
+        'utf8'
+      );
+      const sampleTripId = '5512_1219'; // Dublin Bus trip_id for testing
       const [rows] = await connection.query(sql, [sampleTripId]);
       expect(Array.isArray(rows)).toBe(true);
       if (rows.length > 0) {
         expect(rows[0]).toHaveProperty('stop_id');
+        // Assert that the stop_id is the expected last stop on the trip
+        const expectedLastStopId = '8220DB006094'; // Dublin Bus stop_id for testing
+        expect(rows[0].stop_id).toBe(expectedLastStopId);
+      }
+    });
+
+    it('should return maximum departure timestamp from getMaximumDepartureTimestampQuery', async () => {
+      // Import the query generator
+      const getMaximumDepartureTimestampQuery = (await import('../mysql/stopTimes/getMaximumDepartureTimestampQuery.js')).default;
+      // Use a valid day column and date value
+      const dayColumn = 'monday';
+      const dateValue = 20260316;
+      const sql = getMaximumDepartureTimestampQuery(dayColumn, dateValue);
+      // Run the generated SQL
+      const [rows] = await connection.query(sql);
+      expect(Array.isArray(rows)).toBe(true);
+      if (rows.length > 0) {
+        expect(rows[0]).toHaveProperty('max_departure_timestamp');
+        expect(
+          typeof rows[0].max_departure_timestamp === 'number' || rows[0].max_departure_timestamp === null
+        ).toBe(true);
+        const expectedMaxTimestamp = 112440; // This value should be set based on the known data in the test database for the given date and day column
+        if (rows[0].max_departure_timestamp !== null) {
+          expect(rows[0].max_departure_timestamp).toBe(expectedMaxTimestamp);
+        }
       }
     });
   });
