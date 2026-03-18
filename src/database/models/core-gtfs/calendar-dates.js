@@ -23,7 +23,6 @@ export default {
 			name: 'exception_type',
 			type: 'tinyint unsigned',
 			required: true,
-			index: true,
 			min: 1,
 			max: 2
 		}
