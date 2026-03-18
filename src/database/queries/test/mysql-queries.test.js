@@ -138,12 +138,11 @@ describe('MySQL Query Tests (uses gtfs-db-testing docker container)', () => {
       const sampleTripId = '5512_1219'; // Dublin Bus trip_id for testing
       const [rows] = await connection.query(sql, [sampleTripId]);
       expect(Array.isArray(rows)).toBe(true);
-      if (rows.length > 0) {
-        expect(rows[0]).toHaveProperty('trip_id');
-        // Assert that all the resulting trips have the expected trip_id
-        const allHaveExpectedTripId = rows.every(row => row.trip_id === sampleTripId);
-        expect(allHaveExpectedTripId).toBe(true);
-      }
+      expect(rows.length).toBeGreaterThan(0); // Fail if no rows returned
+      expect(rows[0]).toHaveProperty('trip_id');
+      // Assert that all the resulting trips have the expected trip_id
+      const allHaveExpectedTripId = rows.every(row => row.trip_id === sampleTripId);
+      expect(allHaveExpectedTripId).toBe(true);
     });
   });
 
@@ -156,11 +155,10 @@ describe('MySQL Query Tests (uses gtfs-db-testing docker container)', () => {
       const sampleTripId = '5512_1219'; // Dublin Bus trip_id for testing
       const [rows] = await connection.query(sql, [sampleTripId]);
       expect(Array.isArray(rows)).toBe(true);
-      if (rows.length > 0) {
-        // Assert that all the resulting stop times belong to the specified trip
-        const allBelongToTrip = rows.every(row => row.trip_id === sampleTripId);
-        expect(allBelongToTrip).toBe(true);
-      }
+      expect(rows.length).toBeGreaterThan(0); // Fail if no rows returned
+      // Assert that all the resulting stop times belong to the specified trip
+      const allBelongToTrip = rows.every(row => row.trip_id === sampleTripId);
+      expect(allBelongToTrip).toBe(true);
     });
 
     it('should return last stop on trip from getLastStopOnTrip.sql', async () => {
@@ -171,12 +169,11 @@ describe('MySQL Query Tests (uses gtfs-db-testing docker container)', () => {
       const sampleTripId = '5512_1219'; // Dublin Bus trip_id for testing
       const [rows] = await connection.query(sql, [sampleTripId]);
       expect(Array.isArray(rows)).toBe(true);
-      if (rows.length > 0) {
-        expect(rows[0]).toHaveProperty('stop_id');
-        // Assert that the stop_id is the expected last stop on the trip
-        const expectedLastStopId = '8220DB006094'; // Dublin Bus stop_id for testing
-        expect(rows[0].stop_id).toBe(expectedLastStopId);
-      }
+      expect(rows.length).toBeGreaterThan(0); // Fail if no rows returned
+      expect(rows[0]).toHaveProperty('stop_id');
+      // Assert that the stop_id is the expected last stop on the trip
+      const expectedLastStopId = '8220DB006094'; // Dublin Bus stop_id for testing
+      expect(rows[0].stop_id).toBe(expectedLastStopId);
     });
 
     it('should return maximum departure timestamp from getMaximumDepartureTimestampQuery', async () => {
@@ -189,16 +186,13 @@ describe('MySQL Query Tests (uses gtfs-db-testing docker container)', () => {
       // Run the generated SQL
       const [rows] = await connection.query(sql);
       expect(Array.isArray(rows)).toBe(true);
-      if (rows.length > 0) {
-        expect(rows[0]).toHaveProperty('max_departure_timestamp');
-        expect(
-          typeof rows[0].max_departure_timestamp === 'number' || rows[0].max_departure_timestamp === null
-        ).toBe(true);
-        const expectedMaxTimestamp = 112440; // This value should be set based on the known data in the test database for the given date and day column
-        if (rows[0].max_departure_timestamp !== null) {
-          expect(rows[0].max_departure_timestamp).toBe(expectedMaxTimestamp);
-        }
-      }
+      expect(rows.length).toBeGreaterThan(0); // Fail if no row is returned
+      expect(rows[0]).toHaveProperty('max_departure_timestamp');
+      // Assert that max_departure_timestamp is not null and equals the expected value
+      const expectedMaxTimestamp = 112440; // This value should be set based on the known data in the test database for the given date and day column
+      expect(rows[0].max_departure_timestamp).not.toBeNull();
+      expect(typeof rows[0].max_departure_timestamp).toBe('number');
+      expect(rows[0].max_departure_timestamp).toBe(expectedMaxTimestamp);
     });
   });
 
