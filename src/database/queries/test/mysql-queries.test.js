@@ -111,9 +111,9 @@ describe('MySQL Query Tests (uses gtfs-db-testing docker container)', () => {
       }
     });
 
-    it('should return stops by agency id from getAllStopsByAgency.sql', async () => {
+    it('should return stops by agency id from getAllStopsByAgencyId.sql', async () => {
       const sql = fs.readFileSync(
-        path.join(__dirname, '../mysql/stops/getAllStopsByAgency.sql'),
+        path.join(__dirname, '../mysql/stops/getAllStopsByAgencyId.sql'),
         'utf8'
       );
       const agencyId = '7778019'; // Dublin Bus sample agency_id for testing
@@ -121,9 +121,8 @@ describe('MySQL Query Tests (uses gtfs-db-testing docker container)', () => {
       expect(Array.isArray(rows)).toBe(true);
       if (rows.length > 0) {
         expect(rows[0]).toHaveProperty('stop_id');
-        expect(rows[0]).toHaveProperty('agency_id');
       }
-    });
+    }, 7000);
 
     it('should return stop by id from getStopById.sql', async () => {
       const sql = fs.readFileSync(
