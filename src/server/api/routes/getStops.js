@@ -155,7 +155,7 @@ async function getStopsByAgencyId(agencyId, db, redisClient, logger, cacheKeyBas
         } catch (err) {
             logger.warn(`Corrupted cache for agency ${agencyId}, treating as cache miss. Error: ${err.message}`);
             if (redisClient) {
-                await redisClient.set(cacheKey, null);
+                await redisClient.del(cacheKey);
             }
             logger.info(`Cache miss for stops of agency ${agencyId}, querying database`);
             const response = await db.queries.getAllStopsByAgencyId(agencyId);
@@ -202,7 +202,7 @@ async function getAllStops(db, redisClient, logger, cacheKeyBase) {
         } catch (err) {
             logger.warn(`Corrupted cache for all stops, treating as cache miss. Error: ${err.message}`);
             if (redisClient) {
-                await redisClient.set(cacheKey, null);
+                await redisClient.del(cacheKey);
             }
             logger.info('Cache miss for all stops, querying database');
             const response = await db.queries.getAllStops();
