@@ -16,6 +16,17 @@ class RedisClient {
 		this.connected = false;
 		this.connecting = false;
 		this.logger = options.logger || new DatabaseLogger({ client: 'REDIS' });
+		this.errorListenerAttached = false;
+		this.attachErrorListener();
+	}
+
+	attachErrorListener() {
+		if (!this.errorListenerAttached) {
+			this.client.on('error', (err) => {
+				this.logger.error(`Redis Client Error: ${err.code}`);
+			});
+			this.errorListenerAttached = true;
+		}
 	}
 
 	/**
@@ -26,9 +37,6 @@ class RedisClient {
 	async connect() {
 		if (this.connected || this.connecting) return;
 		this.connecting = true;
-		this.client.on('error', (err) => {
-			this.logger.error(`Redis Client Error: ${err.code}`);
-		});
 		try {
 			await this.client.connect();
 			this.connected = true;
