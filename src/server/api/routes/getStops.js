@@ -38,8 +38,19 @@ export default function getStops(server) {
                         const cacheKey = `${cacheKeyBase}:stop:${id}`;
                         const cachedData = await redisClient.get(cacheKey);
                         if (cachedData) {
-                            logger.info(`Cache hit for stop ${id}`);
-                            response.push(JSON.parse(cachedData));
+                            try {
+                                logger.info(`Cache hit for stop ${id}`);
+                                response.push(JSON.parse(cachedData));
+                            } catch (err) {
+                                logger.warn(`Corrupted cache for stop ${id}, treating as cache miss. Error: ${err.message}`);
+                                await redisClient.set(cacheKey, null);
+                                logger.info(`Cache miss for stop ${id}, querying database`);
+                                const stop = await db.queries.getStopById(id);
+                                if (stop && stop[0]) {
+                                    response.push(stop[0]);
+                                    await redisClient.set(cacheKey, JSON.stringify(stop[0]));
+                                }
+                            }
                         } else {
                             logger.info(`Cache miss for stop ${id}, querying database`);
                             const stop = await db.queries.getStopById(id);
@@ -53,8 +64,16 @@ export default function getStops(server) {
                     const cacheKey = `${cacheKeyBase}:agency:${agencyId}`;
                     const cachedData = await redisClient.get(cacheKey);
                     if (cachedData) {
-                        logger.info(`Cache hit for stops of agency ${agencyId}`);
-                        response = JSON.parse(cachedData);
+                        try {
+                            logger.info(`Cache hit for stops of agency ${agencyId}`);
+                            response = JSON.parse(cachedData);
+                        } catch (err) {
+                            logger.warn(`Corrupted cache for agency ${agencyId}, treating as cache miss. Error: ${err.message}`);
+                            await redisClient.set(cacheKey, null);
+                            logger.info(`Cache miss for stops of agency ${agencyId}, querying database`);
+                            response = await db.queries.getAllStopsByAgencyId(agencyId);
+                            await redisClient.set(cacheKey, JSON.stringify(response));
+                        }
                     } else {
                         logger.info(`Cache miss for stops of agency ${agencyId}, querying database`);
                         response = await db.queries.getAllStopsByAgencyId(agencyId);
@@ -64,8 +83,16 @@ export default function getStops(server) {
                     const cacheKey = `${cacheKeyBase}:all`;
                     const cachedData = await redisClient.get(cacheKey);
                     if (cachedData) {
-                        logger.info('Cache hit for all stops');
-                        response = JSON.parse(cachedData);
+                        try {
+                            logger.info('Cache hit for all stops');
+                            response = JSON.parse(cachedData);
+                        } catch (err) {
+                            logger.warn(`Corrupted cache for all stops, treating as cache miss. Error: ${err.message}`);
+                            await redisClient.set(cacheKey, null);
+                            logger.info('Cache miss for all stops, querying database');
+                            response = await db.queries.getAllStops();
+                            await redisClient.set(cacheKey, JSON.stringify(response));
+                        }
                     } else {
                         logger.info('Cache miss for all stops, querying database');
                         response = await db.queries.getAllStops();
