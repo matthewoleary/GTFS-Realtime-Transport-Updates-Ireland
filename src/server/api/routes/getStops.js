@@ -101,7 +101,7 @@ async function getStopsByIds(stopIds, db, redisClient, logger, cacheKeyBase) {
             } catch (err) {
                 logger.warn(`Corrupted cache for stop ${id}, treating as cache miss. Error: ${err.message}`);
                 if (redisClient) {
-                    await redisClient.set(cacheKey, null);
+                    await redisClient.del(cacheKey);
                 }
                 logger.info(`Cache miss for stop ${id}, querying database`);
                 const stop = await db.queries.getStopById(id);
