@@ -1,9 +1,9 @@
 import ImportLogger from './importLogger.js';
 import { gtfsImportConfig } from '../config.js';
 
-export async function runImport(dbClientInstance) {
+export async function runImport(dbClientInstance, redisClientInstance) {
     const logger = new ImportLogger({ client: 'MYSQL_IMPORTER' });
     const MysqlImporter = (await import('./mysql-import.js')).default;
-    const importer = new MysqlImporter(gtfsImportConfig, logger, dbClientInstance);
+    const importer = new MysqlImporter(gtfsImportConfig, logger, dbClientInstance, redisClientInstance);
     await importer.import();
 }

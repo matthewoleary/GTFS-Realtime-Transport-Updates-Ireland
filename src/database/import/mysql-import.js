@@ -16,11 +16,12 @@ import { addFeedInfoLastUpdatedColumn, updateFeedInfoLastUpdatedValues, addCusto
  * MysqlImporter class for importing GTFS data into MySQL.
  */
 class MysqlImporter {
-    constructor(config, logger, dbClientInstance, models = modelsDefault) {
+    constructor(config, logger, dbClientInstance, redisClientInstance, models = modelsDefault) {
         this.config = config;
         this.logger = logger;
         this.models = models;
         this.db = dbClientInstance;
+        this.redis = redisClientInstance;
         this.cnx = null;
         // List of models used including those with additional modifications made, e.g. custom timestamp columns
         this.customModels = [];
@@ -487,12 +488,18 @@ class MysqlImporter {
         });
     }
 
+    async flushRedisCache() {
+        this.logger.info('Flushing Redis cache.');
+        await this.redis.client.flushAll('ASYNC');
+    }
+
     /**
      * Main import process for all agencies in config.
      */
     async import() {
         await this.connectDb();
         const agencyCount = this.config.agencies.length;
+        await this.flushRedisCache(); // Clear Redis cache after import to ensure new data is served
         this.logger.info(`Starting the GTFS import for ${agencyCount} ${pluralize('file', agencyCount)}.`);
         await Promise.mapSeries(this.config.agencies, async agency => {
             if (!agency.agency_key) {
@@ -545,8 +552,6 @@ class MysqlImporter {
             this.logger.info('New GTFS data available. Downloading files.');
             if (task.agency_url) {
                 await this.dropAllTables();
-                // await this.createEmptyTables();
-                // await addCustomTimestampColumns(task);
                 await this.downloadFiles(task);
             }
 
