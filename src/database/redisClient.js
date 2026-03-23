@@ -35,7 +35,6 @@ class RedisClient {
 			this.logger.info('Connected to Redis');
 		} catch (err) {
 			this.logger.error(`Failed to connect to Redis: ${err.code}`);
-			throw err;
 		} finally {
 			this.connecting = false;
 		}
@@ -72,7 +71,6 @@ class RedisClient {
 			return value;
 		} catch (err) {
 			this.logger.error(`Redis GET error for key ${key}: ${err.code}`);
-			throw err;
 		}
 	}
 
@@ -91,7 +89,6 @@ class RedisClient {
 			this.logger.query(`SET ${key}`);
 		} catch (err) {
 			this.logger.error(`Redis SET error for key ${key}: ${err.code}`);
-			throw err;
 		}
 	}
 }
