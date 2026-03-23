@@ -13,13 +13,7 @@ export default {
             server.expose('redisClient', redisClientInstance);
         } catch (err) {
             server.log(['warn', 'redis'], `Redis connection failed: ${err.message}. Caching will be disabled, but API will still serve DB-backed responses.`);
-            // Expose a no-op client with get/set methods that do nothing and return null/undefined
-            const noopClient = {
-                get: async () => null,
-                set: async () => undefined,
-                disconnect: async () => undefined
-            };
-            server.expose('redisClient', noopClient);
+            server.expose('redisClient', null);
         }
     }
 };
