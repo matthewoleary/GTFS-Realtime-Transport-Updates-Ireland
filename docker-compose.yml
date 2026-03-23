@@ -23,6 +23,12 @@ services:
             MYSQL_PASSWORD: ${TEST_DOCKER_SQL_PASSWORD}
             MYSQL_ROOT_PASSWORD: ${TEST_DOCKER_SQL_ROOT_PASSWORD}
             MYSQL_DATABASE: ${TEST_DOCKER_SQL_DATABASE}
+    redis:
+        container_name: redis-tfi
+        image: redis:7
+        ports:
+            - "6379:6379"
+        restart: unless-stopped
 
 volumes:
     mysql-tfi-data:
