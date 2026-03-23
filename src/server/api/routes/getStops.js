@@ -1,6 +1,7 @@
 import ServerLogger from '../../serverLogger.js';
 import { extractIdsFromParam } from './utils.js';
 import { getDatabaseClient } from '../index.js';
+import { getRedisClient } from '../index.js';
 import { getCurrentTimestamp, getUnixTimestamp } from '../../../utils/timestampUtils.js';
 
 /**
@@ -17,13 +18,15 @@ import { getCurrentTimestamp, getUnixTimestamp } from '../../../utils/timestampU
  */
 export default function getStops(server) {
     const logger = new ServerLogger({ client: 'getStops' });
+    const cacheKeyBase = 'stops';
     server.route({
         method: 'GET',
         path: '/api/stops',
         handler: async (request, handler) => {
             try {
                 const db = getDatabaseClient(request);
-                const agencyId = request.query.agency?.toLowerCase();
+                const redisClient = getRedisClient(request);
+                const agencyId = request.query.agencyId;
                 const stopIdParam = request.query.stopId;
                 const currentTimestamp = getCurrentTimestamp();
                 const unixTimestamp = getUnixTimestamp();
@@ -32,13 +35,42 @@ export default function getStops(server) {
                     const stopIds = extractIdsFromParam(stopIdParam);
                     response = [];
                     for (const id of stopIds) {
-                        const stop = await db.queries.getStopById(id);
-                        if (stop && stop[0]) {
-                            response.push(stop[0]);
+                        const cacheKey = `${cacheKeyBase}:stop:${id}`;
+                        const cachedData = await redisClient.get(cacheKey);
+                        if (cachedData) {
+                            logger.info(`Cache hit for stop ${id}`);
+                            response.push(JSON.parse(cachedData));
+                        } else {
+                            logger.info(`Cache miss for stop ${id}, querying database`);
+                            const stop = await db.queries.getStopById(id);
+                            if (stop && stop[0]) {
+                                response.push(stop[0]);
+                                await redisClient.set(cacheKey, JSON.stringify(stop[0]));
+                            }
                         }
                     }
+                } else if (agencyId) {
+                    const cacheKey = `${cacheKeyBase}:agency:${agencyId}`;
+                    const cachedData = await redisClient.get(cacheKey);
+                    if (cachedData) {
+                        logger.info(`Cache hit for stops of agency ${agencyId}`);
+                        response = JSON.parse(cachedData);
+                    } else {
+                        logger.info(`Cache miss for stops of agency ${agencyId}, querying database`);
+                        response = await db.queries.getAllStopsByAgencyId(agencyId);
+                        await redisClient.set(cacheKey, JSON.stringify(response));
+                    }
                 } else {
-                    response = await db.queries.getAllStops(agencyId);
+                    const cacheKey = `${cacheKeyBase}:all`;
+                    const cachedData = await redisClient.get(cacheKey);
+                    if (cachedData) {
+                        logger.info('Cache hit for all stops');
+                        response = JSON.parse(cachedData);
+                    } else {
+                        logger.info('Cache miss for all stops, querying database');
+                        response = await db.queries.getAllStops();
+                        await redisClient.set(cacheKey, JSON.stringify(response));
+                    }
                 }
                 const payload = {
                     since_midnight_timestamp: currentTimestamp,
