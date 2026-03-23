@@ -27,6 +27,15 @@ export function getDatabaseClient(request) {
 }
 
 /**
+ * Retrieves the Redis client from the Hapi request object.
+ * @param {object} request - Hapi request object.
+ * @returns {object} The Redis client instance.
+ */
+export function getRedisClient(request) {
+	return request.server.plugins.redis.redisClient;
+}
+
+/**
  * Retrieves the realtime client from the Hapi request object.
  * @param {object} request - Hapi request object.
  * @returns {object|null} The realtime client or null if not available.
