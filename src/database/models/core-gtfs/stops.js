@@ -4,7 +4,6 @@ export default {
 		{
 			name: 'stop_id',
 			type: 'varchar(16)',
-			index: true,
 			primary: true
 		},
 		{
