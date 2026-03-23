@@ -39,12 +39,9 @@ export default function getStops(server) {
         handler: async (request, handler) => {
             try {
                 const db = getDatabaseClient(request);
-                let redisClient;
-                try {
-                    redisClient = getRedisClient(request);
-                } catch (e) {
+                const redisClient = getRedisClient(request);
+                if (!redisClient) {
                     logger.warn('Redis client not available, proceeding without cache.');
-                    redisClient = null;
                 }
                 const agencyId = request.query.agencyId;
                 const stopIdParam = request.query.stopId;
