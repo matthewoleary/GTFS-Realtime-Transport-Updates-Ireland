@@ -43,7 +43,8 @@ describe('MysqlImporter', () => {
     beforeEach(() => {
         logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
         dbClientInstance = {};
-        importer = new MysqlImporter({ agencies: [] }, logger, dbClientInstance);
+        redisClientInstance = {};
+        importer = new MysqlImporter({ agencies: [] }, logger, dbClientInstance, redisClientInstance);
         vi.clearAllMocks();
     });
 
@@ -52,7 +53,8 @@ describe('MysqlImporter', () => {
             const config = { agencies: [{ agency_key: 'a' }] };
             const loggerObj = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
             dbClientInstance = {};
-            const imp = new MysqlImporter(config, loggerObj, dbClientInstance);
+            const redisClientInstance = {};
+            const imp = new MysqlImporter(config, loggerObj, dbClientInstance, redisClientInstance);
             expect(imp.config).toBe(config);
             expect(imp.logger).toBe(loggerObj);
             expect(imp.cnx).toBeNull();
@@ -73,7 +75,8 @@ describe('MysqlImporter', () => {
                 getConnection: vi.fn().mockResolvedValue(fakeConnection),
                 getLastDbUpdate: vi.fn()
             };
-            const imp = new MysqlImporter({ agencies: [] }, { info: vi.fn(), warn: vi.fn(), error: vi.fn() }, dbClientInstance);
+            const redisClientInstance = {};
+            const imp = new MysqlImporter({ agencies: [] }, { info: vi.fn(), warn: vi.fn(), error: vi.fn() }, dbClientInstance, redisClientInstance);
             await imp.connectDb();
             expect(dbClientInstance.getConnection).toHaveBeenCalled();
             expect(imp.cnx).toBe(fakeConnection);
@@ -117,7 +120,9 @@ describe('MysqlImporter', () => {
         it('should format line with type conversion, required, min/max, and stop_times timestamp', () => {
             const config = { agencies: [] };
             const loggerObj = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
-            const imp = new MysqlImporter(config, loggerObj);
+            const dbClientInstance = {};
+            const redisClientInstance = {};
+            const imp = new MysqlImporter(config, loggerObj, dbClientInstance, redisClientInstance);
             // Model schema
             const model = {
                 filenameBase: 'stop_times',
