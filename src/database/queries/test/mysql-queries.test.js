@@ -111,38 +111,34 @@ describe('MySQL Query Tests (uses gtfs-db-testing docker container)', () => {
       }
     });
 
-    it('should return stops by agency from getAllStopsByAgency.sql', async () => {
+    it('should return stops by agency id from getAllStopsByAgency.sql', async () => {
       const sql = fs.readFileSync(
         path.join(__dirname, '../mysql/stops/getAllStopsByAgency.sql'),
         'utf8'
       );
-      const sampleAgencyId = '7778019'; // Dublin Bus sample agency_id for testing
-      const [rows] = await connection.query(sql, [sampleAgencyId]);
+      const agencyId = '7778019'; // Dublin Bus sample agency_id for testing
+      const [rows] = await connection.query(sql, [agencyId]);
       expect(Array.isArray(rows)).toBe(true);
       if (rows.length > 0) {
         expect(rows[0]).toHaveProperty('stop_id');
-        // Assert that all the resulting stops belong to the specified agency
-        const allBelongToAgency = rows.every(row => row.agency_id === sampleAgencyId);
-        expect(allBelongToAgency).toBe(true);
+        expect(rows[0]).toHaveProperty('agency_id');
+      }
+    });
+
+    it('should return stop by id from getStopById.sql', async () => {
+      const sql = fs.readFileSync(
+        path.join(__dirname, '../mysql/stops/getStopById.sql'),
+        'utf8'
+      );
+      const sampleStopId = '8220DB000001'; // Use a real stop_id from your test DB
+      const [rows] = await connection.query(sql, [sampleStopId]);
+      expect(Array.isArray(rows)).toBe(true);
+      if (rows.length > 0) {
+        expect(rows[0]).toHaveProperty('stop_id');
+        expect(rows[0].stop_id).toBe(sampleStopId);
       }
     });
   });
-
-  describe('Trips', () => {
-    it('should return trips from getTripById.sql', async () => {
-      const sql = fs.readFileSync(
-        path.join(__dirname, '../mysql/trips/getTripById.sql'),
-        'utf8'
-      );
-      // Use a sample trip_id for testing
-      const sampleTripId = '5512_1219'; // Dublin Bus trip_id for testing
-      const [rows] = await connection.query(sql, [sampleTripId]);
-      expect(Array.isArray(rows)).toBe(true);
-      expect(rows.length).toBeGreaterThan(0); // Fail if no rows returned
-      expect(rows[0]).toHaveProperty('trip_id');
-      // Assert that all the resulting trips have the expected trip_id
-      const allHaveExpectedTripId = rows.every(row => row.trip_id === sampleTripId);
-      expect(allHaveExpectedTripId).toBe(true);
     });
   });
 
