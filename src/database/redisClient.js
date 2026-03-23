@@ -1,4 +1,4 @@
-import redis from 'redis';
+import { createClient } from 'redis';
 import DatabaseLogger from './databaseLogger.js';
 
 /**
@@ -12,7 +12,7 @@ class RedisClient {
 	 * @param {DatabaseLogger} [options.logger] - Optional logger instance for logging Redis operations.
 	 */
 	constructor(options = {}) {
-		this.client = redis.createClient(options);
+		this.client = createClient(options);
 		this.connected = false;
 		this.connecting = false;
 		this.logger = options.logger || new DatabaseLogger({ client: 'REDIS' });
