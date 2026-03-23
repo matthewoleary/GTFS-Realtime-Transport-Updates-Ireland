@@ -499,7 +499,6 @@ class MysqlImporter {
     async import() {
         await this.connectDb();
         const agencyCount = this.config.agencies.length;
-        await this.flushRedisCache(); // Clear Redis cache after import to ensure new data is served
         this.logger.info(`Starting the GTFS import for ${agencyCount} ${pluralize('file', agencyCount)}.`);
         await Promise.mapSeries(this.config.agencies, async agency => {
             if (!agency.agency_key) {
@@ -566,6 +565,8 @@ class MysqlImporter {
             await updateFeedInfoLastUpdatedValues(task); // Update last updated column in feed_info table
 
             this.logger.info('Completed GTFS import for agency: ' + task.agency_key + '.');
+
+            await this.flushRedisCache(); // Clear Redis cache after import to ensure new data is served
             await cleanup();
         });
 
