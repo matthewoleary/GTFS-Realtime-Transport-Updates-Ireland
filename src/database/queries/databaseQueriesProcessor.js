@@ -110,6 +110,12 @@ const register = async ({ getConnection, loadSqlQueries: injectedLoadSqlQueries 
 		}
 	};
 
+	const getAllStopsByAgencyId = async agencyId => {
+		const cnx = await getConnection();
+		const [rows] = await cnx.query(sqlQueries.getAllStopsByAgencyId, [agencyId]);
+		return rows;
+	};
+
 	const getAllRoutes = async agencyId => {
 		const cnx = await getConnection();
 		if (agencyId) {
@@ -132,6 +138,7 @@ const register = async ({ getConnection, loadSqlQueries: injectedLoadSqlQueries 
 		getAllAgencies,
 		getAllRoutes,
 		getAllStops,
+		getAllStopsByAgencyId,
 		getLastStops,
 		getMaximumDepartureTimestamp,
 		getRouteById,
