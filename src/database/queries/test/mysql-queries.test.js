@@ -181,37 +181,37 @@ describe('MySQL Query Tests (uses gtfs-db-testing docker container)', () => {
           expect(allInRange).toBe(true);
         }
       });
+    });
 
-      describe('getAllTrips', () => {
-        it('should return all trips', async () => {
-          const sql = fs.readFileSync(
-            path.join(__dirname, '../mysql/trips/getAllTrips.sql'),
-            'utf8'
-          );
-          const [rows] = await connection.query(sql);
-          expect(Array.isArray(rows)).toBe(true);
-          if (rows.length > 0) {
-            expect(rows[0]).toHaveProperty('trip_id');
-            expect(rows[0]).toHaveProperty('route_id');
-          }
-        });
+    describe('getAllTrips', () => {
+      it('should return all trips', async () => {
+        const sql = fs.readFileSync(
+          path.join(__dirname, '../mysql/trips/getAllTrips.sql'),
+          'utf8'
+        );
+        const [rows] = await connection.query(sql);
+        expect(Array.isArray(rows)).toBe(true);
+        if (rows.length > 0) {
+          expect(rows[0]).toHaveProperty('trip_id');
+          expect(rows[0]).toHaveProperty('route_id');
+        }
       });
+    });
 
-      describe('getTripsByRouteId', () => {
-        it('should return trips for a given route_id', async () => {
-          const sql = fs.readFileSync(
-            path.join(__dirname, '../mysql/trips/getTripsByRouteId.sql'),
-            'utf8'
-          );
-          const sampleRouteId = '5512_123813'; // Use a real route_id from your test DB
-          const [rows] = await connection.query(sql, [sampleRouteId]);
-          expect(Array.isArray(rows)).toBe(true);
-          if (rows.length > 0) {
-            expect(rows[0]).toHaveProperty('trip_id');
-            const allMatchRoute = rows.every(row => row.route_id === sampleRouteId);
-            expect(allMatchRoute).toBe(true);
-          }
-        });
+    describe('getTripsByRouteId', () => {
+      it('should return trips for a given route_id', async () => {
+        const sql = fs.readFileSync(
+          path.join(__dirname, '../mysql/trips/getTripsByRouteId.sql'),
+          'utf8'
+        );
+        const sampleRouteId = '5512_123813'; // Use a real route_id from your test DB
+        const [rows] = await connection.query(sql, [sampleRouteId]);
+        expect(Array.isArray(rows)).toBe(true);
+        if (rows.length > 0) {
+          expect(rows[0]).toHaveProperty('trip_id');
+          const allMatchRoute = rows.every(row => row.route_id === sampleRouteId);
+          expect(allMatchRoute).toBe(true);
+        }
       });
     });
   });
@@ -273,7 +273,7 @@ describe('MySQL Query Tests (uses gtfs-db-testing docker container)', () => {
         'utf8'
       );
       // Use a sample shape_id for testing
-      const sampleShapeId = 'sample_shape_id';
+      const sampleShapeId = '3826_1';
       const [rows] = await connection.query(sql, [sampleShapeId]);
       expect(Array.isArray(rows)).toBe(true);
       if (rows.length > 0) {
