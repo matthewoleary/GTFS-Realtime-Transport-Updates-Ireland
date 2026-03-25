@@ -1,9 +1,9 @@
 -- Retrieves all unique stops associated with a specific agency (by agency_id),
--- by joining stops, stop_times, trips, routes, and agency tables.
--- Pass an agency ID as the parameter to filter stops by agency.
+-- by selecting from stops and using an EXISTS subquery over stop_times, trips, and routes
+-- filtered by routes.agency_id.
 --
 -- Example usage:
---   WHERE a.agency_id = ?
+--   WHERE r.agency_id = ?
 --   Parameter: '7778019' (Dublin Bus) or any valid agency_id
 SELECT DISTINCT s.stop_id,
              s.stop_code,
