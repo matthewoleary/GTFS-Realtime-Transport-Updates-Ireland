@@ -42,7 +42,9 @@ class RedisClient {
 			this.connected = true;
 			this.logger.info('Connected to Redis');
 		} catch (err) {
+			this.connected = false;
 			this.logger.error(`Failed to connect to Redis: ${err.code}`);
+			throw err;
 		} finally {
 			this.connecting = false;
 		}
@@ -60,6 +62,7 @@ class RedisClient {
 				this.logger.info('Disconnected from Redis');
 			} catch (err) {
 				this.logger.error(`Error disconnecting from Redis: ${err.code}`);
+				throw err;
 			}
 			this.connected = false;
 		}
