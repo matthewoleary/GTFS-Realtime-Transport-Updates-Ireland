@@ -138,6 +138,81 @@ describe('MySQL Query Tests (uses gtfs-db-testing docker container)', () => {
       }
     });
   });
+
+  describe('Trips', () => {
+    describe('getTripById', () => {
+      it('should return trips from getTripById.sql', async () => {
+        const sql = fs.readFileSync(
+          path.join(__dirname, '../mysql/trips/getTripById.sql'),
+          'utf8'
+        );
+        // Use a sample trip_id for testing
+        const sampleTripId = '5512_1219'; // Dublin Bus trip_id for testing
+        const [rows] = await connection.query(sql, [sampleTripId]);
+        expect(Array.isArray(rows)).toBe(true);
+        expect(rows.length).toBeGreaterThan(0); // Fail if no rows returned
+        expect(rows[0]).toHaveProperty('trip_id');
+        // Assert that all the resulting trips have the expected trip_id
+        const allHaveExpectedTripId = rows.every(row => row.trip_id === sampleTripId);
+        expect(allHaveExpectedTripId).toBe(true);
+      });
+    });
+
+    describe('getTripsAtStopIdQuery', () => {
+      it('should return trips for a valid stop and service day', async () => {
+        // Example: Use a real stop_id and a valid serviceDay for your test DB
+        const getTripsAtStopIdQuery = (await import('../mysql/trips/getTripsAtStopId/getTripsAtStopIdQuery.js')).default;
+        const stopId = '8220DB000001';
+        const serviceDay = {
+          dayColumn: 'monday',
+          date: 20260316,
+          lowerBoundTimestamp: 36000, // 10:00:00
+          upperBoundTimestamp: 39600  // 11:00:00
+        };
+        const sql = getTripsAtStopIdQuery(serviceDay);
+        const [rows] = await connection.query(sql, [stopId]);
+        expect(Array.isArray(rows)).toBe(true);
+        // Optionally, check that all rows have the correct stop_id and timestamps in range
+        if (rows.length > 0) {
+          expect(rows[0]).toHaveProperty('trip_id');
+          const allCorrectStop = rows.every(row => row.stop_id === stopId);
+          expect(allCorrectStop).toBe(true);
+          const allInRange = rows.every(row => row.departure_timestamp >= serviceDay.lowerBoundTimestamp && row.departure_timestamp <= serviceDay.upperBoundTimestamp);
+          expect(allInRange).toBe(true);
+        }
+      });
+
+      describe('getAllTrips', () => {
+        it('should return all trips', async () => {
+          const sql = fs.readFileSync(
+            path.join(__dirname, '../mysql/trips/getAllTrips.sql'),
+            'utf8'
+          );
+          const [rows] = await connection.query(sql);
+          expect(Array.isArray(rows)).toBe(true);
+          if (rows.length > 0) {
+            expect(rows[0]).toHaveProperty('trip_id');
+            expect(rows[0]).toHaveProperty('route_id');
+          }
+        });
+      });
+
+      describe('getTripsByRouteId', () => {
+        it('should return trips for a given route_id', async () => {
+          const sql = fs.readFileSync(
+            path.join(__dirname, '../mysql/trips/getTripsByRouteId.sql'),
+            'utf8'
+          );
+          const sampleRouteId = '5512_123813'; // Use a real route_id from your test DB
+          const [rows] = await connection.query(sql, [sampleRouteId]);
+          expect(Array.isArray(rows)).toBe(true);
+          if (rows.length > 0) {
+            expect(rows[0]).toHaveProperty('trip_id');
+            const allMatchRoute = rows.every(row => row.route_id === sampleRouteId);
+            expect(allMatchRoute).toBe(true);
+          }
+        });
+      });
     });
   });
 
