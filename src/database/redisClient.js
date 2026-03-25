@@ -99,6 +99,22 @@ class RedisClient {
 			this.logger.error(`Redis SET error for key ${key}: ${err.code}`);
 		}
 	}
+
+	/**
+	 * Deletes a key from Redis.
+	 * Logs the DEL operation and errors.
+	 * @param {string} key - The key to delete from Redis.
+	 * @returns {Promise<void>}
+	 */
+	async del(key) {
+		await this.connect();
+		try {
+			await this.client.del(key);
+			this.logger.query(`DEL ${key}`);
+		} catch (err) {
+			this.logger.error(`Redis DEL error for key ${key}: ${err.code}`);
+		}
+	}
 }
 
 /**
