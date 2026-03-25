@@ -1,4 +1,4 @@
--- Get trip details for a given trip_id.
+-- Return all trips.
 SELECT trip_id,
        route_id,
        service_id,
@@ -8,4 +8,3 @@ SELECT trip_id,
        block_id,
        shape_id
 FROM trips
-WHERE trip_id = ?
