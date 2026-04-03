@@ -25,15 +25,53 @@ export default function getTrips(server) {
             try {
                 const db = getDatabaseClient(request);
                 const realtime = getRealtimeVehiclePositionsClient(request);
+                const redisClient = getRedisClient(request)
+                if (!redisClient) {
+                    logger.warn('Redis client not available, proceeding without cache.');
+                }
                 const tripIdParam = request.query.tripId;
                 const unixTimestamp = getUnixTimestamp();
                 let response = [];
                 if (tripIdParam) {
                     const tripIds = extractIdsFromParam(tripIdParam);
                     for (const id of tripIds) {
-                        const trip = await db.queries.getTripById(id);
-                        if (trip && trip[0]) {
-                            response.push(trip[0]);
+                        const cacheKey = `${cacheKeyBase}:trip:${id}`;
+                        let cachedData;
+                        if (redisClient) {
+                            try {
+                                cachedData = await redisClient.get(cacheKey);
+                            } catch (e) {
+                                logger.warn(`Redis error on get for trip ${id}: ${e.message}`);
+                                cachedData = null;
+                            }
+                        }
+                        if (cachedData) {
+                            try {
+                                logger.info(`Cache hit for trip ${id}`);
+                                response.push(JSON.parse(cachedData));
+                            } catch (err) {
+                                logger.warn(`Corrupted cache for trip ${id}, treating as cache miss. Error: ${err.message}`);
+                                if (redisClient) {
+                                    await redisClient.del(cacheKey);
+                                }
+                                logger.info(`Cache miss for trip ${id}, querying database`);
+                                const trip = await db.queries.getTripById(id);
+                                if (trip && trip[0]) {
+                                    response.push(trip[0]);
+                                    if (redisClient) {
+                                        await redisClient.set(cacheKey, JSON.stringify(trip[0]));
+                                    }
+                                }
+                            }
+                        } else {
+                            logger.info(`Cache miss for trip ${id}, querying database`);
+                            const trip = await db.queries.getTripById(id);
+                            if (trip && trip[0]) {
+                                response.push(trip[0]);
+                                if (redisClient) {
+                                    await redisClient.set(cacheKey, JSON.stringify(trip[0]));
+                                }
+                            }
                         }
                     }
                 } else {
