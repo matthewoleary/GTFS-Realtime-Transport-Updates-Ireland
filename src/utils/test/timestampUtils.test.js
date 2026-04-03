@@ -1,5 +1,7 @@
-import { afterEach } from 'vitest';
+import { afterEach, describe, test, expect, beforeAll } from 'vitest';
 import sinon from 'sinon';
+import * as timestampUtils from '../timestampUtils.js';
+import moment from 'moment-timezone';
 
 describe('timestampUtils (migrated from utils.test.js)', () => {
   let clock;
@@ -8,9 +10,28 @@ describe('timestampUtils (migrated from utils.test.js)', () => {
     if (clock) clock.restore();
   });
 
-  test('getSecondsSinceMidnightTimestamp returns 49410 for 13:43:30', () => {
+  test('getSecondsSinceMidnightTimestamp returns 49410 for 13:43:30 (Date object, default ms)', () => {
     clock = sinon.useFakeTimers(new Date(Date.UTC(2020, 10, 24, 13, 43, 30)));
     const result = timestampUtils.getSecondsSinceMidnightTimestamp();
+    expect(result).toBe(49410);
+  });
+
+  test('getSecondsSinceMidnightTimestamp returns 49410 for 13:43:30 (ms input)', () => {
+    const ms = Date.UTC(2020, 10, 24, 13, 43, 30);
+    const result = timestampUtils.getSecondsSinceMidnightTimestamp(ms);
+    expect(result).toBe(49410);
+  });
+
+  test('getSecondsSinceMidnightTimestamp returns 49410 for 13:43:30 (ISO string)', () => {
+    const iso = new Date(Date.UTC(2020, 10, 24, 13, 43, 30)).toISOString();
+    const result = timestampUtils.getSecondsSinceMidnightTimestamp(iso);
+    expect(result).toBe(49410);
+  });
+
+  test('getSecondsSinceMidnightTimestamp returns 49410 for 13:43:30 (Unix seconds)', () => {
+    // 2020-11-24T13:43:30Z in Unix seconds
+    const unix = Math.floor(Date.UTC(2020, 10, 24, 13, 43, 30) / 1000);
+    const result = timestampUtils.getSecondsSinceMidnightTimestamp(unix);
     expect(result).toBe(49410);
   });
 
@@ -56,9 +77,7 @@ describe('timestampUtils (migrated from utils.test.js)', () => {
   });
 });
 
-import { describe, test, expect, beforeAll } from 'vitest';
-import * as timestampUtils from '../timestampUtils.js';
-import moment from 'moment-timezone';
+
 
 describe('timestampUtils', () => {
   beforeAll(() => {

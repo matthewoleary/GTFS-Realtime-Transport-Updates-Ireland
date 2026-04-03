@@ -7,12 +7,22 @@ moment.locale('en-ie');
  * Returns the number of seconds since midnight for a given timestamp.
  *
  * @param {string|Date|number} [timestamp] - Optional. A timestamp that can be parsed by moment.js. If omitted, uses the current time.
+ *   - If a number < 1e12, treated as Unix seconds (moment.unix()).
+ *   - If a number >= 1e12, treated as ms (moment()).
+ *   - If omitted, uses current time.
  * @returns {number} The number of seconds since midnight (0-86399).
  */
 export function getSecondsSinceMidnightTimestamp(timestamp) {
-	let time = moment(timestamp).format('LTS').split(':');
-	time = (Number(time[0]) * 3600) + (Number(time[1]) * 60) + Number(time[2]);
-	return time;
+	let m;
+	if (typeof timestamp === 'number') {
+		// Heuristic: treat as Unix seconds if < 10^12, else ms
+		m = timestamp < 1e12 ? moment.unix(timestamp) : moment(timestamp);
+	} else if (timestamp) {
+		m = moment(timestamp);
+	} else {
+		m = moment();
+	}
+	return m.hours() * 3600 + m.minutes() * 60 + m.seconds();
 }
 
 export function getUnixTimestamp() {
