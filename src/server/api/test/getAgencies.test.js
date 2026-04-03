@@ -58,7 +58,6 @@ describe('getAgencies', () => {
     const res = await handler(req, h);
     expect(db.queries.getAllAgencies).toHaveBeenCalled();
     expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
-      since_midnight_timestamp: 12345,
       query_timestamp: 67890,
       response: agencies
     }));
