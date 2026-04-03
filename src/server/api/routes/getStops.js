@@ -16,12 +16,11 @@ import { getUnixTimestamp } from '../../../utils/timestampUtils.js';
  *
  * Behavior:
  * - If neither parameter is provided, returns all stops.
- * - Adds `since_midnight_timestamp` and `query_timestamp` to the response payload for client-side reference.
+ * - Adds `query_timestamp` to the response payload for client-side reference.
  * - Uses Redis for caching at the stop, agency, and all-stops levels. Handles corrupted cache entries gracefully.
  *
  * Response Example:
  * {
- *   since_midnight_timestamp: <number>,
  *   query_timestamp: <number>,
  *   response: [ { stop_id, ... }, ... ]
  * }
