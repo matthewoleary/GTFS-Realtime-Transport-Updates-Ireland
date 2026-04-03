@@ -1,6 +1,6 @@
 import gtfsRealtimeBindings from 'gtfs-realtime-bindings';
 import axios from 'axios';
-import { getCurrentTimestamp } from '../../utils/timestampUtils.js';
+import { getSecondsSinceMidnightTimestamp } from '../../utils/timestampUtils.js';
 
 /**
  * Base class for GTFS-realtime feed clients (TripUpdates, VehiclePositions, etc.)
@@ -48,7 +48,7 @@ export default class RealtimeFeedClient {
         this.started = true;
         const poll = async () => {
             const start = Date.now();
-            const interval = getCurrentTimestamp() < 21600
+            const interval = getSecondsSinceMidnightTimestamp() < 21600
                 ? this.nightServiceInterval
                 : this.dayServiceInterval;
             this.logger.updateFeed();
