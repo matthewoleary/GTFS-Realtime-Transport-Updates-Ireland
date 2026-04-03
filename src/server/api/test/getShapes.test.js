@@ -3,9 +3,14 @@
 
 // Declare mocks before vi.mock
 const mockRoute = vi.fn();
-const mockLogger = vi.fn().mockImplementation(() => ({ error: vi.fn() }));
+const mockLogger = vi.fn().mockImplementation(() => ({
+  error: vi.fn(),
+  info: vi.fn(),
+  warn: vi.fn()
+}));
 const mockExtractIdsFromParam = vi.fn();
 const mockGetDatabaseClient = vi.fn();
+const mockGetRedisClient = vi.fn();
 const mockGetUnixTimestamp = vi.fn();
 
 vi.mock('../../serverLogger.js', () => ({
@@ -15,7 +20,8 @@ vi.mock('../routes/utils.js', () => ({
   extractIdsFromParam: (...args) => mockExtractIdsFromParam(...args)
 }));
 vi.mock('../index.js', () => ({
-  getDatabaseClient: (...args) => mockGetDatabaseClient(...args)
+  getDatabaseClient: (...args) => mockGetDatabaseClient(...args),
+  getRedisClient: (...args) => mockGetRedisClient(...args)
 }));
 vi.mock('../../../utils/timestampUtils.js', () => ({
   getUnixTimestamp: (...args) => mockGetUnixTimestamp(...args)
@@ -28,14 +34,87 @@ describe('getShapes', () => {
   let server;
   let handler;
   let db;
+  let redisClient;
   let h;
 
   beforeEach(() => {
     server = { route: mockRoute.mockReset() };
     db = { queries: { getShapeById: vi.fn() } };
+    redisClient = {
+      get: vi.fn(),
+      set: vi.fn(),
+      del: vi.fn()
+    };
     mockGetDatabaseClient.mockReturnValue(db);
+    mockGetRedisClient.mockReturnValue(redisClient);
     mockGetUnixTimestamp.mockReturnValue(67890);
     h = { response: vi.fn((payload) => ({ code: vi.fn().mockReturnValue({ payload, code: true }) })) };
+  });
+
+  test('returns shape from cache if present (cache hit)', async () => {
+    mockExtractIdsFromParam.mockReturnValue(['S1']);
+    redisClient.get.mockResolvedValueOnce(JSON.stringify({ id: 'S1', cached: true }));
+    db.queries.getShapeById.mockResolvedValueOnce([{ id: 'S1', cached: false }]); // Should not be called
+    getShapes(server);
+    handler = server.route.mock.calls[0][0].handler;
+    const req = {
+      query: { shapeId: 'S1' },
+      server: {
+        plugins: {
+          redis: { redisClient },
+          database: { client: db }
+        }
+      }
+    };
+    const res = await handler(req, h);
+    expect(redisClient.get).toHaveBeenCalledWith('shapes:shape:S1');
+    expect(db.queries.getShapeById).not.toHaveBeenCalled();
+    expect(h.response).toHaveBeenCalledWith(expect.objectContaining({ response: [{ id: 'S1', cached: true }] }));
+  });
+
+  test('returns shape from DB and sets cache if cache miss', async () => {
+    mockExtractIdsFromParam.mockReturnValue(['S2']);
+    redisClient.get.mockResolvedValueOnce(null);
+    db.queries.getShapeById.mockResolvedValueOnce([{ id: 'S2' }]);
+    getShapes(server);
+    handler = server.route.mock.calls[0][0].handler;
+    const req = {
+      query: { shapeId: 'S2' },
+      server: {
+        plugins: {
+          redis: { redisClient },
+          database: { client: db }
+        }
+      }
+    };
+    const res = await handler(req, h);
+    expect(redisClient.get).toHaveBeenCalledWith('shapes:shape:S2');
+    expect(db.queries.getShapeById).toHaveBeenCalledWith('S2');
+    expect(redisClient.set).toHaveBeenCalledWith('shapes:shape:S2', JSON.stringify({ id: 'S2' }));
+    expect(h.response).toHaveBeenCalledWith(expect.objectContaining({ response: [{ id: 'S2' }] }));
+  });
+
+  test('deletes corrupted cache and falls back to DB', async () => {
+    mockExtractIdsFromParam.mockReturnValue(['S3']);
+    redisClient.get.mockResolvedValueOnce('not-json');
+    db.queries.getShapeById.mockResolvedValueOnce([{ id: 'S3' }]);
+    getShapes(server);
+    handler = server.route.mock.calls[0][0].handler;
+    const req = {
+      query: { shapeId: 'S3' },
+      server: {
+        plugins: {
+          redis: { redisClient },
+          database: { client: db }
+        }
+      }
+    };
+    const res = await handler(req, h);
+    expect(redisClient.get).toHaveBeenCalledWith('shapes:shape:S3');
+    expect(redisClient.del).toHaveBeenCalledWith('shapes:shape:S3');
+    expect(db.queries.getShapeById).toHaveBeenCalledWith('S3');
+    expect(redisClient.set).toHaveBeenCalledWith('shapes:shape:S3', JSON.stringify({ id: 'S3' }));
+    expect(h.response).toHaveBeenCalledWith(expect.objectContaining({ response: [{ id: 'S3' }] }));
   });
 
   test('registers the route on the server', () => {
@@ -60,7 +139,15 @@ describe('getShapes', () => {
     db.queries.getShapeById.mockResolvedValueOnce([{ id: 'S1' }]).mockResolvedValueOnce([{ id: 'S2' }]);
     getShapes(server);
     handler = server.route.mock.calls[0][0].handler;
-    const req = { query: { shapeId: 'S1,S2' } };
+    const req = {
+      query: { shapeId: 'S1,S2' },
+      server: {
+        plugins: {
+          redis: { redisClient },
+          database: { client: db }
+        }
+      }
+    };
     const res = await handler(req, h);
     expect(mockExtractIdsFromParam).toHaveBeenCalledWith('S1,S2');
     expect(db.queries.getShapeById).toHaveBeenCalledTimes(2);
@@ -74,7 +161,15 @@ describe('getShapes', () => {
     db.queries.getShapeById.mockResolvedValueOnce([]);
     getShapes(server);
     handler = server.route.mock.calls[0][0].handler;
-    const req = { query: { shapeId: 'S1' } };
+    const req = {
+      query: { shapeId: 'S1' },
+      server: {
+        plugins: {
+          redis: { redisClient },
+          database: { client: db }
+        }
+      }
+    };
     const res = await handler(req, h);
     expect(h.response).toHaveBeenCalledWith({ error: 'No shapes found for the specified shape(s)' });
   });
