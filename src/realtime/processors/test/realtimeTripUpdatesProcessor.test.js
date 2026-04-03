@@ -155,7 +155,7 @@ describe('RealtimeTripUpdatesProcessor', () => {
     it('should return updateResultsWithRealtimeTripUpdates that updates query', async () => {
       const getFeedTimestamp = vi.fn().mockResolvedValue(123);
       const getFeedTripIdMap = vi.fn().mockResolvedValue(new Map());
-      const query = { response: [], since_midnight_timestamp: 100 };
+      const query = { response: [] };
       vi.spyOn(RealtimeTripUpdatesProcessor.prototype, 'processStopResponse').mockResolvedValue([]);
       const { updateResultsWithRealtimeTripUpdates } = await RealtimeTripUpdatesProcessor.register(getFeedTimestamp, getFeedTripIdMap, logger);
       const updated = await updateResultsWithRealtimeTripUpdates(query);
@@ -166,7 +166,7 @@ describe('RealtimeTripUpdatesProcessor', () => {
     it('should warn if query.response is not array', async () => {
       const getFeedTimestamp = vi.fn().mockResolvedValue(123);
       const getFeedTripIdMap = vi.fn().mockResolvedValue(new Map());
-      const query = { response: null, since_midnight_timestamp: 100 };
+      const query = { response: null };
       const { updateResultsWithRealtimeTripUpdates } = await RealtimeTripUpdatesProcessor.register(getFeedTimestamp, getFeedTripIdMap, logger);
       await updateResultsWithRealtimeTripUpdates(query);
       expect(logger.warn).toHaveBeenCalled();
@@ -174,7 +174,7 @@ describe('RealtimeTripUpdatesProcessor', () => {
     it('should log error if processStopResponse throws', async () => {
       const getFeedTimestamp = vi.fn().mockResolvedValue(123);
       const getFeedTripIdMap = vi.fn().mockResolvedValue(new Map());
-      const query = { response: [], since_midnight_timestamp: 100 };
+      const query = { response: [] };
       vi.spyOn(RealtimeTripUpdatesProcessor.prototype, 'processStopResponse').mockRejectedValue(new Error('fail'));
       const { updateResultsWithRealtimeTripUpdates } = await RealtimeTripUpdatesProcessor.register(getFeedTimestamp, getFeedTripIdMap, logger);
       await updateResultsWithRealtimeTripUpdates(query);
