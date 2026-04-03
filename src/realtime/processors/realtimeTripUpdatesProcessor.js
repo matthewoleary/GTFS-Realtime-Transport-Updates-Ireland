@@ -1,4 +1,5 @@
 import { unwrapTimes, getTripDescriptorScheduleRelationshipName, findFeedEntityForTrip, getTimestampAsTimeFormatted, getDueInValue, sortByArrival } from "./utils.js";
+import { getSecondsSinceMidnightTimestamp } from "../../utils/timestampUtils.js";
 
 class RealtimeTripUpdatesProcessor {
 	/**
@@ -27,7 +28,7 @@ class RealtimeTripUpdatesProcessor {
 			if (feedTimestamp && feedTripIdMap) {
 				try {
 					query.realtime_trip_updates_feed_timestamp = feedTimestamp;
-					const secondsSinceMidnightTimestamp = query.since_midnight_timestamp;
+					const secondsSinceMidnightTimestamp = getSecondsSinceMidnightTimestamp(query.timestamp);
 					if (Array.isArray(query.response)) {
 						query.response = await processor.processStopResponse(query.response, feedTripIdMap, secondsSinceMidnightTimestamp);
 					} else {
