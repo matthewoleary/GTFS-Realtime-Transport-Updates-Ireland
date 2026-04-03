@@ -1,7 +1,7 @@
 import ServerLogger from '../../serverLogger.js';
 import { sortByRouteShortNameAsInt, extractIdsFromParam } from './utils.js';
 import { getDatabaseClient } from '../index.js';
-import { getCurrentTimestamp, getUnixTimestamp } from '../../../utils/timestampUtils.js';
+import { getUnixTimestamp } from '../../../utils/timestampUtils.js';
 
 /**
  * Registers the /api/routes GET route for fetching GTFS route data.
@@ -25,7 +25,6 @@ export default function getRoutes(server) {
                 const db = getDatabaseClient(request);
                 const agencyId = request.query.agencyId; // Optional agencyId for filtering routes by agency
                 const routeIdParam = request.query.routeId;
-                const currentTimestamp = getCurrentTimestamp();
                 const unixTimestamp = getUnixTimestamp();
                 let response;
                 if (routeIdParam) {
@@ -42,7 +41,6 @@ export default function getRoutes(server) {
                 }
                 const sortedRecords = await sortByRouteShortNameAsInt(response || []);
                 const payload = {
-                    since_midnight_timestamp: currentTimestamp,
                     query_timestamp: unixTimestamp,
                     response: sortedRecords
                 };

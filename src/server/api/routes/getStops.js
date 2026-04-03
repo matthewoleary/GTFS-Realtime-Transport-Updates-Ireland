@@ -1,8 +1,7 @@
 import ServerLogger from '../../serverLogger.js';
 import { extractIdsFromParam } from './utils.js';
-import { getDatabaseClient } from '../index.js';
-import { getRedisClient } from '../index.js';
-import { getCurrentTimestamp, getUnixTimestamp } from '../../../utils/timestampUtils.js';
+import { getDatabaseClient, getRedisClient } from '../index.js';
+import { getUnixTimestamp } from '../../../utils/timestampUtils.js';
 
 /**
  * Registers the /api/stops GET route for fetching GTFS stop data.
@@ -45,7 +44,6 @@ export default function getStops(server) {
                 }
                 const agencyId = request.query.agencyId;
                 const stopIdParam = request.query.stopId;
-                const currentTimestamp = getCurrentTimestamp();
                 const unixTimestamp = getUnixTimestamp();
                 let response;
                 if (stopIdParam) {
@@ -57,7 +55,6 @@ export default function getStops(server) {
                     response = await getAllStops(db, redisClient, logger, cacheKeyBase);
                 }
                 const payload = {
-                    since_midnight_timestamp: currentTimestamp,
                     query_timestamp: unixTimestamp,
                     response: response
                 };

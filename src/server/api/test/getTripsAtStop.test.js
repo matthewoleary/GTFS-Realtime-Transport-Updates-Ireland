@@ -12,7 +12,6 @@ const mockBuildServiceDay = vi.fn();
 const mockGetDatabaseClient = vi.fn();
 const mockGetRealtimeTripUpdatesClient = vi.fn();
 const mockGetRealtimeVehiclePositionsClient = vi.fn();
-const mockGetCurrentTimestamp = vi.fn();
 const mockGetUnixTimestamp = vi.fn();
 const mockGetTimestampMinusNumberMinutes = vi.fn();
 const mockGetTimestampPlusNumberMinutes = vi.fn();
@@ -32,7 +31,6 @@ vi.mock('../index.js', () => ({
   getRealtimeVehiclePositionsClient: (...args) => mockGetRealtimeVehiclePositionsClient(...args)
 }));
 vi.mock('../../../utils/timestampUtils.js', () => ({
-  getCurrentTimestamp: (...args) => mockGetCurrentTimestamp(...args),
   getUnixTimestamp: (...args) => mockGetUnixTimestamp(...args),
   getTimestampMinusNumberMinutes: (...args) => mockGetTimestampMinusNumberMinutes(...args),
   getTimestampPlusNumberMinutes: (...args) => mockGetTimestampPlusNumberMinutes(...args),
@@ -55,7 +53,6 @@ describe('getTripsAtStop', () => {
     mockGetDatabaseClient.mockReturnValue(db);
     mockGetRealtimeTripUpdatesClient.mockReturnValue(realtimeTripUpdates);
     mockGetRealtimeVehiclePositionsClient.mockReturnValue(realtimeVehiclePositions);
-    mockGetCurrentTimestamp.mockReturnValue(12345);
     mockGetUnixTimestamp.mockReturnValue(67890);
     mockGetTimestampMinusNumberMinutes.mockReturnValue(10000);
     mockGetTimestampPlusNumberMinutes.mockReturnValue(15000);

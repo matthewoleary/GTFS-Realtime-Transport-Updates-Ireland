@@ -1,7 +1,7 @@
 import ServerLogger from '../../serverLogger.js';
 import { extractIdsFromParam } from './utils.js';
 import { getDatabaseClient } from '../index.js';
-import { getCurrentTimestamp, getUnixTimestamp } from '../../../utils/timestampUtils.js';
+import { getUnixTimestamp } from '../../../utils/timestampUtils.js';
 
 /**
  * Registers the /api/shapes GET route for fetching GTFS shape data.
@@ -24,7 +24,6 @@ export default function getShapes(server) {
             try {
                 const db = getDatabaseClient(request);
                 const shapeIdParam = request.query.shapeId;
-                const currentTimestamp = getCurrentTimestamp();
                 const unixTimestamp = getUnixTimestamp();
                 let response = [];
                 if (shapeIdParam) {
@@ -42,7 +41,6 @@ export default function getShapes(server) {
                     return handler.response({ error: 'No shapes found for the specified shape(s)' }).code(404);
                 }
                 const payload = {
-                    since_midnight_timestamp: currentTimestamp,
                     query_timestamp: unixTimestamp,
                     response: response
                 };

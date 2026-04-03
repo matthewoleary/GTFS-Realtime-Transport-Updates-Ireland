@@ -1,7 +1,7 @@
 import ServerLogger from '../../serverLogger.js';
 import { extractIdsFromParam, removeTripsAtLastStop, buildServiceDay } from './utils.js';
 import { getDatabaseClient, getRealtimeTripUpdatesClient, getRealtimeVehiclePositionsClient } from '../index.js';
-import { getCurrentTimestamp, getUnixTimestamp, getTimestampMinusNumberMinutes, getTimestampPlusNumberMinutes, checkIfNightServices, getWrappedTimestamp, getUnwrappedTimestamp } from '../../../utils/timestampUtils.js';
+import { getSecondsSinceMidnightTimestamp, getUnixTimestamp, getTimestampMinusNumberMinutes, getTimestampPlusNumberMinutes, checkIfNightServices, getWrappedTimestamp, getUnwrappedTimestamp } from '../../../utils/timestampUtils.js';
 import { getCurrentDay, getCurrentDate, getPreviousDay, getPreviousDate, getNextDay, getNextDayDate } from '../../../utils/dateUtils.js';
 
 /**
@@ -38,11 +38,11 @@ export default function getTripsAtStop(server) {
                     ? Number(request.query.upperBoundMinutes)
                     : 90;
                 // const upperLimitTimestamp = request.query.upperLimitTimestamp ? Number(request.query.upperLimitTimestamp) : null;
-                const currentTimestamp = getCurrentTimestamp();
                 const unixTimestamp = getUnixTimestamp();
+                const secondsSinceMidnightTimestamp = getSecondsSinceMidnightTimestamp(unixTimestamp);
                 // Lower bound limited to 0 if subtraction goes negative
-                const querySearchLowerBoundTimestamp = getTimestampMinusNumberMinutes(currentTimestamp, scheduleSearchWindowLowerBound);
-                const querySearchUpperBoundTimestamp = getTimestampPlusNumberMinutes(currentTimestamp, scheduleSearchWindowUpperBound);
+                const querySearchLowerBoundTimestamp = getTimestampMinusNumberMinutes(secondsSinceMidnightTimestamp, scheduleSearchWindowLowerBound);
+                const querySearchUpperBoundTimestamp = getTimestampPlusNumberMinutes(secondsSinceMidnightTimestamp, scheduleSearchWindowUpperBound);
                 const querySearchUpperBoundTimestampUnWrapped = getUnwrappedTimestamp(querySearchUpperBoundTimestamp);
 
                 if (!realtimeTripUpdates) {
@@ -54,7 +54,6 @@ export default function getTripsAtStop(server) {
                 }
 
                 let payload = {
-                    since_midnight_timestamp: currentTimestamp,
                     query_timestamp: unixTimestamp,
                     response: []
                 };
@@ -69,7 +68,7 @@ export default function getTripsAtStop(server) {
                 // HANDLING NIGHT SERVICES
                 // If the current timestamp is on or after midnight, before the timestamp of the final departure of the previous service day 
                 // (i.e passes the night services check)
-                if (checkIfNightServices(currentTimestamp, maxDepartureTimestampUnwrapped)) {
+                if (checkIfNightServices(secondsSinceMidnightTimestamp, maxDepartureTimestampUnwrapped)) {
                     // Prepare the previous service day with the lower bound timestamp, current timestamp and upper bound timestamp wrapped.
                     // example: trips 90 mins before current time up to 90 minutes after the current time.
                     const previousScheduleDay = getPreviousDay().toLowerCase();

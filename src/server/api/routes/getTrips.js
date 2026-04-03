@@ -1,7 +1,7 @@
 import ServerLogger from '../../serverLogger.js';
 import { extractIdsFromParam } from './utils.js';
-import { getDatabaseClient, getRealtimeVehiclePositionsClient } from '../index.js';
-import { getCurrentTimestamp, getUnixTimestamp } from '../../../utils/timestampUtils.js';
+import { getDatabaseClient, getRealtimeVehiclePositionsClient, getRedisClient } from '../index.js';
+import { getUnixTimestamp } from '../../../utils/timestampUtils.js';
 
 /**
  * Registers the /api/trips GET route for fetching GTFS trip data.
@@ -17,6 +17,7 @@ import { getCurrentTimestamp, getUnixTimestamp } from '../../../utils/timestampU
  */
 export default function getTrips(server) {
     const logger = new ServerLogger({ client: 'getTrips' });
+    const cacheKeyBase = 'trips';
     server.route({
         method: 'GET',
         path: '/api/trips',
@@ -25,7 +26,6 @@ export default function getTrips(server) {
                 const db = getDatabaseClient(request);
                 const realtime = getRealtimeVehiclePositionsClient(request);
                 const tripIdParam = request.query.tripId;
-                const currentTimestamp = getCurrentTimestamp();
                 const unixTimestamp = getUnixTimestamp();
                 let response = [];
                 if (tripIdParam) {
@@ -43,7 +43,6 @@ export default function getTrips(server) {
                     return handler.response({ error: 'No trips found for the specified trip(s)' }).code(404);
                 }
                 let payload = {
-                    since_midnight_timestamp: currentTimestamp,
                     query_timestamp: unixTimestamp,
                     response: response
                 };

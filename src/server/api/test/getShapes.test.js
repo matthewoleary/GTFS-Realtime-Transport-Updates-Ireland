@@ -6,7 +6,6 @@ const mockRoute = vi.fn();
 const mockLogger = vi.fn().mockImplementation(() => ({ error: vi.fn() }));
 const mockExtractIdsFromParam = vi.fn();
 const mockGetDatabaseClient = vi.fn();
-const mockGetCurrentTimestamp = vi.fn();
 const mockGetUnixTimestamp = vi.fn();
 
 vi.mock('../../serverLogger.js', () => ({
@@ -19,7 +18,6 @@ vi.mock('../index.js', () => ({
   getDatabaseClient: (...args) => mockGetDatabaseClient(...args)
 }));
 vi.mock('../../../utils/timestampUtils.js', () => ({
-  getCurrentTimestamp: (...args) => mockGetCurrentTimestamp(...args),
   getUnixTimestamp: (...args) => mockGetUnixTimestamp(...args)
 }));
 
@@ -36,7 +34,6 @@ describe('getShapes', () => {
     server = { route: mockRoute.mockReset() };
     db = { queries: { getShapeById: vi.fn() } };
     mockGetDatabaseClient.mockReturnValue(db);
-    mockGetCurrentTimestamp.mockReturnValue(12345);
     mockGetUnixTimestamp.mockReturnValue(67890);
     h = { response: vi.fn((payload) => ({ code: vi.fn().mockReturnValue({ payload, code: true }) })) };
   });

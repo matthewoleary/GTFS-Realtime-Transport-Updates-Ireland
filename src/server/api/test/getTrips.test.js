@@ -9,7 +9,6 @@ const mockLogger = vi.fn().mockImplementation(() => ({ error: vi.fn() }));
 const mockExtractIdsFromParam = vi.fn();
 const mockGetDatabaseClient = vi.fn();
 const mockGetRealtimeVehiclePositionsClient = vi.fn();
-const mockGetCurrentTimestamp = vi.fn();
 const mockGetUnixTimestamp = vi.fn();
 
 vi.mock('../../serverLogger.js', () => ({
@@ -23,7 +22,6 @@ vi.mock('../index.js', () => ({
   getRealtimeVehiclePositionsClient: (...args) => mockGetRealtimeVehiclePositionsClient(...args)
 }));
 vi.mock('../../../utils/timestampUtils.js', () => ({
-  getCurrentTimestamp: (...args) => mockGetCurrentTimestamp(...args),
   getUnixTimestamp: (...args) => mockGetUnixTimestamp(...args)
 }));
 
