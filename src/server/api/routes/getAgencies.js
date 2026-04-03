@@ -1,7 +1,7 @@
 import ServerLogger from '../../serverLogger.js';
 import { extractIdsFromParam } from './utils.js';
 import { getDatabaseClient } from '../index.js';
-import { getCurrentTimestamp, getUnixTimestamp } from '../../../utils/timestampUtils.js';
+import { getUnixTimestamp } from '../../../utils/timestampUtils.js';
 
 /**
  * Registers the /api/agencies GET route for fetching GTFS agency data.
@@ -24,7 +24,6 @@ export default function getAgencies(server) {
             try {
                 const db = getDatabaseClient(request);
                 const agencyIdParam = request.query.agencyId;
-                const currentTimestamp = getCurrentTimestamp();
                 const unixTimestamp = getUnixTimestamp();
                 let response;
                 if (agencyIdParam) {
@@ -43,7 +42,6 @@ export default function getAgencies(server) {
                     return handler.response({ error: 'No agencies found' }).code(404);
                 }
                 const payload = {
-                    since_midnight_timestamp: currentTimestamp,
                     query_timestamp: unixTimestamp,
                     response: response
                 };

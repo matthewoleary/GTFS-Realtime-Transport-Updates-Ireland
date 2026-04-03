@@ -3,9 +3,14 @@ import moment from 'moment-timezone';
 moment.tz.setDefault('Europe/Dublin');
 moment.locale('en-ie');
 
-// Get seconds since midnight
-export function getCurrentTimestamp() {
-	let time = moment().format('LTS').split(':');
+/**
+ * Returns the number of seconds since midnight for a given timestamp.
+ *
+ * @param {string|Date|number} [timestamp] - Optional. A timestamp that can be parsed by moment.js. If omitted, uses the current time.
+ * @returns {number} The number of seconds since midnight (0-86399).
+ */
+export function getSecondsSinceMidnightTimestamp(timestamp) {
+	let time = moment(timestamp).format('LTS').split(':');
 	time = (Number(time[0]) * 3600) + (Number(time[1]) * 60) + Number(time[2]);
 	return time;
 }
@@ -37,22 +42,15 @@ export function getTimestampMinusNumberMinutes(timestamp, numberMinutes) {
 
 /**
  * Adds a number of minutes to a timestamp (in seconds since midnight).
- * If the result is greater than or equal to 86400 (end of day), returns 86399 (23:59:59).
  *
  * @param {number} timestamp - The original timestamp in seconds since midnight.
  * @param {number} numberMinutes - The number of minutes to add.
- * @returns {number} The resulting timestamp, or 86399 if the result exceeds the end of the day.
+ * @returns {number} The resulting timestamp.
  */
 export function getTimestampPlusNumberMinutes(timestamp, numberMinutes) {
 	const numberSeconds = numberMinutes * 60;
 	const timeStampResult = timestamp + numberSeconds;
 	return timeStampResult;
-}
-
-export function getCurrentTimestampPlusOneHour() {
-	let time = moment().add(1, 'h').format('LTS').split(':');
-	time = (Number(time[0]) * 3600) + (Number(time[1]) * 60) + Number(time[2]);
-	return time;
 }
 
 // Check if time is between 00:00:00 and the latest departure time for the previous service day, which can be early morning hours.

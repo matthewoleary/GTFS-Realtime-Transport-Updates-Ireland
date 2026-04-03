@@ -8,15 +8,15 @@ describe('timestampUtils (migrated from utils.test.js)', () => {
     if (clock) clock.restore();
   });
 
-  test('getCurrentTimestamp returns 49410 for 13:43:30', () => {
+  test('getSecondsSinceMidnightTimestamp returns 49410 for 13:43:30', () => {
     clock = sinon.useFakeTimers(new Date(Date.UTC(2020, 10, 24, 13, 43, 30)));
-    const result = timestampUtils.getCurrentTimestamp();
+    const result = timestampUtils.getSecondsSinceMidnightTimestamp();
     expect(result).toBe(49410);
   });
 
-  test('getCurrentTimestamp returns 0 for 00:00:00', () => {
+  test('getSecondsSinceMidnightTimestamp returns 0 for 00:00:00', () => {
     clock = sinon.useFakeTimers(new Date(Date.UTC(2020, 10, 24, 0, 0, 0)));
-    const result = timestampUtils.getCurrentTimestamp();
+    const result = timestampUtils.getSecondsSinceMidnightTimestamp();
     expect(result).toBe(0);
   });
 
@@ -26,18 +26,6 @@ describe('timestampUtils (migrated from utils.test.js)', () => {
     expect(result).toBe(1608660585);
   });
 
-  test('getCurrentTimestampPlusOneHour returns 53010 for 13:43:30', async () => {
-    clock = sinon.useFakeTimers(new Date(Date.UTC(2020, 10, 24, 13, 43, 30)));
-    const result = await timestampUtils.getCurrentTimestampPlusOneHour();
-    expect(result).toBe(53010);
-  });
-
-  test('getCurrentTimestampPlusOneHour returns 3599 for 23:59:59', async () => {
-    clock = sinon.useFakeTimers(new Date(Date.UTC(2020, 10, 24, 23, 59, 59)));
-    const result = await timestampUtils.getCurrentTimestampPlusOneHour();
-    expect(result).toBe(3599);
-  });
-
   test('getTimestampMinusNumberMinutes returns 47910 for 49410 minus 25 min', async () => {
     const result = await timestampUtils.getTimestampMinusNumberMinutes(49410, 25);
     expect(result).toBe(47910);
@@ -45,25 +33,25 @@ describe('timestampUtils (migrated from utils.test.js)', () => {
 
   test('checkIfNightServices returns true for 01:15:00', async () => {
     clock = sinon.useFakeTimers(new Date(Date.UTC(2020, 10, 24, 1, 15, 0)));
-    const timestamp = timestampUtils.getCurrentTimestamp();
+    const timestamp = timestampUtils.getSecondsSinceMidnightTimestamp();
     expect(timestampUtils.checkIfNightServices(timestamp, 21599)).toBe(true);
   });
 
   test('checkIfNightServices returns false for 23:59:59', async () => {
     clock = sinon.useFakeTimers(new Date(Date.UTC(2020, 10, 24, 23, 59, 59)));
-    const timestamp = timestampUtils.getCurrentTimestamp();
+    const timestamp = timestampUtils.getSecondsSinceMidnightTimestamp();
     expect(timestampUtils.checkIfNightServices(timestamp, 21599)).toBe(false);
   });
 
   test('getWrappedTimestamp returns 89115 for 00:45:15', async () => {
     clock = sinon.useFakeTimers(new Date(Date.UTC(2020, 10, 24, 0, 45, 15)));
-    const timestamp = timestampUtils.getCurrentTimestamp();
+    const timestamp = timestampUtils.getSecondsSinceMidnightTimestamp();
     expect(timestampUtils.getWrappedTimestamp(timestamp, 21599)).toBe(89115);
   });
 
   test('getWrappedTimestamp returns 49410 for 13:43:30', async () => {
     clock = sinon.useFakeTimers(new Date(Date.UTC(2020, 10, 24, 13, 43, 30)));
-    const timestamp = timestampUtils.getCurrentTimestamp();
+    const timestamp = timestampUtils.getSecondsSinceMidnightTimestamp();
     expect(timestampUtils.getWrappedTimestamp(timestamp, 21599)).toBe(49410);
   });
 });
@@ -78,10 +66,10 @@ describe('timestampUtils', () => {
     moment.locale('en-ie');
   });
 
-  test('getCurrentTimestamp returns seconds since midnight', () => {
+  test('getSecondsSinceMidnightTimestamp returns seconds since midnight', () => {
     const now = moment();
     const expected = (now.hour() * 3600) + (now.minute() * 60) + now.second();
-    const result = timestampUtils.getCurrentTimestamp();
+    const result = timestampUtils.getSecondsSinceMidnightTimestamp();
     // Allow a 1 second difference due to timing
     expect(Math.abs(result - expected)).toBeLessThanOrEqual(1);
   });
@@ -107,13 +95,6 @@ describe('timestampUtils', () => {
   test('getTimestampPlusNumberMinutes adds minutes correctly', () => {
     expect(timestampUtils.getTimestampPlusNumberMinutes(600, 5)).toBe(900);
     expect(timestampUtils.getTimestampPlusNumberMinutes(86300, 2)).toBe(86420);
-  });
-
-  test('getCurrentTimestampPlusOneHour returns seconds since midnight plus one hour', () => {
-    const now = moment().add(1, 'h');
-    const expected = (now.hour() * 3600) + (now.minute() * 60) + now.second();
-    const result = timestampUtils.getCurrentTimestampPlusOneHour();
-    expect(Math.abs(result - expected)).toBeLessThanOrEqual(1);
   });
 
   test('checkIfNightServices returns true if timestamp is in range', () => {

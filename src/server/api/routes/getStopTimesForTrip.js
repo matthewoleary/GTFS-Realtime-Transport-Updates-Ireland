@@ -1,7 +1,7 @@
 import ServerLogger from '../../serverLogger.js';
 import { extractIdsFromParam } from './utils.js';
 import { getDatabaseClient } from '../index.js';
-import { getCurrentTimestamp, getUnixTimestamp } from '../../../utils/timestampUtils.js';
+import { getUnixTimestamp } from '../../../utils/timestampUtils.js';
 
 /**
  * Registers the /api/stopTimes GET route for fetching GTFS stop times data for trips.
@@ -24,7 +24,6 @@ export default function getStopTimesForTrip(server) {
             try {
                 const db = getDatabaseClient(request);
                 const tripIdParam = request.query.tripId;
-                const currentTimestamp = getCurrentTimestamp();
                 const unixTimestamp = getUnixTimestamp();
                 let response = [];
                 if (tripIdParam) {
@@ -42,7 +41,6 @@ export default function getStopTimesForTrip(server) {
                     return handler.response({ error: 'No stop times found for the specified trip(s)' }).code(404);
                 }
                 const payload = {
-                    since_midnight_timestamp: currentTimestamp,
                     query_timestamp: unixTimestamp,
                     response: response
                 };
