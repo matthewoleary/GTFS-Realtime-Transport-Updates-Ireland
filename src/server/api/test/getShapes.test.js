@@ -14,7 +14,7 @@ const mockGetRedisClient = vi.fn();
 const mockGetUnixTimestamp = vi.fn();
 
 vi.mock('../../serverLogger.js', () => ({
-  default: function(...args) { return mockLogger(...args); }
+  default: function (...args) { return mockLogger(...args); }
 }));
 vi.mock('../routes/utils.js', () => ({
   extractIdsFromParam: (...args) => mockExtractIdsFromParam(...args)
@@ -51,6 +51,31 @@ describe('getShapes', () => {
     h = { response: vi.fn((payload) => ({ code: vi.fn().mockReturnValue({ payload, code: true }) })) };
   });
 
+  test('falls back to DB if redisClient.get throws (Redis outage)', async () => {
+    mockExtractIdsFromParam.mockReturnValue(['S4']);
+    // Simulate Redis get throwing
+    redisClient.get.mockRejectedValueOnce(new Error('Redis unavailable'));
+    db.queries.getShapeById.mockResolvedValueOnce([{ id: 'S4' }]);
+    getShapes(server);
+    handler = server.route.mock.calls[0][0].handler;
+    const req = {
+      query: { shapeId: 'S4' },
+      server: {
+        plugins: {
+          redis: { redisClient },
+          database: { client: db }
+        }
+      }
+    };
+    await handler(req, h);
+    expect(redisClient.get).toHaveBeenCalledWith('shapes:shape:S4');
+    expect(db.queries.getShapeById).toHaveBeenCalledWith('S4');
+    expect(h.response).toHaveBeenCalledWith(expect.objectContaining({ response: [{ id: 'S4' }] }));
+    // Optionally, check that logger.warn was called for Redis error
+    const loggerInstance = mockLogger.mock.results[0].value;
+    expect(loggerInstance.warn).toHaveBeenCalledWith(expect.stringContaining('Redis error on get for shape S4'));
+  });
+
   test('returns shape from cache if present (cache hit)', async () => {
     mockExtractIdsFromParam.mockReturnValue(['S1']);
     redisClient.get.mockResolvedValueOnce(JSON.stringify({ id: 'S1', cached: true }));
@@ -66,7 +91,7 @@ describe('getShapes', () => {
         }
       }
     };
-    const res = await handler(req, h);
+    await handler(req, h);
     expect(redisClient.get).toHaveBeenCalledWith('shapes:shape:S1');
     expect(db.queries.getShapeById).not.toHaveBeenCalled();
     expect(h.response).toHaveBeenCalledWith(expect.objectContaining({ response: [{ id: 'S1', cached: true }] }));
@@ -87,7 +112,7 @@ describe('getShapes', () => {
         }
       }
     };
-    const res = await handler(req, h);
+    await handler(req, h);
     expect(redisClient.get).toHaveBeenCalledWith('shapes:shape:S2');
     expect(db.queries.getShapeById).toHaveBeenCalledWith('S2');
     expect(redisClient.set).toHaveBeenCalledWith('shapes:shape:S2', JSON.stringify({ id: 'S2' }));
@@ -109,7 +134,7 @@ describe('getShapes', () => {
         }
       }
     };
-    const res = await handler(req, h);
+    await handler(req, h);
     expect(redisClient.get).toHaveBeenCalledWith('shapes:shape:S3');
     expect(redisClient.del).toHaveBeenCalledWith('shapes:shape:S3');
     expect(db.queries.getShapeById).toHaveBeenCalledWith('S3');
@@ -130,7 +155,7 @@ describe('getShapes', () => {
     getShapes(server);
     handler = server.route.mock.calls[0][0].handler;
     const req = { query: {} };
-    const res = await handler(req, h);
+    await handler(req, h);
     expect(h.response).toHaveBeenCalledWith({ error: 'shapeId query parameter is required' });
   });
 
@@ -148,7 +173,7 @@ describe('getShapes', () => {
         }
       }
     };
-    const res = await handler(req, h);
+    await handler(req, h);
     expect(mockExtractIdsFromParam).toHaveBeenCalledWith('S1,S2');
     expect(db.queries.getShapeById).toHaveBeenCalledTimes(2);
     expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
@@ -170,7 +195,7 @@ describe('getShapes', () => {
         }
       }
     };
-    const res = await handler(req, h);
+    await handler(req, h);
     expect(h.response).toHaveBeenCalledWith({ error: 'No shapes found for the specified shape(s)' });
   });
 
@@ -180,7 +205,7 @@ describe('getShapes', () => {
     getShapes(server);
     handler = server.route.mock.calls[0][0].handler;
     const req = { query: { shapeId: 'S1' } };
-    const res = await handler(req, h);
+    await handler(req, h);
     expect(h.response).toHaveBeenCalledWith({ error: 'Internal Server Error' });
   });
 });
