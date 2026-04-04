@@ -1,4 +1,3 @@
-
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import getStopTimes from '../routes/getStopTimes.js';
 
@@ -158,5 +157,24 @@ describe('getStopTimes', () => {
     const req = { query: { tripId: 'T1' } };
     const res = await handler(req, h);
     expect(h.response).toHaveBeenCalledWith({ error: 'Internal Server Error' });
+  });
+
+    test('proceeds without cache if redisClient is null', async () => {
+    mockExtractIdsFromParam.mockReturnValue(['T1']);
+    mockGetRedisClient.mockReturnValueOnce(null);
+    db.queries.getStopTimesByTripId.mockResolvedValueOnce([{ stop: 1 }]);
+    getStopTimes(server);
+    handler = server.route.mock.calls[0][0].handler;
+    const req = { query: { tripId: 'T1' } };
+    const res = await handler(req, h);
+    expect(db.queries.getStopTimesByTripId).toHaveBeenCalledWith('T1');
+    expect(mockRedisClient.get).not.toHaveBeenCalled();
+    expect(mockRedisClient.set).not.toHaveBeenCalled();
+    expect(mockRedisClient.del).not.toHaveBeenCalled();
+    expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
+      response: [
+        { tripId: 'T1', stopTimes: [{ stop: 1 }] }
+      ]
+    }));
   });
 });
