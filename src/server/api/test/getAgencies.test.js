@@ -109,6 +109,37 @@ describe('getAgencies', () => {
     }));
   });
 
+  test('falls back to DB and deletes key if Redis cache is corrupted JSON', async () => {
+    mockExtractIdsFromParam.mockReturnValue(['A1']);
+    mockRedisClient.get.mockResolvedValueOnce('not-json');
+    db.queries.getAgencyById.mockResolvedValueOnce([{ id: 'A1' }]);
+    getAgencies(server);
+    handler = server.route.mock.calls[0][0].handler;
+    const req = { query: { agencyId: 'A1' } };
+    const res = await handler(req, h);
+    expect(mockRedisClient.get).toHaveBeenCalledWith('agencies:agency:A1');
+    expect(mockRedisClient.del).toHaveBeenCalledWith('agencies:agency:A1');
+    expect(db.queries.getAgencyById).toHaveBeenCalledWith('A1');
+    expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
+      response: [{ id: 'A1' }]
+    }));
+  });
+
+  test('falls back to DB if Redis get throws', async () => {
+    mockExtractIdsFromParam.mockReturnValue(['A1']);
+    mockRedisClient.get.mockRejectedValueOnce(new Error('redis fail'));
+    db.queries.getAgencyById.mockResolvedValueOnce([{ id: 'A1' }]);
+    getAgencies(server);
+    handler = server.route.mock.calls[0][0].handler;
+    const req = { query: { agencyId: 'A1' } };
+    const res = await handler(req, h);
+    expect(mockRedisClient.get).toHaveBeenCalledWith('agencies:agency:A1');
+    expect(db.queries.getAgencyById).toHaveBeenCalledWith('A1');
+    expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
+      response: [{ id: 'A1' }]
+    }));
+  });
+
   test('returns agency by id from cache if present', async () => {
     mockExtractIdsFromParam.mockReturnValue(['A1']);
     mockRedisClient.get.mockResolvedValueOnce(JSON.stringify({ id: 'A1' }));
