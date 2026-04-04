@@ -44,7 +44,7 @@ export default function getTrips(server) {
             try {
                 const db = getDatabaseClient(request);
                 const realtime = getRealtimeVehiclePositionsClient(request);
-                const redisClient = getRedisClient(request)
+                const redisClient = getRedisClient(request);
                 if (!redisClient) {
                     logger.warn('Redis client not available, proceeding without cache.');
                 }
