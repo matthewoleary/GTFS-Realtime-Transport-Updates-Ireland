@@ -1,7 +1,6 @@
 import ServerLogger from '../../serverLogger.js';
 import { sortByRouteShortNameAsInt, extractIdsFromParam } from './utils.js';
-import { getDatabaseClient } from '../index.js';
-import { getRedisClient } from '../index.js';
+import { getDatabaseClient, getRedisClient } from '../index.js';
 import { getUnixTimestamp } from '../../../utils/timestampUtils.js';
 
 /**

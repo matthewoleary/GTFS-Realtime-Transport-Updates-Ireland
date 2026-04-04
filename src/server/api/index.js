@@ -2,7 +2,7 @@
 import getStops from './routes/getStops.js';
 import getRoutes from './routes/getRoutes.js';
 import getAgencies from './routes/getAgencies.js';
-import getStopTimesForTrip from './routes/getStopTimesForTrip.js';
+import getStopTimes from './routes/getStopTimes.js';
 import getTrips from './routes/getTrips.js';
 import getShapes from './routes/getShapes.js';
 import getTripsAtStop from './routes/getTripsAtStop.js';
@@ -12,7 +12,7 @@ export async function registerRoutes(server) {
 	getRoutes(server);
 	getTripsAtStop(server);
 	getAgencies(server);
-	getStopTimesForTrip(server);
+	getStopTimes(server);
 	getTrips(server);
 	getShapes(server);
 }
