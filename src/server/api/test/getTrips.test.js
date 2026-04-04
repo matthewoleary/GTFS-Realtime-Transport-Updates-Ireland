@@ -4,7 +4,7 @@ import getTrips from '../routes/getTrips.js';
 
 // Declare mocks before vi.mock
 const mockRoute = vi.fn();
-const mockLogger = vi.fn().mockImplementation(() => ({ error: vi.fn() , warn: vi.fn(), info: vi.fn() }));
+const mockLogger = vi.fn().mockImplementation(() => ({ error: vi.fn(), warn: vi.fn(), info: vi.fn() }));
 const mockExtractIdsFromParam = vi.fn();
 const mockGetDatabaseClient = vi.fn();
 const mockGetRealtimeVehiclePositionsClient = vi.fn();
