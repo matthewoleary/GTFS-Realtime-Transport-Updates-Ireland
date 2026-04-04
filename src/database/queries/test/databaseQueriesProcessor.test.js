@@ -148,12 +148,16 @@ describe('databaseQueriesProcessor', () => {
     expect(cnx.query).toHaveBeenCalledWith(sqlQueries.getAllStops);
   });
 
-  it('should call getAllRoutes with or without agencyId', async () => {
+  it('should call getAllRoutesByAgencyId with correct SQL', async () => {
     const agencyId = 2;
-    await processor.getAllRoutes(agencyId);
-    await processor.getAllRoutes();
+    await processor.getAllRoutesByAgencyId(agencyId);
     const cnx = await getConnection.mock.results[0].value;
     expect(cnx.query).toHaveBeenCalledWith(sqlQueries.getAllRoutesByAgencyId, [agencyId]);
+  });
+
+  it('should call getAllRoutes with correct SQL', async () => {
+    await processor.getAllRoutes();
+    const cnx = await getConnection.mock.results[0].value;
     expect(cnx.query).toHaveBeenCalledWith(sqlQueries.getAllRoutes);
   });
 
