@@ -47,8 +47,8 @@ export default function getShapes(server) {
                         }
                         if (cachedData) {
                             try {
-                                logger.info(`Cache hit for shape ${id}`);
                                 response.push(JSON.parse(cachedData));
+                                logger.info(`Cache hit for shape ${id}`);
                             } catch (err) {
                                 logger.warn(`Corrupted cache for shape ${id}, treating as cache miss. Error: ${err.message}`);
                                 if (redisClient) {
