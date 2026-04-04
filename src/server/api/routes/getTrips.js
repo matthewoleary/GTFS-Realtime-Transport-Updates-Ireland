@@ -20,12 +20,12 @@ export default function getTrips(server) {
     const cacheKeyBase = 'trips';
 
     /**
-         * Pushes trip to response and attempts to cache it in Redis.
-         * @param {object} trip - Trip object
-         * @param {Array} response - Response array to push to
-         * @param {object} redisClient - Redis client instance
-         * @param {string} cacheKey - Redis key
-         */
+        * Pushes trip to response and attempts to cache it in Redis.
+        * @param {object} trip - Trip object
+        * @param {Array} response - Response array to push to
+        * @param {object} redisClient - Redis client instance
+        * @param {string} cacheKey - Redis key
+    */
     async function pushTripAndCache(trip, response, redisClient, cacheKey) {
         response.push(trip);
         if (redisClient) {
