@@ -182,9 +182,12 @@ export default function getRoutes(server) {
         handler: async (request, handler) => {
             try {
                 const db = getDatabaseClient(request);
-                const redisClient = getRedisClient(request);
-                if (!redisClient) {
-                    logger.warn('Redis client not available, proceeding without cache.');
+                let redisClient = null;
+                try {
+                    redisClient = getRedisClient(request);
+                } catch (error) {
+                    logger.warn('Redis client not available or failed to initialize, proceeding without cache. Error: ' + error.message);
+                    redisClient = null;
                 }
                 const agencyId = request.query.agencyId;
                 const routeIdParam = request.query.routeId;
