@@ -78,6 +78,23 @@ export default function getStops(server) {
  * @returns {Promise<object[]>} Array of stop objects.
  */
 async function getStopsByIds(stopIds, db, redisClient, logger, cacheKeyBase) {
+    /**
+     * Pushes stop to response and attempts to cache it in Redis.
+     * @param {object} stop - Stop object
+     * @param {Array} response - Response array to push to
+     * @param {string} cacheKey - Redis key
+     */
+    async function pushStopAndCache(stop, response, cacheKey) {
+        response.push(stop);
+        if (redisClient) {
+            try {
+                await redisClient.set(cacheKey, JSON.stringify(stop));
+            } catch (err) {
+                logger.warn(`Redis error on set for stop cacheKey ${cacheKey}: ${err.message}`);
+            }
+        }
+    }
+
     const response = [];
     for (const id of stopIds) {
         const cacheKey = `${cacheKeyBase}:stop:${id}`;
@@ -102,20 +119,14 @@ async function getStopsByIds(stopIds, db, redisClient, logger, cacheKeyBase) {
                 logger.info(`Cache miss for stop ${id}, querying database`);
                 const stop = await db.queries.getStopById(id);
                 if (stop && stop[0]) {
-                    response.push(stop[0]);
-                    if (redisClient) {
-                        await redisClient.set(cacheKey, JSON.stringify(stop[0]));
-                    }
+                    await pushStopAndCache(stop[0], response, cacheKey);
                 }
             }
         } else {
             logger.info(`Cache miss for stop ${id}, querying database`);
             const stop = await db.queries.getStopById(id);
             if (stop && stop[0]) {
-                response.push(stop[0]);
-                if (redisClient) {
-                    await redisClient.set(cacheKey, JSON.stringify(stop[0]));
-                }
+                await pushStopAndCache(stop[0], response, cacheKey);
             }
         }
     }
