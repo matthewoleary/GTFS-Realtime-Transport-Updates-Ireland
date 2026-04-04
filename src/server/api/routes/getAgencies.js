@@ -1,7 +1,6 @@
 import ServerLogger from '../../serverLogger.js';
 import { extractIdsFromParam } from './utils.js';
-import { getDatabaseClient } from '../index.js';
-import { getRedisClient } from '../index.js';
+import { getDatabaseClient, getRedisClient } from '../index.js';
 import { getUnixTimestamp } from '../../../utils/timestampUtils.js';
 
 /**
@@ -92,8 +91,8 @@ export default function getAgencies(server) {
             try {
                 logger.info(`Cache hit for ${cacheKey}`);
                 return JSON.parse(cachedData);
-            } catch (err) {
-                logger.warn(`Corrupted cache for ${cacheKey}, treating as cache miss. Error: ${err.message}`);
+            } catch (error) {
+                logger.warn(`Corrupted cache for ${cacheKey}, treating as cache miss. Error: ${error.message}`);
                 if (redisClient) {
                     try {
                         await redisClient.del(cacheKey);
@@ -135,8 +134,8 @@ export default function getAgencies(server) {
                 let redisClient = null;
                 try {
                     redisClient = getRedisClient(request);
-                } catch (e) {
-                    logger.warn('Redis client not available or failed to initialize, proceeding without cache.');
+                } catch (error) {
+                    logger.warn('Redis client not available or failed to initialize, proceeding without cache. Error: ' + error.message);
                     redisClient = null;
                 }
                 const agencyIdParam = request.query.agencyId;
