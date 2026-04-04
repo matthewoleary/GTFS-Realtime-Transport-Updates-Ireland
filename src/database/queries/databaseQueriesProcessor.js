@@ -116,15 +116,16 @@ const register = async ({ getConnection, loadSqlQueries: injectedLoadSqlQueries 
 		return rows;
 	};
 
-	const getAllRoutes = async agencyId => {
+	const getAllRoutes = async () => {
 		const cnx = await getConnection();
-		if (agencyId) {
-			const [rows] = await cnx.query(sqlQueries.getAllRoutesByAgencyId, [agencyId]);
-			return rows;
-		} else {
-			const [rows] = await cnx.query(sqlQueries.getAllRoutes);
-			return rows;
-		}
+		const [rows] = await cnx.query(sqlQueries.getAllRoutes);
+		return rows;
+	};
+
+	const getAllRoutesByAgencyId = async agencyId => {
+		const cnx = await getConnection();
+		const [rows] = await cnx.query(sqlQueries.getAllRoutesByAgencyId, [agencyId]);
+		return rows;
 	};
 
 	const getAllAgencies = async () => {
@@ -137,6 +138,7 @@ const register = async ({ getConnection, loadSqlQueries: injectedLoadSqlQueries 
 		getAgencyById,
 		getAllAgencies,
 		getAllRoutes,
+		getAllRoutesByAgencyId,
 		getAllStops,
 		getAllStopsByAgencyId,
 		getLastStops,
