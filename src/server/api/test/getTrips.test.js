@@ -1,8 +1,6 @@
 
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import getTrips from '../routes/getTrips.js';
-import { error } from 'shelljs';
-
 
 // Declare mocks before vi.mock
 const mockRoute = vi.fn();
