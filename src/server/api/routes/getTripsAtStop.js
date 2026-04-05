@@ -121,7 +121,11 @@ export default function getTripsAtStop(server) {
  */
 export class TripsAtStopService {
     /**
+     * Constructs a TripsAtStopService instance for fetching and caching GTFS trip data at stops.
+     *
      * @param {Object} params
+     * @param {Object} params.redisClient - Redis client instance for caching (optional).
+     * @param {Object} params.dbClient - Database client instance for queries.
      * @param {Object} params.logger - Logger instance for logging events and errors.
      */
     constructor({ redisClient, dbClient, logger }) {
@@ -131,12 +135,13 @@ export class TripsAtStopService {
     }
 
     /**
-     * Fetches trips at stop(s) for night services, using cache and DB as needed, and updates with real-time data.
+     * Fetches trips at stop(s) for night services (spanning two service days), using cache and DB as needed, and updates with real-time data.
+     *
      * @param {Object} params
-     * @param {string[]} params.stopIds - Array of stop IDs.
-     * @param {Object} params.realtimeTripUpdates - Real-time trip updates client.
-     * @param {Object} params.realtimeVehiclePositions - Real-time vehicle positions client.
-     * @param {Object} params.payload - Response payload object to be populated.
+     * @param {string[]} params.stopIds - Array of stop IDs to fetch trips for.
+     * @param {Object} params.realtimeTripUpdates - Real-time trip updates client (must have queryProcessor).
+     * @param {Object} params.realtimeVehiclePositions - Real-time vehicle positions client (must have queryProcessor).
+     * @param {Object} params.payload - Response payload object to be populated (mutated in-place).
      * @param {Object} params.wrappedServiceDay - Service day object for previous/next day (night service window).
      * @param {Object} params.unwrappedServiceDay - Service day object for current day (night service window).
      * @returns {Promise<Object>} Updated payload with trips and real-time data.
@@ -165,11 +170,12 @@ export class TripsAtStopService {
 
     /**
      * Fetches trips at stop(s) for a given service day, using cache and DB as needed, and updates with real-time data.
+     *
      * @param {Object} params
-     * @param {string[]} params.stopIds - Array of stop IDs.
-     * @param {Object} params.realtimeTripUpdates - Real-time trip updates client.
-     * @param {Object} params.realtimeVehiclePositions - Real-time vehicle positions client.
-     * @param {Object} params.payload - Response payload object to be populated.
+     * @param {string[]} params.stopIds - Array of stop IDs to fetch trips for.
+     * @param {Object} params.realtimeTripUpdates - Real-time trip updates client (must have queryProcessor).
+     * @param {Object} params.realtimeVehiclePositions - Real-time vehicle positions client (must have queryProcessor).
+     * @param {Object} params.payload - Response payload object to be populated (mutated in-place).
      * @param {Object} params.serviceDay - Service day object for the query window.
      * @returns {Promise<Object>} Updated payload with trips and real-time data.
      */
@@ -192,10 +198,14 @@ export class TripsAtStopService {
 
     /**
      * Fetches trips at a stop for a given service day, using cache and DB as needed.
+     *
+     * - Uses a cache key of the form `tripsAtStopId:<stopId>:<dayColumn>:<date>:<lowerBoundTimestamp>:<upperBoundTimestamp>`.
+     * - Serializes and deserializes trip arrays as JSON.
+     *
      * @param {Object} params
-     * @param {string} params.stopId - Stop ID.
+     * @param {string} params.stopId - Stop ID to fetch trips for.
      * @param {Object} params.serviceDay - Service day object for the query window.
-     * @returns {Promise<Object[]>} Array of trip objects.
+     * @returns {Promise<Object[]>} Array of trip objects for the stop and service day.
      */
     async getTripsAtStopIdWithCache({ stopId, serviceDay }) {
         const cacheKey = `tripsAtStopId:${stopId}:${serviceDay.dayColumn}:${serviceDay.date}:${serviceDay.lowerBoundTimestamp}:${serviceDay.upperBoundTimestamp}`;
@@ -209,11 +219,15 @@ export class TripsAtStopService {
 
     /**
      * Fetches trips at a stop for a night service window (spanning two service days), using cache and DB as needed.
+     *
+     * - Uses a cache key of the form `tripsAtStopIdWithNightServices:<stopId>:...` (with all service day params).
+     * - Serializes and deserializes trip arrays as JSON.
+     *
      * @param {Object} params
-     * @param {string} params.stopId - Stop ID.
+     * @param {string} params.stopId - Stop ID to fetch trips for.
      * @param {Object} params.wrappedServiceDay - Service day object for previous/next day (night service window).
      * @param {Object} params.unwrappedServiceDay - Service day object for current day (night service window).
-     * @returns {Promise<Object[]>} Array of trip objects.
+     * @returns {Promise<Object[]>} Array of trip objects for the stop and night service window.
      */
     async getTripsAtStopIdWithNightServicesWithCache({ stopId, wrappedServiceDay, unwrappedServiceDay }) {
         const cacheKey = `tripsAtStopIdWithNightServices:${stopId}` +
@@ -235,8 +249,12 @@ export class TripsAtStopService {
 
     /**
      * Fetches the last stops for a set of trips, using cache and DB as needed.
-     * @param {Object[]} trips - Array of trip objects.
-     * @returns {Promise<Object[]>} Array of last stop objects.
+     *
+     * - Uses a cache key of the form `lastStops:<trip_id,trip_id,...>`.
+     * - Serializes and deserializes last stop arrays as JSON.
+     *
+     * @param {Object[]} trips - Array of trip objects to fetch last stops for.
+     * @returns {Promise<Object[]>} Array of last stop objects for the given trips.
      */
     async getLastStopsWithCache(trips) {
         const cacheKey = `lastStops:${trips.map(trip => trip.trip_id).join(',')}`;
@@ -250,10 +268,16 @@ export class TripsAtStopService {
 
     /**
      * Fetches the maximum departure timestamp for a given schedule day and date, using cache and DB as needed.
+     *
+     * - Uses a cache key of the form `maxDepartureTimestamp:<scheduleDay>:<scheduleDate>`.
+     * - Serializes values as strings for storage in cache.
+     * - Deserializes using a function that parses the value as a number and returns null if the result is NaN.
+     *   This ensures that corrupted or non-numeric cache entries are treated as cache misses.
+     *
      * @param {Object} params
      * @param {string} params.scheduleDay - Schedule day (e.g., 'monday').
      * @param {string} params.scheduleDate - Schedule date (YYYYMMDD).
-     * @returns {Promise<number>} Maximum departure timestamp.
+     * @returns {Promise<number|null>} Maximum departure timestamp, or null if not available or cache is corrupt.
      */
     async getMaximumDepartureTimestampWithCache({ scheduleDay, scheduleDate }) {
         const cacheKey = `maxDepartureTimestamp:${scheduleDay}:${scheduleDate}`;
@@ -261,6 +285,11 @@ export class TripsAtStopService {
             cacheKey,
             dbFetchFn: () => this.db.queries.getMaximumDepartureTimestamp({ scheduleDay, scheduleDate }),
             serialize: String,
+            /**
+             * Deserializes the cached value as a number. Returns null if the value is not a valid number (NaN).
+             * @param {string} value - Cached value from Redis
+             * @returns {number|null}
+             */
             deserialize: (value) => {
                 const parsedValue = Number(value);
                 return Number.isNaN(parsedValue) ? null : parsedValue;
