@@ -15,7 +15,8 @@ vi.mock('../index.js', () => ({
   getDatabaseClient: (...args) => mockGetDatabaseClient(...args),
   getRedisClient: (...args) => mockGetRedisClient(...args)
 }));
-vi.mock('./cacheService.js', () => ({
+
+vi.mock('../routes/cacheService.js', () => ({
   CacheService: function() { return mockCacheService; }
 }));
 
