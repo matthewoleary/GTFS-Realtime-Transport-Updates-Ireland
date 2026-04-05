@@ -1,11 +1,10 @@
-
-import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, test, expect, vi, beforeEach, beforeAll } from 'vitest';
 import getTripsAtStop from '../routes/getTripsAtStop.js';
-
+import * as timestampUtils from '../../../utils/timestampUtils.js';
 
 // Declare mocks before vi.mock
 const mockRoute = vi.fn();
-const mockLogger = vi.fn().mockImplementation(() => ({ error: vi.fn() }));
+const mockLogger = vi.fn().mockImplementation(() => ({ error: vi.fn(), warn: vi.fn(), info: vi.fn() }));
 const mockExtractIdsFromParam = vi.fn();
 const mockRemoveTripsAtLastStop = vi.fn();
 const mockBuildServiceDay = vi.fn();
@@ -16,26 +15,48 @@ const mockGetUnixTimestamp = vi.fn();
 const mockGetTimestampMinusNumberMinutes = vi.fn();
 const mockGetTimestampPlusNumberMinutes = vi.fn();
 const mockGetUnwrappedTimestamp = vi.fn();
+const mockGetOrSetCache = vi.fn();
+const mockGetCacheIfAvailable = vi.fn();
+const mockGetFromDb = vi.fn();
+const mockSetCache = vi.fn();
+
+vi.mock('../routes/cacheService.js', () => ({
+  CacheService: function() {
+    return {
+      getOrSetCache: mockGetOrSetCache,
+      getCacheIfAvailable: mockGetCacheIfAvailable,
+      getFromDb: mockGetFromDb,
+      setCache: mockSetCache
+    };
+  }
+}));
 
 vi.mock('../../serverLogger.js', () => ({
   default: function(...args) { return mockLogger(...args); }
 }));
+
 vi.mock('../routes/utils.js', () => ({
   extractIdsFromParam: (...args) => mockExtractIdsFromParam(...args),
   removeTripsAtLastStop: (...args) => mockRemoveTripsAtLastStop(...args),
   buildServiceDay: (...args) => mockBuildServiceDay(...args)
 }));
+
 vi.mock('../index.js', () => ({
   getDatabaseClient: (...args) => mockGetDatabaseClient(...args),
   getRealtimeTripUpdatesClient: (...args) => mockGetRealtimeTripUpdatesClient(...args),
-  getRealtimeVehiclePositionsClient: (...args) => mockGetRealtimeVehiclePositionsClient(...args)
+  getRealtimeVehiclePositionsClient: (...args) => mockGetRealtimeVehiclePositionsClient(...args),
+  getRedisClient: vi.fn()
 }));
+
 vi.mock('../../../utils/timestampUtils.js', () => ({
   getUnixTimestamp: (...args) => mockGetUnixTimestamp(...args),
   getTimestampMinusNumberMinutes: (...args) => mockGetTimestampMinusNumberMinutes(...args),
   getTimestampPlusNumberMinutes: (...args) => mockGetTimestampPlusNumberMinutes(...args),
-  getUnwrappedTimestamp: (...args) => mockGetUnwrappedTimestamp(...args)
+  getUnwrappedTimestamp: (...args) => mockGetUnwrappedTimestamp(...args),
+  checkIfNightServices: (...args) => mockCheckIfNightServices(...args)
 }));
+
+const mockCheckIfNightServices = vi.fn();
 
 describe('getTripsAtStop', () => {
   let server;
