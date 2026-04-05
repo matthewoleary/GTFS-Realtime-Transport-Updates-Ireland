@@ -78,12 +78,19 @@ describe('TripsAtStopService', () => {
     expect(result).toBe(12345);
   });
 
-  test('getMaximumDepartureTimestampWithCache returns null if cache contains NaN (corrupt numeric cache)', async () => {
-    // Simulate the cacheService returning a string that would deserialize to NaN
-    // The custom deserializer in getMaximumDepartureTimestampWithCache should return null
-    mockCacheService.getOrSetCache.mockResolvedValue(null); // Because deserializer returns null for NaN
-    const result = await service.getMaximumDepartureTimestampWithCache({ scheduleDay: 'monday', scheduleDate: '20260405' });
+  test('getMaximumDepartureTimestampWithCache passes a deserializer that returns null for NaN and number for valid', async () => {
+    let passedOptions;
+    mockCacheService.getOrSetCache.mockImplementation((opts) => {
+      passedOptions = opts;
+      // Simulate cache hit: call deserialize with a corrupt value and a valid value
+      return undefined; // The return value is not important for this test
+    });
+    await service.getMaximumDepartureTimestampWithCache({ scheduleDay: 'monday', scheduleDate: '20260405' });
     expect(mockCacheService.getOrSetCache).toHaveBeenCalled();
-    expect(result).toBeNull();
+    expect(typeof passedOptions.deserialize).toBe('function');
+    // Corrupt value (should return null)
+    expect(passedOptions.deserialize('not-a-number')).toBeNull();
+    // Valid value (should return number)
+    expect(passedOptions.deserialize('123')).toBe(123);
   });
 });
