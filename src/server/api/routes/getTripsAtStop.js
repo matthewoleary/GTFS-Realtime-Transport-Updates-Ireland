@@ -23,13 +23,14 @@ export default function getTripsAtStop(server) {
         handler: async (request, handler) => {
             const logger = new ServerLogger({ client: 'getTripsAtStop' });
             const db = getDatabaseClient(request);
+            let redisClient = null;
             try {
-                this.redisClient = getRedisClient(request);
+                redisClient = getRedisClient(request);
             } catch (error) {
                 logger.warn('Redis client not available or failed to initialize, proceeding without cache. Error: ' + error.message);
-                this.redisClient = null;
+                redisClient = null;
             }
-            const service = new TripsAtStopService({ dbClient: this.db, redisClient: this.redisClient, logger });
+            const service = new TripsAtStopService({ dbClient: db, redisClient, logger });
             try {
                 const realtimeTripUpdates = getRealtimeTripUpdatesClient(request);
                 const realtimeVehiclePositions = getRealtimeVehiclePositionsClient(request);
