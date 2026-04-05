@@ -1,6 +1,5 @@
-import { describe, test, expect, vi, beforeEach, beforeAll } from 'vitest';
+import { describe, test, expect, vi, beforeEach } from 'vitest';
 import getTripsAtStop from '../routes/getTripsAtStop.js';
-import * as timestampUtils from '../../../utils/timestampUtils.js';
 
 // Declare mocks before vi.mock
 const mockRoute = vi.fn();

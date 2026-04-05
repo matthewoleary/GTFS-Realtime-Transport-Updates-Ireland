@@ -125,7 +125,7 @@ export class TripsAtStopService {
      * @param {Object} params.logger - Logger instance for logging events and errors.
      */
     constructor({ redisClient, dbClient, logger }) {
-        this.db = dbClient
+        this.db = dbClient;
         this.logger = logger;
         this.cacheService = new CacheService({ redisClient: redisClient, logger: this.logger });
     }
