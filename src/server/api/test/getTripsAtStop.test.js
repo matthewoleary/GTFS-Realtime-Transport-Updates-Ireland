@@ -52,7 +52,9 @@ vi.mock('../../../utils/timestampUtils.js', () => ({
   getTimestampMinusNumberMinutes: (...args) => mockGetTimestampMinusNumberMinutes(...args),
   getTimestampPlusNumberMinutes: (...args) => mockGetTimestampPlusNumberMinutes(...args),
   getUnwrappedTimestamp: (...args) => mockGetUnwrappedTimestamp(...args),
-  checkIfNightServices: (...args) => mockCheckIfNightServices(...args)
+  checkIfNightServices: (...args) => mockCheckIfNightServices(...args),
+  getSecondsSinceMidnightTimestamp: vi.fn(() => 0),
+  getWrappedTimestamp: vi.fn((v) => v)
 }));
 
 const mockCheckIfNightServices = vi.fn();
