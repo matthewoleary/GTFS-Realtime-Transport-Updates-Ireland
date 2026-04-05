@@ -22,7 +22,14 @@ export default function getTripsAtStop(server) {
         path: '/api/tripsAtStop',
         handler: async (request, handler) => {
             const logger = new ServerLogger({ client: 'getTripsAtStop' });
-            const service = new TripsAtStopService({ logger });
+            const db = getDatabaseClient(request);
+            try {
+                this.redisClient = getRedisClient(request);
+            } catch (error) {
+                logger.warn('Redis client not available or failed to initialize, proceeding without cache. Error: ' + error.message);
+                this.redisClient = null;
+            }
+            const service = new TripsAtStopService({ dbClient: this.db, redisClient: this.redisClient, logger });
             try {
                 const realtimeTripUpdates = getRealtimeTripUpdatesClient(request);
                 const realtimeVehiclePositions = getRealtimeVehiclePositionsClient(request);
@@ -111,23 +118,15 @@ export default function getTripsAtStop(server) {
  * Service class for fetching and caching GTFS trip data at stops, including night services and real-time updates.
  * Encapsulates all cache and DB logic for trips, last stops, and maximum departure timestamps.
  */
-class TripsAtStopService {
+export class TripsAtStopService {
     /**
      * @param {Object} params
      * @param {Object} params.logger - Logger instance for logging events and errors.
      */
-    constructor({ logger }) {
-        this.db = getDatabaseClient(request);
+    constructor({ redisClient, dbClient, logger }) {
+        this.db = dbClient
         this.logger = logger;
-
-        try {
-            this.redisClient = getRedisClient(request);
-        } catch (error) {
-            logger.warn('Redis client not available or failed to initialize, proceeding without cache. Error: ' + error.message);
-            this.redisClient = null;
-        }
-
-        this.cacheService = new CacheService({ redisClient: this.redisClient, logger: this.logger });
+        this.cacheService = new CacheService({ redisClient: redisClient, logger: this.logger });
     }
 
     /**
@@ -242,7 +241,7 @@ class TripsAtStopService {
         const cacheKey = `lastStops:${trips.map(trip => trip.trip_id).join(',')}`;
         return this.cacheService.getOrSetCache({
             cacheKey,
-            dbFetchFn: () => this.db.queries.getLastStops(trips),           
+            dbFetchFn: () => this.db.queries.getLastStops(trips),
             serialize: JSON.stringify,
             deserialize: JSON.parse
         });
