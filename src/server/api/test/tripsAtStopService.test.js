@@ -17,7 +17,7 @@ vi.mock('../index.js', () => ({
 }));
 
 vi.mock('../routes/cacheService.js', () => ({
-  CacheService: function() { return mockCacheService; }
+  CacheService: function () { return mockCacheService; }
 }));
 
 // Minimal logger mock
@@ -76,5 +76,14 @@ describe('TripsAtStopService', () => {
     const result = await service.getMaximumDepartureTimestampWithCache({ scheduleDay: 'monday', scheduleDate: '20260405' });
     expect(mockCacheService.getOrSetCache).toHaveBeenCalled();
     expect(result).toBe(12345);
+  });
+
+  test('getMaximumDepartureTimestampWithCache returns null if cache contains NaN (corrupt numeric cache)', async () => {
+    // Simulate the cacheService returning a string that would deserialize to NaN
+    // The custom deserializer in getMaximumDepartureTimestampWithCache should return null
+    mockCacheService.getOrSetCache.mockResolvedValue(null); // Because deserializer returns null for NaN
+    const result = await service.getMaximumDepartureTimestampWithCache({ scheduleDay: 'monday', scheduleDate: '20260405' });
+    expect(mockCacheService.getOrSetCache).toHaveBeenCalled();
+    expect(result).toBeNull();
   });
 });

@@ -261,7 +261,10 @@ export class TripsAtStopService {
             cacheKey,
             dbFetchFn: () => this.db.queries.getMaximumDepartureTimestamp({ scheduleDay, scheduleDate }),
             serialize: String,
-            deserialize: Number
+            deserialize: (value) => {
+                const parsedValue = Number(value);
+                return Number.isNaN(parsedValue) ? null : parsedValue;
+            }
         });
     }
 }
