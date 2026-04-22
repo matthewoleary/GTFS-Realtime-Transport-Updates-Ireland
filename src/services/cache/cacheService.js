@@ -24,20 +24,20 @@ export class CacheService {
         let cachedData;
         try {
             cachedData = await this.redisClient.get(cacheKey);
-        } catch (e) {
-            this.logger && this.logger.warn(`Redis error on get for ${cacheKey}: ${e.message}`);
+        } catch (error) {
+            this.logger && this.logger.warn(`Redis error on get for ${cacheKey}: ${error.message}`);
             return null;
         }
         if (!cachedData) return null;
         try {
             this.logger && this.logger.info(`Cache hit for ${cacheKey}`);
             return deserialize(cachedData);
-        } catch (err) {
-            this.logger && this.logger.warn(`Corrupted cache for ${cacheKey}, treating as cache miss. Error: ${err.message}`);
+        } catch (error) {
+            this.logger && this.logger.warn(`Corrupted cache for ${cacheKey}, treating as cache miss. Error: ${error.message}`);
             try {
                 await this.redisClient.del(cacheKey);
-            } catch (delErr) {
-                this.logger && this.logger.warn(`Redis error on del for ${cacheKey}: ${delErr.message}`);
+            } catch (delError) {
+                this.logger && this.logger.warn(`Redis error on del for ${cacheKey}: ${delError.message}`);
             }
             return null;
         }
@@ -63,11 +63,7 @@ export class CacheService {
      */
     async setCache(cacheKey, value, serialize) {
         if (!this.redisClient || value === undefined || value === null) return;
-        try {
-            await this.redisClient.set(cacheKey, serialize(value));
-        } catch (setErr) {
-            this.logger && this.logger.warn(`Redis error on set for ${cacheKey}: ${setErr.message}`);
-        }
+        await this.redisClient.set(cacheKey, serialize(value));
     }
 
     /**
@@ -87,5 +83,13 @@ export class CacheService {
         const dbFetchResult = await this.getFromDb(cacheKey, dbFetchFn);
         await this.setCache(cacheKey, dbFetchResult, serialize);
         return dbFetchResult;
+    }
+
+    /**
+     * Flush the entire cache.
+     */
+    async flushCache() {
+        if (!this.redisClient) return;
+        await this.redisClient.flush();
     }
 }

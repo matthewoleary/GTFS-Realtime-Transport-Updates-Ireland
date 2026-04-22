@@ -117,6 +117,18 @@ class RedisClient {
 			this.logger.error(`Redis DEL error for key ${key}: ${err.code}`);
 		}
 	}
+
+	/**
+	 * Flushes the entire Redis cache.
+	 */
+	async flush() {
+		try {
+			await this.client.flushAll('ASYNC');
+			this.logger.info('Cache flushed successfully.');
+		} catch (err) {
+			this.logger.error(`Error flushing cache: ${err.code}`);
+		}
+	}
 }
 
 /**
