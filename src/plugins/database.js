@@ -1,5 +1,5 @@
 
-import databaseClient from '../database/databaseClient.js';
+import databaseClient from '../storage/database/databaseClient.js';
 
 // When hapi registers plugins it passes the server instance to every plugin
 export default {
