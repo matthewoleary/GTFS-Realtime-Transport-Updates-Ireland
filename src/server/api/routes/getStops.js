@@ -85,15 +85,22 @@ async function getStopsByIds(stopIds, db, cacheService, cacheKeyBase) {
     const response = [];
     for (const id of stopIds) {
         const cacheKey = `${cacheKeyBase}:stop:${id}`;
-        const stop = await cacheService.getOrSetCache({
-            cacheKey,
-            dbFetchFn: async () => {
-                const result = await db.queries.getStopById(id);
-                return result && result[0] ? result[0] : null;
-            },
-            serialize: JSON.stringify,
-            deserialize: JSON.parse
-        });
+        let stop;
+        if (cacheService) {
+            stop = await cacheService.getOrSetCache({
+                cacheKey,
+                dbFetchFn: async () => {
+                    const result = await db.queries.getStopById(id);
+                    return result && result[0] ? result[0] : null;
+                },
+                serialize: JSON.stringify,
+                deserialize: JSON.parse
+            });
+        } else {
+            logger.warn('Cache service not available, fetching stop directly from database for stopId: ' + id);
+            const result = await db.queries.getStopById(id);
+            stop = result && result[0] ? result[0] : null;
+        }
         if (stop) {
             response.push(stop);
         }
@@ -114,12 +121,17 @@ async function getStopsByIds(stopIds, db, cacheService, cacheKeyBase) {
  */
 async function getStopsByAgencyId(agencyId, db, cacheService, cacheKeyBase) {
     const cacheKey = `${cacheKeyBase}:agency:${agencyId}`;
-    return await cacheService.getOrSetCache({
-        cacheKey,
-        dbFetchFn: async () => await db.queries.getAllStopsByAgencyId(agencyId),
-        serialize: JSON.stringify,
-        deserialize: JSON.parse
-    });
+    if (cacheService) {
+        return await cacheService.getOrSetCache({
+            cacheKey,
+            dbFetchFn: async () => await db.queries.getAllStopsByAgencyId(agencyId),
+            serialize: JSON.stringify,
+            deserialize: JSON.parse
+        });
+    } else {
+        logger.warn('Cache service not available, fetching stops directly from database for agencyId: ' + agencyId);
+        return await db.queries.getAllStopsByAgencyId(agencyId);
+    }
 }
 
 /**
@@ -134,10 +146,15 @@ async function getStopsByAgencyId(agencyId, db, cacheService, cacheKeyBase) {
  */
 async function getAllStops(db, cacheService, cacheKeyBase) {
     const cacheKey = `${cacheKeyBase}:all`;
-    return await cacheService.getOrSetCache({
-        cacheKey,
-        dbFetchFn: async () => await db.queries.getAllStops(),
-        serialize: JSON.stringify,
-        deserialize: JSON.parse
-    });
+    if (cacheService) {
+        return await cacheService.getOrSetCache({
+            cacheKey,
+            dbFetchFn: async () => await db.queries.getAllStops(),
+            serialize: JSON.stringify,
+            deserialize: JSON.parse
+        });
+    } else {
+        logger.warn('Cache service not available, fetching all stops directly from database');
+        return await db.queries.getAllStops();
+    }
 }

@@ -28,21 +28,28 @@ export default function getRoutes(server) {
         const response = [];
         for (const id of routeIds) {
             const cacheKey = `${cacheKeyBase}:route:${id}`;
-            const route = await cacheService.getOrSetCache({
-                cacheKey,
-                dbFetchFn: async () => {
-                    const result = await db.queries.getRouteById(id);
-                    return result && result[0] ? result[0] : null;
-                },
-                serialize: JSON.stringify,
-                deserialize: (data) => {
-                    try {
-                        return JSON.parse(data);
-                    } catch (err) {
-                        throw err;
+            let route;
+            if (cacheService) {
+                const route = await cacheService.getOrSetCache({
+                    cacheKey,
+                    dbFetchFn: async () => {
+                        const result = await db.queries.getRouteById(id);
+                        return result && result[0] ? result[0] : null;
+                    },
+                    serialize: JSON.stringify,
+                    deserialize: (data) => {
+                        try {
+                            return JSON.parse(data);
+                        } catch (err) {
+                            throw err;
+                        }
                     }
-                }
-            });
+                });
+            } else {
+                logger.warn('Cache service not available, fetching route directly from database for routeId: ' + id);
+                const result = await db.queries.getRouteById(id);
+                route = result && result[0] ? result[0] : null;
+            }
             if (route) {
                 response.push(route);
             }
@@ -53,35 +60,45 @@ export default function getRoutes(server) {
     // Retrieves all routes for a given agency, using CacheService for cache logic.
     async function getRoutesByAgencyId(agencyId, db, cacheService, cacheKeyBase) {
         const cacheKey = `${cacheKeyBase}:agency:${agencyId}`;
-        return cacheService.getOrSetCache({
-            cacheKey,
-            dbFetchFn: async () => await db.queries.getAllRoutesByAgencyId(agencyId),
-            serialize: JSON.stringify,
-            deserialize: (data) => {
-                try {
-                    return JSON.parse(data);
-                } catch (err) {
-                    throw err;
+        if (cacheService) {
+            return cacheService.getOrSetCache({
+                cacheKey,
+                dbFetchFn: async () => await db.queries.getAllRoutesByAgencyId(agencyId),
+                serialize: JSON.stringify,
+                deserialize: (data) => {
+                    try {
+                        return JSON.parse(data);
+                    } catch (err) {
+                        throw err;
+                    }
                 }
-            }
-        });
+            });
+        } else {
+            logger.warn('Cache service not available, fetching routes directly from database for agencyId: ' + agencyId);
+            return await db.queries.getAllRoutesByAgencyId(agencyId);
+        }
     }
 
     // Retrieves all routes, using CacheService for cache logic.
     async function getAllRoutes(db, cacheService, cacheKeyBase) {
         const cacheKey = `${cacheKeyBase}:all`;
-        return cacheService.getOrSetCache({
-            cacheKey,
-            dbFetchFn: async () => await db.queries.getAllRoutes(),
-            serialize: JSON.stringify,
-            deserialize: (data) => {
-                try {
-                    return JSON.parse(data);
-                } catch (err) {
-                    throw err;
+        if (cacheService) {
+            return cacheService.getOrSetCache({
+                cacheKey,
+                dbFetchFn: async () => await db.queries.getAllRoutes(),
+                serialize: JSON.stringify,
+                deserialize: (data) => {
+                    try {
+                        return JSON.parse(data);
+                    } catch (err) {
+                        throw err;
+                    }
                 }
-            }
-        });
+            });
+        } else {
+            logger.warn('Cache service not available, fetching all routes directly from database');
+            return await db.queries.getAllRoutes();
+        }
     }
 
     server.route({

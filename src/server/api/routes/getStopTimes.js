@@ -40,12 +40,18 @@ export default function getStopTimes(server) {
                     const tripIds = extractIdsFromParam(tripIdParam);
                     for (const id of tripIds) {
                         const cacheKey = `${cacheKeyBase}:trip:${id}`;
-                        const stopTimes = await cacheService.getOrSetCache({
-                            cacheKey,
-                            dbFetchFn: async () => await db.queries.getStopTimesByTripId(id),
-                            serialize: JSON.stringify,
-                            deserialize: JSON.parse
-                        });
+                        let stopTimes;
+                        if (cacheService) {
+                            stopTimes = await cacheService.getOrSetCache({
+                                cacheKey,
+                                dbFetchFn: async () => await db.queries.getStopTimesByTripId(id),
+                                serialize: JSON.stringify,
+                                deserialize: JSON.parse
+                            });
+                        } else {
+                            logger.warn('Cache service not available, fetching stop times directly from database for tripId: ' + id);
+                            stopTimes = await db.queries.getStopTimesByTripId(id);
+                        }
                         if (stopTimes && stopTimes.length > 0) {
                             response.push({ tripId: id, stopTimes });
                         }
