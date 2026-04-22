@@ -24,22 +24,29 @@ export default function getAgencies(server) {
         const response = [];
         for (const id of agencyIds) {
             const cacheKey = `${cacheKeyBase}:agency:${id}`;
-            const agency = await cacheService.getOrSetCache({
-                cacheKey,
-                dbFetchFn: async () => {
-                    const result = await db.queries.getAgencyById(id);
-                    return result && result[0] ? result[0] : null;
-                },
-                serialize: JSON.stringify,
-                deserialize: (data) => {
-                    try {
-                        return JSON.parse(data);
-                    } catch (err) {
-                        // Let CacheService handle deletion and logging
-                        throw err;
+            let agency;
+            if (cacheService) {
+                const agency = await cacheService.getOrSetCache({
+                    cacheKey,
+                    dbFetchFn: async () => {
+                        const result = await db.queries.getAgencyById(id);
+                        return result && result[0] ? result[0] : null;
+                    },
+                    serialize: JSON.stringify,
+                    deserialize: (data) => {
+                        try {
+                            return JSON.parse(data);
+                        } catch (err) {
+                            // Let CacheService handle deletion and logging
+                            throw err;
+                        }
                     }
-                }
-            });
+                });
+            } else {
+                logger.warn('Cache service not available, fetching agency directly from database for agencyId: ' + id);
+                const result = await db.queries.getAgencyById(id);
+                agency = result && result[0] ? result[0] : null;
+            }
             if (agency) {
                 response.push(agency);
             }
@@ -50,18 +57,23 @@ export default function getAgencies(server) {
     // Retrieves all agencies, using CacheService for cache logic.
     async function getAllAgenciesWithCache(db, cacheService, cacheKeyBase) {
         const cacheKey = `${cacheKeyBase}:all`;
-        return cacheService.getOrSetCache({
-            cacheKey,
-            dbFetchFn: async () => await db.queries.getAllAgencies(),
-            serialize: JSON.stringify,
-            deserialize: (data) => {
-                try {
-                    return JSON.parse(data);
-                } catch (err) {
-                    throw err;
+        if (cacheService) {
+            return cacheService.getOrSetCache({
+                cacheKey,
+                dbFetchFn: async () => await db.queries.getAllAgencies(),
+                serialize: JSON.stringify,
+                deserialize: (data) => {
+                    try {
+                        return JSON.parse(data);
+                    } catch (err) {
+                        throw err;
+                    }
                 }
-            }
-        });
+            });
+        } else {
+            logger.warn('Cache service not available, fetching all agencies directly from database');
+            return await db.queries.getAllAgencies();
+        }
     }
 
     server.route({

@@ -40,15 +40,21 @@ export default function getTrips(server) {
                     const tripIds = extractIdsFromParam(tripIdParam);
                     for (const id of tripIds) {
                         const cacheKey = `${cacheKeyBase}:trip:${id}`;
-                        const trip = await cacheService.getOrSetCache({
-                            cacheKey,
-                            dbFetchFn: async () => {
-                                const result = await db.queries.getTripById(id);
-                                return result && result[0] ? result[0] : null;
-                            },
-                            serialize: JSON.stringify,
-                            deserialize: JSON.parse
-                        });
+                        if (cacheService) {
+                            const trip = await cacheService.getOrSetCache({
+                                cacheKey,
+                                dbFetchFn: async () => {
+                                    const result = await db.queries.getTripById(id);
+                                    return result && result[0] ? result[0] : null;
+                                },
+                                serialize: JSON.stringify,
+                                deserialize: JSON.parse
+                            });
+                        } else {
+                            logger.warn('Cache service not available, fetching trip directly from database for tripId: ' + id);
+                            const result = await db.queries.getTripById(id);
+                            trip = result && result[0] ? result[0] : null;
+                        }
                         if (trip) {
                             response.push(trip);
                         }

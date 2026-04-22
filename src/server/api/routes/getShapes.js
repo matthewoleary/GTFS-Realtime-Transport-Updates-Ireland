@@ -38,21 +38,27 @@ export default function getShapes(server) {
                     const shapeIds = extractIdsFromParam(shapeIdParam);
                     for (const id of shapeIds) {
                         const cacheKey = `shapes:shape:${id}`;
-                        const shape = await cacheService.getOrSetCache({
-                            cacheKey,
-                            dbFetchFn: async () => {
-                                const result = await db.queries.getShapeById(id);
-                                return result && result[0] ? result[0] : null;
-                            },
-                            serialize: JSON.stringify,
-                            deserialize: (data) => {
-                                try {
-                                    return JSON.parse(data);
-                                } catch (err) {
-                                    throw err;
+                        if (cacheService) {
+                            const shape = await cacheService.getOrSetCache({
+                                cacheKey,
+                                dbFetchFn: async () => {
+                                    const result = await db.queries.getShapeById(id);
+                                    return result && result[0] ? result[0] : null;
+                                },
+                                serialize: JSON.stringify,
+                                deserialize: (data) => {
+                                    try {
+                                        return JSON.parse(data);
+                                    } catch (err) {
+                                        throw err;
+                                    }
                                 }
-                            }
-                        });
+                            });
+                        } else {
+                            logger.warn('Cache service not available, fetching shape directly from database for shapeId: ' + id);
+                            const result = await db.queries.getShapeById(id);
+                            shape = result && result[0] ? result[0] : null;
+                        }
                         if (shape) {
                             response.push(shape);
                         }
