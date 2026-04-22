@@ -1,7 +1,9 @@
+
 import ServerLogger from '../../serverLogger.js';
 import { sortByRouteShortNameAsInt, extractIdsFromParam } from './utils.js';
-import { getDatabaseClient, getRedisClient } from '../index.js';
+import { getDatabaseClient, getCacheService } from '../index.js';
 import { getUnixTimestamp } from '../../../utils/timestampUtils.js';
+import { CacheService } from '../../../services/cache/cacheService.js';
 
 /**
  * Registers the /api/routes GET route for fetching GTFS route data.
@@ -19,160 +21,67 @@ export default function getRoutes(server) {
     const logger = new ServerLogger({ client: 'getRoutes' });
     const cacheKeyBase = 'routes';
 
-    // Helper: Pushes route to response and attempts to cache it in Redis.
-    async function pushRouteAndCache(route, response, redisClient, cacheKey) {
-        response.push(route);
-        if (redisClient) {
-            try {
-                await redisClient.set(cacheKey, JSON.stringify(route));
-            } catch (err) {
-                logger.warn(`Redis error on set for route cacheKey ${cacheKey}: ${err.message}`);
-            }
-        }
-    }
 
-    // Retrieves route details for a list of route IDs, using Redis cache if available.
-    async function getRoutesByIds(routeIds, db, redisClient, logger, cacheKeyBase) {
+
+    // Retrieves route details for a list of route IDs, using CacheService for cache logic.
+    async function getRoutesByIds(routeIds, db, cacheService, cacheKeyBase) {
         const response = [];
         for (const id of routeIds) {
             const cacheKey = `${cacheKeyBase}:route:${id}`;
-            let cachedData;
-            if (redisClient) {
-                try {
-                    cachedData = await redisClient.get(cacheKey);
-                } catch (e) {
-                    logger.warn(`Redis error on get for route ${id}: ${e.message}`);
-                    cachedData = null;
-                }
-            }
-            if (cachedData) {
-                try {
-                    logger.info(`Cache hit for route ${id}`);
-                    response.push(JSON.parse(cachedData));
-                } catch (err) {
-                    logger.warn(`Corrupted cache for route ${id}, treating as cache miss. Error: ${err.message}`);
-                    if (redisClient) {
-                        try {
-                            await redisClient.del(cacheKey);
-                        } catch (delErr) {
-                            logger.warn(`Redis error on del for route ${id}: ${delErr.message}`);
-                        }
-                    }
-                    logger.info(`Cache miss for route ${id}, querying database`);
-                    const route = await db.queries.getRouteById(id);
-                    if (route && route[0]) {
-                        await pushRouteAndCache(route[0], response, redisClient, cacheKey);
+            const route = await cacheService.getOrSetCache({
+                cacheKey,
+                dbFetchFn: async () => {
+                    const result = await db.queries.getRouteById(id);
+                    return result && result[0] ? result[0] : null;
+                },
+                serialize: JSON.stringify,
+                deserialize: (data) => {
+                    try {
+                        return JSON.parse(data);
+                    } catch (err) {
+                        throw err;
                     }
                 }
-            } else {
-                logger.info(`Cache miss for route ${id}, querying database`);
-                const route = await db.queries.getRouteById(id);
-                if (route && route[0]) {
-                    await pushRouteAndCache(route[0], response, redisClient, cacheKey);
-                }
+            });
+            if (route) {
+                response.push(route);
             }
         }
         return response;
     }
 
-    // Retrieves all routes for a given agency, using Redis cache if available.
-    async function getRoutesByAgencyId(agencyId, db, redisClient, logger, cacheKeyBase) {
+    // Retrieves all routes for a given agency, using CacheService for cache logic.
+    async function getRoutesByAgencyId(agencyId, db, cacheService, cacheKeyBase) {
         const cacheKey = `${cacheKeyBase}:agency:${agencyId}`;
-        let cachedData;
-        if (redisClient) {
-            try {
-                cachedData = await redisClient.get(cacheKey);
-            } catch (e) {
-                logger.warn(`Redis error on get for ${cacheKey}: ${e.message}`);
-                cachedData = null;
-            }
-        }
-        if (cachedData) {
-            try {
-                logger.info(`Cache hit for ${cacheKey}`);
-                return JSON.parse(cachedData);
-            } catch (err) {
-                logger.warn(`Corrupted cache for ${cacheKey}, treating as cache miss. Error: ${err.message}`);
-                if (redisClient) {
-                    try {
-                        await redisClient.del(cacheKey);
-                    } catch (delErr) {
-                        logger.warn(`Redis error on del for ${cacheKey}: ${delErr.message}`);
-                    }
-                }
-                logger.info(`Cache miss for ${cacheKey}, querying database`);
-                const response = await db.queries.getAllRoutesByAgencyId(agencyId);
-                if (redisClient) {
-                    try {
-                        await redisClient.set(cacheKey, JSON.stringify(response));
-                    } catch (setErr) {
-                        logger.warn(`Redis error on set for ${cacheKey}: ${setErr.message}`);
-                    }
-                }
-                return response;
-            }
-        } else {
-            logger.info(`Cache miss for ${cacheKey}, querying database`);
-            const response = await db.queries.getAllRoutesByAgencyId(agencyId);
-            if (redisClient) {
+        return cacheService.getOrSetCache({
+            cacheKey,
+            dbFetchFn: async () => await db.queries.getAllRoutesByAgencyId(agencyId),
+            serialize: JSON.stringify,
+            deserialize: (data) => {
                 try {
-                    await redisClient.set(cacheKey, JSON.stringify(response));
-                } catch (setErr) {
-                    logger.warn(`Redis error on set for ${cacheKey}: ${setErr.message}`);
+                    return JSON.parse(data);
+                } catch (err) {
+                    throw err;
                 }
             }
-            return response;
-        }
+        });
     }
 
-    // Retrieves all routes, using Redis cache if available.
-    async function getAllRoutes(db, redisClient, logger, cacheKeyBase) {
+    // Retrieves all routes, using CacheService for cache logic.
+    async function getAllRoutes(db, cacheService, cacheKeyBase) {
         const cacheKey = `${cacheKeyBase}:all`;
-        let cachedData;
-        if (redisClient) {
-            try {
-                cachedData = await redisClient.get(cacheKey);
-            } catch (e) {
-                logger.warn(`Redis error on get for ${cacheKey}: ${e.message}`);
-                cachedData = null;
-            }
-        }
-        if (cachedData) {
-            try {
-                logger.info(`Cache hit for ${cacheKey}`);
-                return JSON.parse(cachedData);
-            } catch (err) {
-                logger.warn(`Corrupted cache for ${cacheKey}, treating as cache miss. Error: ${err.message}`);
-                if (redisClient) {
-                    try {
-                        await redisClient.del(cacheKey);
-                    } catch (delErr) {
-                        logger.warn(`Redis error on del for ${cacheKey}: ${delErr.message}`);
-                    }
-                }
-                logger.info(`Cache miss for ${cacheKey}, querying database`);
-                const response = await db.queries.getAllRoutes();
-                if (redisClient) {
-                    try {
-                        await redisClient.set(cacheKey, JSON.stringify(response));
-                    } catch (setErr) {
-                        logger.warn(`Redis error on set for ${cacheKey}: ${setErr.message}`);
-                    }
-                }
-                return response;
-            }
-        } else {
-            logger.info(`Cache miss for ${cacheKey}, querying database`);
-            const response = await db.queries.getAllRoutes();
-            if (redisClient) {
+        return cacheService.getOrSetCache({
+            cacheKey,
+            dbFetchFn: async () => await db.queries.getAllRoutes(),
+            serialize: JSON.stringify,
+            deserialize: (data) => {
                 try {
-                    await redisClient.set(cacheKey, JSON.stringify(response));
-                } catch (setErr) {
-                    logger.warn(`Redis error on set for ${cacheKey}: ${setErr.message}`);
+                    return JSON.parse(data);
+                } catch (err) {
+                    throw err;
                 }
             }
-            return response;
-        }
+        });
     }
 
     server.route({
@@ -181,12 +90,12 @@ export default function getRoutes(server) {
         handler: async (request, handler) => {
             try {
                 const db = getDatabaseClient(request);
-                let redisClient = null;
+                let cacheService = null;
                 try {
-                    redisClient = getRedisClient(request);
+                    cacheService = getCacheService(request);
                 } catch (error) {
-                    logger.warn('Redis client not available or failed to initialize, proceeding without cache. Error: ' + error.message);
-                    redisClient = null;
+                    logger.warn('Cache service not available or failed to initialize, proceeding without cache. Error: ' + error.message);
+                    cacheService = null;
                 }
                 const agencyId = request.query.agencyId;
                 const routeIdParam = request.query.routeId;
@@ -194,11 +103,11 @@ export default function getRoutes(server) {
                 let response;
                 if (routeIdParam) {
                     const routeIds = extractIdsFromParam(routeIdParam);
-                    response = await getRoutesByIds(routeIds, db, redisClient, logger, cacheKeyBase);
+                    response = await getRoutesByIds(routeIds, db, cacheService, cacheKeyBase);
                 } else if (agencyId) {
-                    response = await getRoutesByAgencyId(agencyId, db, redisClient, logger, cacheKeyBase);
+                    response = await getRoutesByAgencyId(agencyId, db, cacheService, cacheKeyBase);
                 } else {
-                    response = await getAllRoutes(db, redisClient, logger, cacheKeyBase);
+                    response = await getAllRoutes(db, cacheService, cacheKeyBase);
                 }
                 const sortedRecords = await sortByRouteShortNameAsInt(response || []);
                 const payload = {

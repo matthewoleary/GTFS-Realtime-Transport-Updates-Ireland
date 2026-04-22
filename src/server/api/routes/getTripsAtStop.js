@@ -1,8 +1,8 @@
 import ServerLogger from '../../serverLogger.js';
 import { extractIdsFromParam, removeTripsAtLastStop, buildServiceDay } from './utils.js';
-import { getDatabaseClient, getRealtimeTripUpdatesClient, getRealtimeVehiclePositionsClient, getRedisClient } from '../index.js';
+import { getDatabaseClient, getRealtimeTripUpdatesClient, getRealtimeVehiclePositionsClient, getCacheService } from '../index.js';
 import { getSecondsSinceMidnightTimestamp, getUnixTimestamp, getTimestampMinusNumberMinutes, getTimestampPlusNumberMinutes, checkIfNightServices, getWrappedTimestamp, getUnwrappedTimestamp } from '../../../utils/timestampUtils.js';
-import { CacheService } from './cacheService.js';
+import { CacheService } from '../../../services/cache/cacheService.js';
 import { getCurrentDay, getCurrentDate, getPreviousDay, getPreviousDate, getNextDay, getNextDayDate } from '../../../utils/dateUtils.js';
 
 /**
@@ -23,14 +23,14 @@ export default function getTripsAtStop(server) {
         handler: async (request, handler) => {
             const logger = new ServerLogger({ client: 'getTripsAtStop' });
             const db = getDatabaseClient(request);
-            let redisClient = null;
+            let cacheService = null;
             try {
-                redisClient = getRedisClient(request);
+                cacheService = getCacheService(request);
             } catch (error) {
-                logger.warn('Redis client not available or failed to initialize, proceeding without cache. Error: ' + error.message);
-                redisClient = null;
+                logger.warn('Cache service not available or failed to initialize, proceeding without cache. Error: ' + error.message);
+                cacheService = null;
             }
-            const service = new TripsAtStopService({ dbClient: db, redisClient, logger });
+            const service = new TripsAtStopService({ dbClient: db, cacheService, logger });
             try {
                 const realtimeTripUpdates = getRealtimeTripUpdatesClient(request);
                 const realtimeVehiclePositions = getRealtimeVehiclePositionsClient(request);
