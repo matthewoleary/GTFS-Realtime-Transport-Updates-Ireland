@@ -1,5 +1,5 @@
 import gtfsRealtimeBindings from 'gtfs-realtime-bindings';
-import { getUnwrappedTimestamp } from '../../utils/timestampUtils.js';
+import { getUnwrappedTimestamp } from '../../../utils/timestampUtils.js';
 
 /**
 * Finds the feed entity for a given trip element.

@@ -1,6 +1,6 @@
 import gtfsRealtimeBindings from 'gtfs-realtime-bindings';
 import axios from 'axios';
-import { getSecondsSinceMidnightTimestamp } from '../../utils/timestampUtils.js';
+import { getSecondsSinceMidnightTimestamp } from '../../../utils/timestampUtils.js';
 
 /**
  * Base class for GTFS-realtime feed clients (TripUpdates, VehiclePositions, etc.)

@@ -156,9 +156,9 @@ const register = async ({ getConnection, loadSqlQueries: injectedLoadSqlQueries 
 };
 /* eslint-enable new-cap */
 
-// This will read in external .sql files when the application loads and return the files as a single object
+// This will read in .sql files when the application loads and return the files as a single object
 async function loadSqlQueries(folderName) {
-	const filePath = join(process.cwd(), 'src', 'database', folderName);
+	const filePath = join(process.cwd(), 'src', 'storage', 'database', folderName);
 	console.log('Loading SQL queries from', filePath);
 	const files = await fs.readdir(filePath);
 	const queries = {};
