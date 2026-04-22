@@ -1,7 +1,7 @@
 import { CronJob } from 'cron';
 import app from './app.js';
 import config from './config.js';
-import { runImport } from './database/import/gtfs-import.js';
+import { runImport } from './storage/database/import/gtfs-import.js';
 import Logger from './logger.js';
 
 const logger = new Logger({ client: 'APP' });
@@ -13,15 +13,15 @@ const startServer = async env => {
 		const appInstance = await app(configEnv);
 
 		const dbClientInstance = appInstance.plugins.database.client;
-		const redisClientInstance = appInstance.plugins.redis.redisClient;
-		await executeRunImport(dbClientInstance, redisClientInstance);
+		const cacheClientInstance = appInstance.plugins.cache.cacheService;
+		await executeRunImport(dbClientInstance, cacheClientInstance);
 
 		// Every hour will check for GTFS static schedule updates and import if available.
 		logger.info('Scheduling GTFS static schedule updates every hour');
 		new CronJob('0 * * * *', async () => {
 			try {
 				logger.info('Running scheduled GTFS static schedule update check and import if available. Time: ' + new Date().toISOString());
-				await executeRunImport(dbClientInstance, redisClientInstance);
+				await executeRunImport(dbClientInstance, cacheClientInstance);
 			} catch (error) {
 				logger.error('Scheduled GTFS import failed: ' + error);
 			}
@@ -34,9 +34,9 @@ const startServer = async env => {
 	}
 };
 
-const executeRunImport = async (dbClientInstance, redisClientInstance) => {
+const executeRunImport = async (dbClientInstance, cacheClientInstance) => {
 	try {
-		await runImport(dbClientInstance, redisClientInstance);
+		await runImport(dbClientInstance, cacheClientInstance);
 		logger.success('Import completed successfully');
 	} catch (error) {
 		logger.error('Import failed: ' + error.message);
