@@ -1,6 +1,6 @@
 import ServerLogger from '../../serverLogger.js';
 import { extractIdsFromParam } from './utils.js';
-import { getDatabaseClient, getRedisClient } from '../index.js';
+import { getDatabaseClient, getCacheService } from '../index.js';
 import { getUnixTimestamp } from '../../../utils/timestampUtils.js';
 
 /**
@@ -19,110 +19,49 @@ export default function getAgencies(server) {
     const logger = new ServerLogger({ client: 'getAgencies' });
     const cacheKeyBase = 'agencies';
 
-    // Helper: Pushes agency to response and attempts to cache it in Redis.
-    async function pushAgencyAndCache(agency, response, redisClient, cacheKey) {
-        response.push(agency);
-        if (redisClient) {
-            try {
-                await redisClient.set(cacheKey, JSON.stringify(agency));
-            } catch (err) {
-                logger.warn(`Redis error on set for agency cacheKey ${cacheKey}: ${err.message}`);
-            }
-        }
-    }
-
-    // Retrieves agency details for a list of agency IDs, using Redis cache if available.
-    async function getAgenciesByIds(agencyIds, db, redisClient, logger, cacheKeyBase) {
+    // Retrieves agency details for a list of agency IDs, using CacheService for cache logic.
+    async function getAgenciesByIds(agencyIds, db, cacheService, cacheKeyBase) {
         const response = [];
         for (const id of agencyIds) {
             const cacheKey = `${cacheKeyBase}:agency:${id}`;
-            let cachedData;
-            if (redisClient) {
-                try {
-                    cachedData = await redisClient.get(cacheKey);
-                } catch (e) {
-                    logger.warn(`Redis error on get for agency ${id}: ${e.message}`);
-                    cachedData = null;
-                }
-            }
-            if (cachedData) {
-                try {
-                    logger.info(`Cache hit for agency ${id}`);
-                    response.push(JSON.parse(cachedData));
-                } catch (err) {
-                    logger.warn(`Corrupted cache for agency ${id}, treating as cache miss. Error: ${err.message}`);
-                    if (redisClient) {
-                        try {
-                            await redisClient.del(cacheKey);
-                        } catch (delErr) {
-                            logger.warn(`Redis error on del for agency ${id}: ${delErr.message}`);
-                        }
-                    }
-                    logger.info(`Cache miss for agency ${id}, querying database`);
-                    const agency = await db.queries.getAgencyById(id);
-                    if (agency && agency[0]) {
-                        await pushAgencyAndCache(agency[0], response, redisClient, cacheKey);
+            const agency = await cacheService.getOrSetCache({
+                cacheKey,
+                dbFetchFn: async () => {
+                    const result = await db.queries.getAgencyById(id);
+                    return result && result[0] ? result[0] : null;
+                },
+                serialize: JSON.stringify,
+                deserialize: (data) => {
+                    try {
+                        return JSON.parse(data);
+                    } catch (err) {
+                        // Let CacheService handle deletion and logging
+                        throw err;
                     }
                 }
-            } else {
-                logger.info(`Cache miss for agency ${id}, querying database`);
-                const agency = await db.queries.getAgencyById(id);
-                if (agency && agency[0]) {
-                    await pushAgencyAndCache(agency[0], response, redisClient, cacheKey);
-                }
+            });
+            if (agency) {
+                response.push(agency);
             }
         }
         return response;
     }
 
-    // Retrieves all agencies, using Redis cache if available.
-    async function getAllAgenciesWithCache(db, redisClient, logger, cacheKeyBase) {
+    // Retrieves all agencies, using CacheService for cache logic.
+    async function getAllAgenciesWithCache(db, cacheService, cacheKeyBase) {
         const cacheKey = `${cacheKeyBase}:all`;
-        let cachedData;
-        if (redisClient) {
-            try {
-                cachedData = await redisClient.get(cacheKey);
-            } catch (e) {
-                logger.warn(`Redis error on get for ${cacheKey}: ${e.message}`);
-                cachedData = null;
-            }
-        }
-        if (cachedData) {
-            try {
-                logger.info(`Cache hit for ${cacheKey}`);
-                return JSON.parse(cachedData);
-            } catch (error) {
-                logger.warn(`Corrupted cache for ${cacheKey}, treating as cache miss. Error: ${error.message}`);
-                if (redisClient) {
-                    try {
-                        await redisClient.del(cacheKey);
-                    } catch (delErr) {
-                        logger.warn(`Redis error on del for ${cacheKey}: ${delErr.message}`);
-                    }
-                }
-                logger.info(`Cache miss for ${cacheKey}, querying database`);
-                const response = await db.queries.getAllAgencies();
-                if (redisClient) {
-                    try {
-                        await redisClient.set(cacheKey, JSON.stringify(response));
-                    } catch (setErr) {
-                        logger.warn(`Redis error on set for ${cacheKey}: ${setErr.message}`);
-                    }
-                }
-                return response;
-            }
-        } else {
-            logger.info(`Cache miss for ${cacheKey}, querying database`);
-            const response = await db.queries.getAllAgencies();
-            if (redisClient) {
+        return cacheService.getOrSetCache({
+            cacheKey,
+            dbFetchFn: async () => await db.queries.getAllAgencies(),
+            serialize: JSON.stringify,
+            deserialize: (data) => {
                 try {
-                    await redisClient.set(cacheKey, JSON.stringify(response));
-                } catch (setErr) {
-                    logger.warn(`Redis error on set for ${cacheKey}: ${setErr.message}`);
+                    return JSON.parse(data);
+                } catch (err) {
+                    throw err;
                 }
             }
-            return response;
-        }
+        });
     }
 
     server.route({
@@ -131,21 +70,21 @@ export default function getAgencies(server) {
         handler: async (request, handler) => {
             try {
                 const db = getDatabaseClient(request);
-                let redisClient = null;
+                let cacheService = null;
                 try {
-                    redisClient = getRedisClient(request);
+                    cacheService = getCacheService(request);
                 } catch (error) {
-                    logger.warn('Redis client not available or failed to initialize, proceeding without cache. Error: ' + error.message);
-                    redisClient = null;
+                    logger.warn('Cache service not available or failed to initialize, proceeding without cache. Error: ' + error.message);
+                    cacheService = null;
                 }
                 const agencyIdParam = request.query.agencyId;
                 const unixTimestamp = getUnixTimestamp();
                 let response;
                 if (agencyIdParam) {
                     const agencyIds = extractIdsFromParam(agencyIdParam);
-                    response = await getAgenciesByIds(agencyIds, db, redisClient, logger, cacheKeyBase);
+                    response = await getAgenciesByIds(agencyIds, db, cacheService, cacheKeyBase);
                 } else {
-                    response = await getAllAgenciesWithCache(db, redisClient, logger, cacheKeyBase);
+                    response = await getAllAgenciesWithCache(db, cacheService, cacheKeyBase);
                 }
                 if (!response || response.length === 0) {
                     return handler.response({ error: 'No agencies found' }).code(404);

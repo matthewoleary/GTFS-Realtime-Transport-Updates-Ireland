@@ -36,6 +36,15 @@ export function getRedisClient(request) {
 }
 
 /**
+ * Retrieves the Cache service instance from the Hapi request object.
+ * @param {object} request - Hapi request object.
+ * @returns {object} The Cache service instance.
+ */
+export function getCacheService(request) {
+	return request.server.plugins.cache.cacheService
+}
+
+/**
  * Retrieves the realtime client from the Hapi request object.
  * @param {object} request - Hapi request object.
  * @returns {object|null} The realtime client or null if not available.

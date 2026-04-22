@@ -1,7 +1,9 @@
+
 import ServerLogger from '../../serverLogger.js';
 import { extractIdsFromParam } from './utils.js';
-import { getDatabaseClient, getRedisClient } from '../index.js';
+import { getDatabaseClient, getCacheService } from '../index.js';
 import { getUnixTimestamp } from '../../../utils/timestampUtils.js';
+import { CacheService } from '../../../services/cache/cacheService.js';
 
 /**
  * Registers the /api/shapes GET route for fetching GTFS shape data.
@@ -23,11 +25,11 @@ export default function getShapes(server) {
         handler: async (request, handler) => {
             try {
                 const db = getDatabaseClient(request);
-                let redisClient = null;
+                let cacheService = null;
                 try {
-                    redisClient = getRedisClient(request);
+                    cacheService = getCacheService(request);
                 } catch (error) {
-                    logger.warn(`Redis client not available, proceeding without cache. Error: ${error.message}`);
+                    logger.warn(`Cache service not available, proceeding without cache. Error: ${error.message}`);
                 }
                 const shapeIdParam = request.query.shapeId;
                 const unixTimestamp = getUnixTimestamp();
@@ -36,54 +38,23 @@ export default function getShapes(server) {
                     const shapeIds = extractIdsFromParam(shapeIdParam);
                     for (const id of shapeIds) {
                         const cacheKey = `shapes:shape:${id}`;
-                        let cachedData;
-                        if (redisClient) {
-                            try {
-                                cachedData = await redisClient.get(cacheKey);
-                            } catch (e) {
-                                logger.warn(`Redis error on get for shape ${id}: ${e.message}`);
-                                cachedData = null;
-                            }
-                        }
-                        if (cachedData) {
-                            try {
-                                response.push(JSON.parse(cachedData));
-                                logger.info(`Cache hit for shape ${id}`);
-                            } catch (err) {
-                                logger.warn(`Corrupted cache for shape ${id}, treating as cache miss. Error: ${err.message}`);
-                                if (redisClient) {
-                                    try {
-                                        await redisClient.del(cacheKey);
-                                    } catch (delErr) {
-                                        logger.warn(`Failed to delete corrupted cache for shape ${id}: ${delErr.message}`);
-                                    }
-                                }
-                                logger.info(`Cache miss for shape ${id}, querying database`);
-                                const shape = await db.queries.getShapeById(id);
-                                if (shape && shape[0]) {
-                                    response.push(shape[0]);
-                                    if (redisClient) {
-                                        try {
-                                            await redisClient.set(cacheKey, JSON.stringify(shape[0]));
-                                        } catch (setErr) {
-                                            logger.warn(`Failed to set cache for shape ${id}: ${setErr.message}`);
-                                        }
-                                    }
+                        const shape = await cacheService.getOrSetCache({
+                            cacheKey,
+                            dbFetchFn: async () => {
+                                const result = await db.queries.getShapeById(id);
+                                return result && result[0] ? result[0] : null;
+                            },
+                            serialize: JSON.stringify,
+                            deserialize: (data) => {
+                                try {
+                                    return JSON.parse(data);
+                                } catch (err) {
+                                    throw err;
                                 }
                             }
-                        } else {
-                            logger.info(`Cache miss for shape ${id}, querying database`);
-                            const shape = await db.queries.getShapeById(id);
-                            if (shape && shape[0]) {
-                                response.push(shape[0]);
-                                if (redisClient) {
-                                    try {
-                                        await redisClient.set(cacheKey, JSON.stringify(shape[0]));
-                                    } catch (setErr) {
-                                        logger.warn(`Failed to set cache for shape ${id}: ${setErr.message}`);
-                                    }
-                                }
-                            }
+                        });
+                        if (shape) {
+                            response.push(shape);
                         }
                     }
                 } else {

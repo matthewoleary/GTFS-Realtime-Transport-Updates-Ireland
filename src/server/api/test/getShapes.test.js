@@ -73,7 +73,7 @@ describe('getShapes', () => {
     expect(h.response).toHaveBeenCalledWith(expect.objectContaining({ response: [{ id: 'S4' }] }));
     // Optionally, check that logger.warn was called for Redis error
     const loggerInstance = mockLogger.mock.results[0].value;
-    expect(loggerInstance.warn).toHaveBeenCalledWith(expect.stringContaining('Redis error on get for shape S4'));
+    expect(loggerInstance.warn).toHaveBeenCalledWith(expect.stringContaining('Redis error on get for shapes:shape:S4'));
   });
 
   test('returns shape from cache if present (cache hit)', async () => {
