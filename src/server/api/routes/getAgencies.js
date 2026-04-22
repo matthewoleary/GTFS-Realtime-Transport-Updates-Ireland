@@ -26,7 +26,7 @@ export default function getAgencies(server) {
             const cacheKey = `${cacheKeyBase}:agency:${id}`;
             let agency;
             if (cacheService) {
-                const agency = await cacheService.getOrSetCache({
+                agency = await cacheService.getOrSetCache({
                     cacheKey,
                     dbFetchFn: async () => {
                         const result = await db.queries.getAgencyById(id);

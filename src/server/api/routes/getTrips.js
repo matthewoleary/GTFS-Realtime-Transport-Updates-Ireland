@@ -40,8 +40,9 @@ export default function getTrips(server) {
                     const tripIds = extractIdsFromParam(tripIdParam);
                     for (const id of tripIds) {
                         const cacheKey = `${cacheKeyBase}:trip:${id}`;
+                        let trip;
                         if (cacheService) {
-                            const trip = await cacheService.getOrSetCache({
+                            trip = await cacheService.getOrSetCache({
                                 cacheKey,
                                 dbFetchFn: async () => {
                                     const result = await db.queries.getTripById(id);

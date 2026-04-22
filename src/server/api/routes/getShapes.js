@@ -8,11 +8,10 @@ import { CacheService } from '../../../services/cache/cacheService.js';
 /**
  * Registers the /api/shapes GET route for fetching GTFS shape data.
  *
- * - If the optional `shapeId` query parameter is provided (as a string or array, comma-separated supported),
+ * - If the `shapeId` query parameter is provided (as a string or array, comma-separated supported),
  *   returns details for the specified shape(s) only.
  * - If `shapeId` is omitted, returns an error (shapeId is required for shapes).
- * - Adds current and Unix timestamps to the response payload for client-side reference.
- * - Handles MySQL backend via the dynamic SQL client.
+ * - Adds a Unix timestamp to the response payload for client-side reference.
  *
  * @param {object} server - Hapi server instance to register the route on.
  * @returns {void}
@@ -38,8 +37,9 @@ export default function getShapes(server) {
                     const shapeIds = extractIdsFromParam(shapeIdParam);
                     for (const id of shapeIds) {
                         const cacheKey = `shapes:shape:${id}`;
+                        let shape;
                         if (cacheService) {
-                            const shape = await cacheService.getOrSetCache({
+                            shape = await cacheService.getOrSetCache({
                                 cacheKey,
                                 dbFetchFn: async () => {
                                     const result = await db.queries.getShapeById(id);

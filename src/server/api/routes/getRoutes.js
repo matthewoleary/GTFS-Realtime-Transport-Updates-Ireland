@@ -30,7 +30,7 @@ export default function getRoutes(server) {
             const cacheKey = `${cacheKeyBase}:route:${id}`;
             let route;
             if (cacheService) {
-                const route = await cacheService.getOrSetCache({
+                route = await cacheService.getOrSetCache({
                     cacheKey,
                     dbFetchFn: async () => {
                         const result = await db.queries.getRouteById(id);
