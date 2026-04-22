@@ -16,12 +16,12 @@ import { addFeedInfoLastUpdatedColumn, updateFeedInfoLastUpdatedValues, addCusto
  * MysqlImporter class for importing GTFS data into MySQL.
  */
 class MysqlImporter {
-    constructor(config, logger, dbClientInstance, redisClientInstance, models = modelsDefault) {
+    constructor(config, logger, dbClient, cacheClient, models = modelsDefault) {
         this.config = config;
         this.logger = logger;
         this.models = models;
-        this.db = dbClientInstance;
-        this.redis = redisClientInstance;
+        this.db = dbClient;
+        this.cache = cacheClient;
         this.cnx = null;
         // List of models used including those with additional modifications made, e.g. custom timestamp columns
         this.customModels = [];
@@ -488,9 +488,9 @@ class MysqlImporter {
         });
     }
 
-    async flushRedisCache() {
-        this.logger.info('Flushing Redis cache.');
-        await this.redis.client.flushAll('ASYNC');
+    async flushCache() {
+        this.logger.info('Flushing cache.');
+        await this.cache.cacheService.flushCache();
     }
 
     /**
@@ -566,7 +566,7 @@ class MysqlImporter {
 
             this.logger.info('Completed GTFS import for agency: ' + task.agency_key + '.');
 
-            await this.flushRedisCache(); // Clear Redis cache after import to ensure new data is served
+            await this.flushCache(); // Clear cache after import to ensure new data is served
             await cleanup();
         });
 
