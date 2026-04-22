@@ -1,5 +1,5 @@
 import { unwrapTimes, getTripDescriptorScheduleRelationshipName, findFeedEntityForTrip, getTimestampAsTimeFormatted, getDueInValue, sortByArrival } from "./utils.js";
-import { getSecondsSinceMidnightTimestamp } from "../../utils/timestampUtils.js";
+import { getSecondsSinceMidnightTimestamp } from "../../../utils/timestampUtils.js";
 
 class RealtimeTripUpdatesProcessor {
 	/**

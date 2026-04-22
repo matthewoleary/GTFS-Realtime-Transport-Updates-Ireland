@@ -1,4 +1,4 @@
-import { createRealtimeTripUpdatesClient } from '../realtime/clients/realtimeTripUpdatesClient.js';
+import { createRealtimeTripUpdatesClient } from '../services/realtime/clients/realtimeTripUpdatesClient.js';
 
 export default {
 	name: "realtimeTripUpdates",

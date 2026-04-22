@@ -1,4 +1,4 @@
-import Logger from '../logger.js';
+import Logger from '../../logger.js';
 
 /**
  * RealtimeLogger class for logging GTFS-realtime feed events.

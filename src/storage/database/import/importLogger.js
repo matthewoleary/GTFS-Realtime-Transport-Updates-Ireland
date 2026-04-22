@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 const { blue, cyan, magenta } = chalk;
-import Logger from '../../logger.js';
-import { getCurrentTime } from '../../utils/timestampUtils.js';
+import Logger from '../../../logger.js';
+import { getCurrentTime } from '../../../utils/timestampUtils.js';
 
 /**
  * ImportLogger class for logging GTFS import events.

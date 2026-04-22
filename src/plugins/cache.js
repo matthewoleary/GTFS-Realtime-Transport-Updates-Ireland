@@ -1,6 +1,6 @@
 
 import redisClient from '../storage/cache/redisClient.js';
-import CacheService from '../services/cache/cacheService.js';
+import { CacheService } from '../services/cache/cacheService.js';
 
 // When hapi registers plugins it passes the server instance to every plugin
 export default {
@@ -14,8 +14,8 @@ export default {
             redisClientInstance = await redisClient(config);
             cacheServiceInstance = new CacheService(redisClientInstance);
             server.expose('cacheService', cacheServiceInstance);
-        } catch (err) {
-            server.log(['warn', 'cache'], `Cache connection failed: ${err.message}. Caching will be disabled, but API will still serve DB-backed responses.`);
+        } catch (error) {
+            server.log(['warn', 'cache'], `Cache connection failed: ${error.message}. Caching will be disabled, but API will still serve DB-backed responses.`);
             server.expose('cacheService', null);
         }
     }
