@@ -1,4 +1,4 @@
-import Logger from '../logger.js';
+import Logger from '../../logger.js';
 
 /**
  * DatabaseLogger class for logging database events.
