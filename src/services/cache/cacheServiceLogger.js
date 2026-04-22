@@ -1,4 +1,4 @@
-import Logger from '../../../src/logger.js';
+import Logger from '../../logger.js';
 
 /**
  * CacheServiceLogger class for logging cache service events.
