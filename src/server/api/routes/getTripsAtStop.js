@@ -124,14 +124,14 @@ export class TripsAtStopService {
      * Constructs a TripsAtStopService instance for fetching and caching GTFS trip data at stops.
      *
      * @param {Object} params
-     * @param {Object} params.redisClient - Redis client instance for caching (optional).
+     * @param {Object} params.cacheService - CacheService instance for caching (required).
      * @param {Object} params.dbClient - Database client instance for queries.
      * @param {Object} params.logger - Logger instance for logging events and errors.
      */
-    constructor({ redisClient, dbClient, logger }) {
+    constructor({ cacheService, dbClient, logger }) {
         this.db = dbClient;
         this.logger = logger;
-        this.cacheService = new CacheService({ redisClient: redisClient, logger: this.logger });
+        this.cacheService = cacheService;
     }
 
     /**

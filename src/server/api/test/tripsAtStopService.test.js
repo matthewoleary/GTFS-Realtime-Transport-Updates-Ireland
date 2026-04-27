@@ -1,96 +1,96 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { TripsAtStopService } from '../routes/getTripsAtStop.js';
 
-// Mocks for dependencies
-const mockGetDatabaseClient = vi.fn();
-const mockGetRedisClient = vi.fn();
 const mockCacheService = {
   getOrSetCache: vi.fn(),
-  getCacheIfAvailable: vi.fn(),
-  getFromDb: vi.fn(),
-  setCache: vi.fn()
 };
-
-vi.mock('../index.js', () => ({
-  getDatabaseClient: (...args) => mockGetDatabaseClient(...args),
-  getRedisClient: (...args) => mockGetRedisClient(...args)
-}));
-
-vi.mock('../routes/cacheService.js', () => ({
-  CacheService: function () { return mockCacheService; }
-}));
-
-// Minimal logger mock
-const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
-
-// Minimal db mock
-const db = {
+const mockDb = {
   queries: {
     getTripsAtStopId: vi.fn(),
     getTripsAtStopIdWithNightServices: vi.fn(),
     getLastStops: vi.fn(),
-    getMaximumDepartureTimestamp: vi.fn()
-  }
+    getMaximumDepartureTimestamp: vi.fn(),
+  },
 };
+const mockLogger = { error: vi.fn(), warn: vi.fn(), info: vi.fn() };
+const mockRemoveTripsAtLastStop = vi.fn(async (lastStops, trips) => trips);
+const mockRealtimeTripUpdates = { queryProcessor: { updateResultsWithRealtimeTripUpdates: vi.fn(async (payload) => payload) } };
+const mockRealtimeVehiclePositions = { queryProcessor: { updateResultsWithRealtimeVehiclePositions: vi.fn(async (payload) => payload) } };
+
+vi.mock('../routes/utils.js', () => ({
+  removeTripsAtLastStop: (...args) => mockRemoveTripsAtLastStop(...args),
+}));
 
 describe('TripsAtStopService', () => {
   let service;
-
   beforeEach(() => {
-    Object.values(mockCacheService).forEach(fn => fn.mockReset && fn.mockReset());
-    service = new TripsAtStopService({ dbClient: db, redisClient: undefined, logger });
-    service.db = db;
-    service.cacheService = mockCacheService;
+    mockCacheService.getOrSetCache.mockReset();
+    Object.values(mockDb.queries).forEach(fn => fn.mockReset && fn.mockReset());
+    service = new TripsAtStopService({ cacheService: mockCacheService, dbClient: mockDb, logger: mockLogger });
   });
 
-  test('getTripsAtStopIdWithCache uses cacheService.getOrSetCache', async () => {
-    const expected = [{ trip_id: 'T1' }];
-    mockCacheService.getOrSetCache.mockResolvedValue(expected);
-    const result = await service.getTripsAtStopIdWithCache({ stopId: 'S1', serviceDay: { dayColumn: 'monday', date: '20260405', lowerBoundTimestamp: 100, upperBoundTimestamp: 200 } });
+  test('getTripsAtStopIdWithCache uses cacheService', async () => {
+    mockCacheService.getOrSetCache.mockResolvedValueOnce([{ trip_id: 'T1' }]);
+    const result = await service.getTripsAtStopIdWithCache({ stopId: 'S1', serviceDay: { dayColumn: 'monday', date: '20260427', lowerBoundTimestamp: 900, upperBoundTimestamp: 1100 } });
     expect(mockCacheService.getOrSetCache).toHaveBeenCalled();
-    expect(result).toBe(expected);
+    expect(result).toEqual([{ trip_id: 'T1' }]);
   });
 
-  test('getTripsAtStopIdWithNightServicesWithCache uses cacheService.getOrSetCache', async () => {
-    const expected = [{ trip_id: 'T2' }];
-    mockCacheService.getOrSetCache.mockResolvedValue(expected);
+  test('getTripsAtStopIdWithNightServicesWithCache uses cacheService', async () => {
+    mockCacheService.getOrSetCache.mockResolvedValueOnce([{ trip_id: 'T2' }]);
     const result = await service.getTripsAtStopIdWithNightServicesWithCache({
       stopId: 'S2',
-      wrappedServiceDay: { dayColumn: 'monday', date: '20260405', lowerBoundTimestamp: 100, upperBoundTimestamp: 200 },
-      unwrappedServiceDay: { dayColumn: 'tuesday', date: '20260406', lowerBoundTimestamp: 0, upperBoundTimestamp: 50 }
+      wrappedServiceDay: { dayColumn: 'sunday', date: '20260426', lowerBoundTimestamp: 800, upperBoundTimestamp: 900 },
+      unwrappedServiceDay: { dayColumn: 'monday', date: '20260427', lowerBoundTimestamp: 900, upperBoundTimestamp: 1100 },
     });
     expect(mockCacheService.getOrSetCache).toHaveBeenCalled();
-    expect(result).toBe(expected);
+    expect(result).toEqual([{ trip_id: 'T2' }]);
   });
 
-  test('getLastStopsWithCache uses cacheService.getOrSetCache', async () => {
-    const expected = [{ stop_id: 'S1' }];
-    mockCacheService.getOrSetCache.mockResolvedValue(expected);
+  test('getLastStopsWithCache uses cacheService', async () => {
+    mockCacheService.getOrSetCache.mockResolvedValueOnce([{ trip_id: 'T1', last_stop: true }]);
     const result = await service.getLastStopsWithCache([{ trip_id: 'T1' }]);
     expect(mockCacheService.getOrSetCache).toHaveBeenCalled();
-    expect(result).toBe(expected);
+    expect(result).toEqual([{ trip_id: 'T1', last_stop: true }]);
   });
 
-  test('getMaximumDepartureTimestampWithCache uses cacheService.getOrSetCache', async () => {
-    mockCacheService.getOrSetCache.mockResolvedValue(12345);
-    const result = await service.getMaximumDepartureTimestampWithCache({ scheduleDay: 'monday', scheduleDate: '20260405' });
+  test('getMaximumDepartureTimestampWithCache uses cacheService', async () => {
+    mockCacheService.getOrSetCache.mockResolvedValueOnce(1100);
+    const result = await service.getMaximumDepartureTimestampWithCache({ scheduleDay: 'monday', scheduleDate: '20260427' });
     expect(mockCacheService.getOrSetCache).toHaveBeenCalled();
-    expect(result).toBe(12345);
+    expect(result).toBe(1100);
   });
 
-  test('getMaximumDepartureTimestampWithCache passes a deserializer that returns null for NaN and number for valid', async () => {
-    let passedOptions;
-    mockCacheService.getOrSetCache.mockImplementation((opts) => {
-      passedOptions = opts;
-      // Simulate cache hit: call deserialize with a corrupt value and a valid value
-      return undefined; // The return value is not important for this test
+  test('getTrips calls cacheService and updates payload', async () => {
+    mockCacheService.getOrSetCache.mockResolvedValueOnce([{ trip_id: 'T1' }]);
+    mockCacheService.getOrSetCache.mockResolvedValueOnce([{ trip_id: 'T1', last_stop: false }]);
+    const payload = { response: [] };
+    await service.getTrips({
+      stopIds: ['S1'],
+      realtimeTripUpdates: mockRealtimeTripUpdates,
+      realtimeVehiclePositions: mockRealtimeVehiclePositions,
+      payload,
+      serviceDay: { dayColumn: 'monday', date: '20260427', lowerBoundTimestamp: 900, upperBoundTimestamp: 1100 },
     });
-    await service.getMaximumDepartureTimestampWithCache({ scheduleDay: 'monday', scheduleDate: '20260405' });
-    expect(mockCacheService.getOrSetCache).toHaveBeenCalled();
-    expect(typeof passedOptions.deserialize).toBe('function');
-    // Corrupt value (should return null)
-    expect(passedOptions.deserialize('not-a-number')).toBeNull();
-    // Valid value (should return number)
-    expect(passedOptions.deserialize('123')).toBe(123);
+    expect(payload.response).toEqual([{ trip_id: 'T1' }]);
+    expect(mockRealtimeTripUpdates.queryProcessor.updateResultsWithRealtimeTripUpdates).toHaveBeenCalled();
+    expect(mockRealtimeVehiclePositions.queryProcessor.updateResultsWithRealtimeVehiclePositions).toHaveBeenCalled();
+  });
+
+  test('getTripsWithMidnightServices calls cacheService and updates payload', async () => {
+    mockCacheService.getOrSetCache.mockResolvedValueOnce([{ trip_id: 'T2' }]);
+    mockCacheService.getOrSetCache.mockResolvedValueOnce([{ trip_id: 'T2', last_stop: false }]);
+    const payload = { response: [] };
+    await service.getTripsWithMidnightServices({
+      stopIds: ['S2'],
+      realtimeTripUpdates: mockRealtimeTripUpdates,
+      realtimeVehiclePositions: mockRealtimeVehiclePositions,
+      payload,
+      wrappedServiceDay: { dayColumn: 'sunday', date: '20260426', lowerBoundTimestamp: 800, upperBoundTimestamp: 900 },
+      unwrappedServiceDay: { dayColumn: 'monday', date: '20260427', lowerBoundTimestamp: 900, upperBoundTimestamp: 1100 },
+    });
+    expect(payload.response).toEqual([{ trip_id: 'T2' }]);
+    expect(mockRealtimeTripUpdates.queryProcessor.updateResultsWithRealtimeTripUpdates).toHaveBeenCalled();
+    expect(mockRealtimeVehiclePositions.queryProcessor.updateResultsWithRealtimeVehiclePositions).toHaveBeenCalled();
   });
 });

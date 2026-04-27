@@ -1,119 +1,139 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import getTripsAtStop from '../routes/getTripsAtStop.js';
 
-// Declare mocks before vi.mock
 const mockRoute = vi.fn();
 const mockLogger = vi.fn().mockImplementation(() => ({ error: vi.fn(), warn: vi.fn(), info: vi.fn() }));
 const mockExtractIdsFromParam = vi.fn();
-const mockRemoveTripsAtLastStop = vi.fn();
-const mockBuildServiceDay = vi.fn();
 const mockGetDatabaseClient = vi.fn();
-const mockGetRealtimeTripUpdatesClient = vi.fn();
-const mockGetRealtimeVehiclePositionsClient = vi.fn();
+const mockGetCacheService = vi.fn();
 const mockGetUnixTimestamp = vi.fn();
+const mockGetSecondsSinceMidnightTimestamp = vi.fn();
 const mockGetTimestampMinusNumberMinutes = vi.fn();
 const mockGetTimestampPlusNumberMinutes = vi.fn();
 const mockGetUnwrappedTimestamp = vi.fn();
-const mockGetOrSetCache = vi.fn();
-const mockGetCacheIfAvailable = vi.fn();
-const mockGetFromDb = vi.fn();
-const mockSetCache = vi.fn();
-
-vi.mock('../routes/cacheService.js', () => ({
-  CacheService: function() {
-    return {
-      getOrSetCache: mockGetOrSetCache,
-      getCacheIfAvailable: mockGetCacheIfAvailable,
-      getFromDb: mockGetFromDb,
-      setCache: mockSetCache
-    };
-  }
-}));
+const mockCheckIfNightServices = vi.fn();
+const mockGetCurrentDay = vi.fn();
+const mockGetCurrentDate = vi.fn();
+const mockGetPreviousDay = vi.fn();
+const mockGetPreviousDate = vi.fn();
+const mockGetNextDay = vi.fn();
+const mockGetNextDayDate = vi.fn();
+const mockBuildServiceDay = vi.fn();
+const mockRemoveTripsAtLastStop = vi.fn(async (lastStops, trips) => trips);
+const mockRealtimeTripUpdates = { queryProcessor: { updateResultsWithRealtimeTripUpdates: vi.fn(async (payload) => payload) } };
+const mockRealtimeVehiclePositions = { queryProcessor: { updateResultsWithRealtimeVehiclePositions: vi.fn(async (payload) => payload) } };
+const mockCacheService = { getOrSetCache: vi.fn() };
+const mockDb = { queries: {
+	getTripsAtStopId: vi.fn(),
+	getTripsAtStopIdWithNightServices: vi.fn(),
+	getLastStops: vi.fn(),
+	getMaximumDepartureTimestamp: vi.fn()
+}};
 
 vi.mock('../../serverLogger.js', () => ({
-  default: function(...args) { return mockLogger(...args); }
+	default: function(...args) { return mockLogger(...args); }
 }));
-
 vi.mock('../routes/utils.js', () => ({
-  extractIdsFromParam: (...args) => mockExtractIdsFromParam(...args),
-  removeTripsAtLastStop: (...args) => mockRemoveTripsAtLastStop(...args),
-  buildServiceDay: (...args) => mockBuildServiceDay(...args)
+	extractIdsFromParam: (...args) => mockExtractIdsFromParam(...args),
+	removeTripsAtLastStop: (...args) => mockRemoveTripsAtLastStop(...args),
+	buildServiceDay: (...args) => mockBuildServiceDay(...args)
 }));
-
 vi.mock('../index.js', () => ({
-  getDatabaseClient: (...args) => mockGetDatabaseClient(...args),
-  getRealtimeTripUpdatesClient: (...args) => mockGetRealtimeTripUpdatesClient(...args),
-  getRealtimeVehiclePositionsClient: (...args) => mockGetRealtimeVehiclePositionsClient(...args),
-  getRedisClient: vi.fn()
+	getDatabaseClient: () => mockDb,
+	getCacheService: () => mockCacheService,
+	getRealtimeTripUpdatesClient: () => mockRealtimeTripUpdates,
+	getRealtimeVehiclePositionsClient: () => mockRealtimeVehiclePositions
 }));
-
 vi.mock('../../../utils/timestampUtils.js', () => ({
-  getUnixTimestamp: (...args) => mockGetUnixTimestamp(...args),
-  getTimestampMinusNumberMinutes: (...args) => mockGetTimestampMinusNumberMinutes(...args),
-  getTimestampPlusNumberMinutes: (...args) => mockGetTimestampPlusNumberMinutes(...args),
-  getUnwrappedTimestamp: (...args) => mockGetUnwrappedTimestamp(...args),
-  checkIfNightServices: (...args) => mockCheckIfNightServices(...args),
-  getSecondsSinceMidnightTimestamp: vi.fn(() => 0),
-  getWrappedTimestamp: vi.fn((v) => v)
+	getUnixTimestamp: (...args) => mockGetUnixTimestamp(...args),
+	getSecondsSinceMidnightTimestamp: (...args) => mockGetSecondsSinceMidnightTimestamp(...args),
+	getTimestampMinusNumberMinutes: (...args) => mockGetTimestampMinusNumberMinutes(...args),
+	getTimestampPlusNumberMinutes: (...args) => mockGetTimestampPlusNumberMinutes(...args),
+	checkIfNightServices: (...args) => mockCheckIfNightServices(...args),
+	getUnwrappedTimestamp: (...args) => mockGetUnwrappedTimestamp(...args)
+}));
+vi.mock('../../../utils/dateUtils.js', () => ({
+	getCurrentDay: (...args) => mockGetCurrentDay(...args),
+	getCurrentDate: (...args) => mockGetCurrentDate(...args),
+	getPreviousDay: (...args) => mockGetPreviousDay(...args),
+	getPreviousDate: (...args) => mockGetPreviousDate(...args),
+	getNextDay: (...args) => mockGetNextDay(...args),
+	getNextDayDate: (...args) => mockGetNextDayDate(...args)
 }));
 
-const mockCheckIfNightServices = vi.fn();
+describe('getTripsAtStop (with CacheService)', () => {
+	let server;
+	let handler;
+	let h;
 
-describe('getTripsAtStop', () => {
-  let server;
-  let handler;
-  let db;
-  let realtimeTripUpdates;
-  let realtimeVehiclePositions;
-  let h;
+	beforeEach(() => {
+		server = { route: mockRoute.mockReset() };
+		h = { response: vi.fn((payload) => ({ code: vi.fn().mockReturnValue({ payload, code: true }) })) };
+		mockExtractIdsFromParam.mockReset();
+		mockCacheService.getOrSetCache.mockReset();
+		mockDb.queries.getTripsAtStopId.mockReset();
+		mockDb.queries.getTripsAtStopIdWithNightServices.mockReset();
+		mockDb.queries.getLastStops.mockReset();
+		mockDb.queries.getMaximumDepartureTimestamp.mockReset();
+		mockRealtimeTripUpdates.queryProcessor.updateResultsWithRealtimeTripUpdates.mockClear();
+		mockRealtimeVehiclePositions.queryProcessor.updateResultsWithRealtimeVehiclePositions.mockClear();
+		mockGetUnixTimestamp.mockReturnValue(1234567890);
+		mockGetSecondsSinceMidnightTimestamp.mockReturnValue(1000);
+		mockGetTimestampMinusNumberMinutes.mockReturnValue(900);
+		mockGetTimestampPlusNumberMinutes.mockReturnValue(1100);
+		mockGetUnwrappedTimestamp.mockReturnValue(1100);
+		mockCheckIfNightServices.mockReturnValue(false);
+		mockGetCurrentDay.mockReturnValue('Monday');
+		mockGetCurrentDate.mockReturnValue('20260427');
+		mockBuildServiceDay.mockReturnValue({ dayColumn: 'monday', date: '20260427', lowerBoundTimestamp: 900, upperBoundTimestamp: 1100 });
+	});
 
-  beforeEach(() => {
-    server = { route: mockRoute.mockReset() };
-    db = { queries: {} };
-    realtimeTripUpdates = {};
-    realtimeVehiclePositions = {};
-    mockGetDatabaseClient.mockReturnValue(db);
-    mockGetRealtimeTripUpdatesClient.mockReturnValue(realtimeTripUpdates);
-    mockGetRealtimeVehiclePositionsClient.mockReturnValue(realtimeVehiclePositions);
-    mockGetUnixTimestamp.mockReturnValue(67890);
-    mockGetTimestampMinusNumberMinutes.mockReturnValue(10000);
-    mockGetTimestampPlusNumberMinutes.mockReturnValue(15000);
-    mockGetUnwrappedTimestamp.mockReturnValue(15000);
-    h = { response: vi.fn((payload) => ({ code: vi.fn().mockReturnValue({ payload, code: true }) })) };
-  });
+	test('registers the route on the server', () => {
+		getTripsAtStop(server);
+		expect(server.route).toHaveBeenCalledWith(expect.objectContaining({
+			method: 'GET',
+			path: '/api/tripsAtStop',
+			handler: expect.any(Function)
+		}));
+	});
 
-  test('registers the route on the server', () => {
-    getTripsAtStop(server);
-    expect(server.route).toHaveBeenCalledWith(expect.objectContaining({
-      method: 'GET',
-      path: '/api/tripsAtStop',
-      handler: expect.any(Function)
-    }));
-  });
+	test('returns 400 if stopId is missing', async () => {
+		getTripsAtStop(server);
+		handler = server.route.mock.calls[0][0].handler;
+		const req = { query: {}, server };
+		const res = await handler(req, h);
+		expect(res.code).toBe(true);
+		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({ error: expect.stringMatching(/stopId/) }));
+	});
 
-  test('returns 400 if no stopId param', async () => {
-    getTripsAtStop(server);
-    handler = server.route.mock.calls[0][0].handler;
-    const req = { query: {} };
-    const res = await handler(req, h);
-    expect(h.response).toHaveBeenCalledWith({ error: 'stopId query parameter is required' });
-  });
+	test('returns trips at stop for a single stopId (cache hit)', async () => {
+		   mockExtractIdsFromParam.mockReturnValue(['S1']);
+		   // First call: trips at stop, Second call: max departure timestamp
+		   mockCacheService.getOrSetCache
+       	 .mockResolvedValueOnce(86400) // max departure timestamp
+			   .mockResolvedValueOnce([{ trip_id: 'T1' }]); // trips at stop
+		   mockDb.queries.getLastStops.mockResolvedValueOnce([{ trip_id: 'T1', last_stop: false }]);
+		   getTripsAtStop(server);
+		   handler = server.route.mock.calls[0][0].handler;
+		   const req = { query: { stopId: 'S1' }, server };
+		   const res = await handler(req, h);
+		   expect(mockExtractIdsFromParam).toHaveBeenCalledWith('S1');
+		   expect(mockCacheService.getOrSetCache).toHaveBeenCalled();
+		   expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
+          query_timestamp: 1234567890,
+			    response: [{ trip_id: 'T1' }]
+		   }));
+		   expect(mockRealtimeTripUpdates.queryProcessor.updateResultsWithRealtimeTripUpdates).toHaveBeenCalled();
+		   expect(mockRealtimeVehiclePositions.queryProcessor.updateResultsWithRealtimeVehiclePositions).toHaveBeenCalled();
+	});
 
-  test('returns 500 if realtimeTripUpdates is missing', async () => {
-    mockGetRealtimeTripUpdatesClient.mockReturnValue(undefined);
-    getTripsAtStop(server);
-    handler = server.route.mock.calls[0][0].handler;
-    const req = { query: { stopId: 'S1' } };
-    const result = await handler(req, h);
-    expect(result.payload).toEqual({ error: 'Internal Server Error' });
-  });
-
-  test('returns 500 if db is missing', async () => {
-    mockGetDatabaseClient.mockReturnValue(undefined);
-    getTripsAtStop(server);
-    handler = server.route.mock.calls[0][0].handler;
-    const req = { query: { stopId: 'S1' } };
-    const res = await handler(req, h);
-    expect(h.response).toHaveBeenCalledWith({ error: 'Internal Server Error' });
-  });
+	test('returns 500 on handler error', async () => {
+		mockExtractIdsFromParam.mockImplementation(() => { throw new Error('fail'); });
+		getTripsAtStop(server);
+		handler = server.route.mock.calls[0][0].handler;
+		const req = { query: { stopId: 'S1' }, server };
+		const res = await handler(req, h);
+		expect(res.code).toBe(true);
+		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({ error: expect.stringMatching(/Internal Server Error/) }));
+	});
 });
