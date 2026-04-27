@@ -2,7 +2,6 @@ import ServerLogger from '../../serverLogger.js';
 import { extractIdsFromParam, removeTripsAtLastStop, buildServiceDay } from './utils.js';
 import { getDatabaseClient, getRealtimeTripUpdatesClient, getRealtimeVehiclePositionsClient, getCacheService } from '../index.js';
 import { getSecondsSinceMidnightTimestamp, getUnixTimestamp, getTimestampMinusNumberMinutes, getTimestampPlusNumberMinutes, checkIfNightServices, getWrappedTimestamp, getUnwrappedTimestamp } from '../../../utils/timestampUtils.js';
-import { CacheService } from '../../../services/cache/cacheService.js';
 import { getCurrentDay, getCurrentDate, getPreviousDay, getPreviousDate, getNextDay, getNextDayDate } from '../../../utils/dateUtils.js';
 
 /**

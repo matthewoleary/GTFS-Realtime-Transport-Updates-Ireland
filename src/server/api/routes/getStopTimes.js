@@ -2,7 +2,6 @@ import ServerLogger from '../../serverLogger.js';
 import { extractIdsFromParam } from './utils.js';
 import { getDatabaseClient, getCacheService } from '../index.js';
 import { getUnixTimestamp } from '../../../utils/timestampUtils.js';
-import { CacheService } from '../../../services/cache/cacheService.js';
 
 /**
  * Registers the /api/stopTimes GET route for fetching GTFS stop times data for trips.
