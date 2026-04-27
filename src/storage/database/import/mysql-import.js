@@ -490,7 +490,7 @@ class MysqlImporter {
 
     async flushCache() {
         this.logger.info('Flushing cache.');
-        await this.cache.cacheService.flushCache();
+        await this.cache.flushCache();
     }
 
     /**
