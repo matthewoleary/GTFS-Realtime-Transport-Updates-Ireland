@@ -14,7 +14,7 @@ A Node.js API for serving static GTFS schedule data and real-time public transpo
 ---
 
 ## Requirements
-- Node.js v16+
+- Node.js >=20.19.0
 - Docker & Docker Compose
 
 ---
@@ -28,7 +28,11 @@ cd Realtime-Transport-Updates-API
 ```
 
 ### 2. Configure Environment
-Copy `.env.example` to `.env` and fill in your MySQL, Redis, and GTFS-R API credentials:
+Copy `.env.example` to `.env` and fill in your MySQL, and GTFS-R API credentials. 
+
+Set your agency and GTFS feed URL using `GTFS_AGENCY_KEY` and `GTFS_SCHEDULE_URL` (used by the importer configuration in `src/storage/database/config.js`). 
+
+Then run:
 ```sh
 cp .env.example .env
 ```
@@ -39,8 +43,8 @@ This will start MySQL and Redis containers as defined in `docker-compose.yml`:
 docker-compose up -d
 ```
 
-### 4. Run the application
-Edit `src/import/config.js` to set your agency and GTFS feed URL. Then run:
+### 4. Run the application 
+Then run:
 ```sh
 npm start
 ```
