@@ -28,7 +28,7 @@ cd Realtime-Transport-Updates-API
 ```
 
 ### 2. Configure Environment
-Copy `.env.example` to `.env` and fill in your MySQL, and GTFS-R API credentials. 
+Copy `.env.example` to `.env` and fill in your MySQL and GTFS-R API credentials. 
 
 Set your agency and GTFS feed URL using `GTFS_AGENCY_KEY` and `GTFS_SCHEDULE_URL` (used by the importer configuration in `src/storage/database/config.js`). 
 
