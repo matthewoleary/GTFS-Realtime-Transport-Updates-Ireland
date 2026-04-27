@@ -93,4 +93,43 @@ describe('TripsAtStopService', () => {
     expect(mockRealtimeTripUpdates.queryProcessor.updateResultsWithRealtimeTripUpdates).toHaveBeenCalled();
     expect(mockRealtimeVehiclePositions.queryProcessor.updateResultsWithRealtimeVehiclePositions).toHaveBeenCalled();
   });
+
+  describe('no cacheService (fallback to DB)', () => {
+    let dbOnlyService;
+    beforeEach(() => {
+      dbOnlyService = new TripsAtStopService({ cacheService: null, dbClient: mockDb, logger: mockLogger });
+    });
+
+    test('getTripsAtStopIdWithCache uses DB directly', async () => {
+      mockDb.queries.getTripsAtStopId.mockResolvedValueOnce([{ trip_id: 'T1' }]);
+      const result = await dbOnlyService.getTripsAtStopIdWithCache({ stopId: 'S1', serviceDay: { dayColumn: 'monday', date: '20260427', lowerBoundTimestamp: 900, upperBoundTimestamp: 1100 } });
+      expect(mockDb.queries.getTripsAtStopId).toHaveBeenCalled();
+      expect(result).toEqual([{ trip_id: 'T1' }]);
+    });
+
+    test('getTripsAtStopIdWithNightServicesWithCache uses DB directly', async () => {
+      mockDb.queries.getTripsAtStopIdWithNightServices.mockResolvedValueOnce([{ trip_id: 'T2' }]);
+      const result = await dbOnlyService.getTripsAtStopIdWithNightServicesWithCache({
+        stopId: 'S2',
+        wrappedServiceDay: { dayColumn: 'sunday', date: '20260426', lowerBoundTimestamp: 800, upperBoundTimestamp: 900 },
+        unwrappedServiceDay: { dayColumn: 'monday', date: '20260427', lowerBoundTimestamp: 900, upperBoundTimestamp: 1100 },
+      });
+      expect(mockDb.queries.getTripsAtStopIdWithNightServices).toHaveBeenCalled();
+      expect(result).toEqual([{ trip_id: 'T2' }]);
+    });
+
+    test('getLastStopsWithCache uses DB directly', async () => {
+      mockDb.queries.getLastStops.mockResolvedValueOnce([{ trip_id: 'T1', last_stop: true }]);
+      const result = await dbOnlyService.getLastStopsWithCache([{ trip_id: 'T1' }]);
+      expect(mockDb.queries.getLastStops).toHaveBeenCalled();
+      expect(result).toEqual([{ trip_id: 'T1', last_stop: true }]);
+    });
+
+    test('getMaximumDepartureTimestampWithCache uses DB directly', async () => {
+      mockDb.queries.getMaximumDepartureTimestamp.mockResolvedValueOnce(1100);
+      const result = await dbOnlyService.getMaximumDepartureTimestampWithCache({ scheduleDay: 'monday', scheduleDate: '20260427' });
+      expect(mockDb.queries.getMaximumDepartureTimestamp).toHaveBeenCalled();
+      expect(result).toBe(1100);
+    });
+  });
 });

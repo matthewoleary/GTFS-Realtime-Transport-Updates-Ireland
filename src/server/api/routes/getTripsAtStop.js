@@ -208,12 +208,16 @@ export class TripsAtStopService {
      */
     async getTripsAtStopIdWithCache({ stopId, serviceDay }) {
         const cacheKey = `tripsAtStopId:${stopId}:${serviceDay.dayColumn}:${serviceDay.date}:${serviceDay.lowerBoundTimestamp}:${serviceDay.upperBoundTimestamp}`;
-        return this.cacheService.getOrSetCache({
-            cacheKey,
-            dbFetchFn: () => this.db.queries.getTripsAtStopId({ stopId, serviceDay }),
-            serialize: JSON.stringify,
-            deserialize: JSON.parse
-        });
+        if (this.cacheService) {
+            return this.cacheService.getOrSetCache({
+                cacheKey,
+                dbFetchFn: () => this.db.queries.getTripsAtStopId({ stopId, serviceDay }),
+                serialize: JSON.stringify,
+                deserialize: JSON.parse
+            });
+        } else {
+            return this.db.queries.getTripsAtStopId({ stopId, serviceDay });
+        }
     }
 
     /**
@@ -238,12 +242,16 @@ export class TripsAtStopService {
             `:${unwrappedServiceDay.date}` +
             `:${unwrappedServiceDay.lowerBoundTimestamp}` +
             `:${unwrappedServiceDay.upperBoundTimestamp}`;
-        return this.cacheService.getOrSetCache({
-            cacheKey,
-            dbFetchFn: () => this.db.queries.getTripsAtStopIdWithNightServices({ stopId, wrappedServiceDay, unwrappedServiceDay }),
-            serialize: JSON.stringify,
-            deserialize: JSON.parse
-        });
+        if (this.cacheService) {
+            return this.cacheService.getOrSetCache({
+                cacheKey,
+                dbFetchFn: () => this.db.queries.getTripsAtStopIdWithNightServices({ stopId, wrappedServiceDay, unwrappedServiceDay }),
+                serialize: JSON.stringify,
+                deserialize: JSON.parse
+            });
+        } else {
+            return this.db.queries.getTripsAtStopIdWithNightServices({ stopId, wrappedServiceDay, unwrappedServiceDay });
+        }
     }
 
     /**
@@ -257,12 +265,16 @@ export class TripsAtStopService {
      */
     async getLastStopsWithCache(trips) {
         const cacheKey = `lastStops:${trips.map(trip => trip.trip_id).join(',')}`;
-        return this.cacheService.getOrSetCache({
-            cacheKey,
-            dbFetchFn: () => this.db.queries.getLastStops(trips),
-            serialize: JSON.stringify,
-            deserialize: JSON.parse
-        });
+        if (this.cacheService) {
+            return this.cacheService.getOrSetCache({
+                cacheKey,
+                dbFetchFn: () => this.db.queries.getLastStops(trips),
+                serialize: JSON.stringify,
+                deserialize: JSON.parse
+            });
+        } else {
+            return this.db.queries.getLastStops(trips);
+        }
     }
 
     /**
@@ -280,19 +292,23 @@ export class TripsAtStopService {
      */
     async getMaximumDepartureTimestampWithCache({ scheduleDay, scheduleDate }) {
         const cacheKey = `maxDepartureTimestamp:${scheduleDay}:${scheduleDate}`;
-        return this.cacheService.getOrSetCache({
-            cacheKey,
-            dbFetchFn: () => this.db.queries.getMaximumDepartureTimestamp({ scheduleDay, scheduleDate }),
-            serialize: String,
-            /**
-             * Deserializes the cached value as a number. Returns null if the value is not a valid number (NaN).
-             * @param {string} value - Cached value from Redis
-             * @returns {number|null}
-             */
-            deserialize: (value) => {
-                const parsedValue = Number(value);
-                return Number.isNaN(parsedValue) ? null : parsedValue;
-            }
-        });
+        if (this.cacheService) {
+            return this.cacheService.getOrSetCache({
+                cacheKey,
+                dbFetchFn: () => this.db.queries.getMaximumDepartureTimestamp({ scheduleDay, scheduleDate }),
+                serialize: String,
+                /**
+                 * Deserializes the cached value as a number. Returns null if the value is not a valid number (NaN).
+                 * @param {string} value - Cached value from Redis
+                 * @returns {number|null}
+                 */
+                deserialize: (value) => {
+                    const parsedValue = Number(value);
+                    return Number.isNaN(parsedValue) ? null : parsedValue;
+                }
+            });
+        } else {
+            return this.db.queries.getMaximumDepartureTimestamp({ scheduleDay, scheduleDate });
+        }
     }
 }
