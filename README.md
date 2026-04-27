@@ -1,205 +1,127 @@
 # Realtime-Transport-Updates-API
-`Realtime-Transport-Updates-API` is a Node.js application that loads a [Transport For Ireland GTFS feed](https://www.transportforireland.ie/transitData/PT_Data.html) into an MSSQL docker container and exposes REST API's to consume both static GTFS schedule data and realtime updates from the [NTA GTFS-Realtime API](https://developer.nationaltransport.ie/api-details#api=gtfsr&operation=gtfsr). 
 
-It provides queries to get incoming trips at a provided stop, stop locations, routes, queries and route shapes.
+A Node.js API for serving static GTFS schedule data and real-time public transport updates for Irish transit agencies, using MySQL (or compatible) as a backend and Redis for caching. The API supports robust cache/DB fallback and exposes endpoints for agencies, routes, stops, trips, shapes, and more, with real-time GTFS-R integration.
 
-**This application is made for usage with Irish transit agency GTFS feeds and the NTA GTFS-Realtime API**, however with changes to SQL queries and the realtime plugin it can be used for transit agencies elsewhere.
+---
+
+## Features
+- Loads GTFS static data into MySQL (or compatible) via Docker
+- Integrates with the Transport for Ireland GTFS-Realtime API for live updates
+- REST API endpoints for agencies, routes, stops, trips, shapes, and more
+- Redis-based caching with DB fallback for reliability
+- Fully tested with Vitest, supporting both cache and DB-only scenarios
+
+---
 
 ## Requirements
-* Nodejs v15+
-* Docker
+- Node.js v16+
+- Docker & Docker Compose
+
+---
 
 ## Setup
-### Docker Setup
-#### Setup an MSSQL Docker container
 
-The application downloads a GTFS feed and writes it to a [Microsoft SQL Server Docker image](https://hub.docker.com/_/microsoft-mssql-server).
-
-In `docker-compose.yml` provide a password for the database, replacing the below placeholder:
-
-```
-SA_PASSWORD: '<YourNewStrong@Passw0rd>'
+### 1. Clone the Repository
+```sh
+git clone <repo-url>
+cd Realtime-Transport-Updates-API
 ```
 
-In the project root directory run the docker-compose file which downloads the image and runs the container:
-
+### 2. Configure Environment
+Copy `.env.example` to `.env` and fill in your MySQL, Redis, and GTFS-R API credentials:
+```sh
+cp .env.example .env
 ```
+
+### 3. Start Docker Containers
+This will start MySQL and Redis containers as defined in `docker-compose.yml`:
+```sh
 docker-compose up -d
 ```
-#### Connect to the SQL server
 
-Use the `docker exec -it` command to start an interactive bash shell inside your running container.
-
-```
-docker exec -it docker-gtfs-db "bash"
-```
-Once inside the container, connect locally with [sqlcmd](https://docs.microsoft.com/en-us/sql/tools/sqlcmd-utility?view=sql-server-ver15). Sqlcmd is not in the path by default, so you have to specify the full path and enter your own password:
-
-```
-/opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P "<YourNewStrong@Passw0rd>"
-```
-
-#### Create a new database
-Create a new database using the following Transact-SQL command:
-
-```sql
-CREATE DATABASE gtfsdb
-```
-Type `GO` on a new line to execute the previous command:
-
-```sql
-GO
-```
-
-#### Download and write the GTFS feed to your Docker container
-Replace `DOCKER_SQL_PASSWORD` in the below section of `.env` with the password you set:
-
-```
-# Docker SQL server container
-DOCKER_SQL_USER=sa
-DOCKER_SQL_PASSWORD=YourNewStrong@Passw0rd
-DOCKER_SQL_SERVER=localhost
-DOCKER_SQL_DATABASE=gtfsdb
-```
-In `src/import/config.js` add your own agency and the url of the GTFS feed you wish to download. You can find Transport for Ireland GTFS feeds [here](https://www.transportforireland.ie/transitData/PT_Data.html).
-
-Once you have added your own configuration import the GTFS feed into your Docker container with the following command:
-
-```
-npm run import
-```
-
-## Configuration
-In `.env` replace the placeholders in the GTFS-R API sections with your own configuration settings.
-
-To use the NTA GTFS-Realtime API you will need to sign up and obtain an API key [here](https://developer.nationaltransport.ie/signup)
-
-#### Azure SQL server configuration
-
-If your GTFS feed is on an Azure SQL server you can specify your server config in the appropriate section.
-
-## Usage
-
-### Run the Application
-
-You can run the application on the GTFS-R API test URL using:
-
-```
+### 4. Run the application
+Edit `src/import/config.js` to set your agency and GTFS feed URL. Then run:
+```sh
 npm start
 ```
-Run the application on the GTFS-R API production URL using:
+The API will be available at `http://localhost:3000` by default.
 
-```
-npm run prod
-```
+---
 
-Then open: http://127.0.0.1:3000/api/stops/8220DB000297
+## API Endpoints
 
-## Endpoints
-The below screenshots show sample query responses providing results from the GTFS static dataset, updated with realtime data where possible.
 
-### /api/tripsAtStop/`<stop_id>`
-- `since_midnight_timestamp`: Timestamp of the query as the number of seconds elapsed since midnight.
-- `query_timestamp`: Unix timestamp at the time of the query
-- `last-stop`: Indicates whether this stop is the last stop on the trip.
-- `is_realtime`: Will be `true` if result is updated with an update from the GTFS Realtime API, otherwise `false` and using the static schedule data.
-- `due_in`: The number of minutes until the scheduled arrival of the trip at the queried stop.
-- `realtime_timestamp`: Unix timestamp of the moment a response was received from the GTFS Realtime API.
+All endpoints return JSON and support both static and real-time data where available.
 
-![](./screenshots/trips-at-stopid.png)
+### Agencies
+- `GET /api/agencies` — List all agencies
+- `GET /api/agencies?agencyId={agency_id}` — Get one or more agencies by ID (comma-separated or repeated agencyId params supported)
 
-### /api/stops/`<stop_id>`
-- `since_midnight_timestamp`: Timestamp of the query as the number of seconds elapsed since midnight.
-- `query_timestamp`: Unix timestamp at the time of the query
+- If `agencyId` is provided, returns details for the specified agency/agencies only.
+- If not provided, returns all agencies.
 
-![](./screenshots/stop-by-id.png)
+### Routes
+- `GET /api/routes` — List all routes
+- `GET /api/routes?routeId={route_id}` — Get one or more routes by ID (comma-separated or repeated routeId params supported)
+- `GET /api/routes?agencyId={agency_id}` — Get all routes for a specific agency
 
-### /api/routes/`<route_id>`
-- `since_midnight_timestamp`: Timestamp of the query as the number of seconds elapsed since midnight.
-- `query_timestamp`: Unix timestamp at the time of the query
+- If `routeId` is provided, returns details for the specified route(s) only.
+- If only `agencyId` is provided, returns all routes for that agency.
+- If neither is provided, returns all routes.
+- If both are provided, only `routeId` is used.
 
-![](./screenshots/route-by-id.png)
+### Stops
+- `GET /api/stops` — List all stops
+- `GET /api/stops?stopId={stop_id}` — Get one or more stops by ID (comma-separated or repeated stopId params supported)
+- `GET /api/stops?agencyId={agency_id}` — Get all stops for a specific agency
 
-### /api/trips/`<trip_id>`
-- `since_midnight_timestamp`: Timestamp of the query as the number of seconds elapsed since midnight.
-- `query_timestamp`: Unix timestamp at the time of the query
+- If `stopId` is provided, returns details for the specified stop(s) only.
+- If only `agencyId` is provided, returns all stops for that agency.
+- If neither is provided, returns all stops.
+- If both are provided, only `stopId` is used.
 
-![](./screenshots/trip-by-id.png)
+### Trips
+- `GET /api/trips?tripId={trip_id}` — Get one or more trips by ID (comma-separated or repeated tripId params supported; required)
 
-### /api/agencies/`<agency_id>`
-- `since_midnight_timestamp`: Timestamp of the query as the number of seconds elapsed since midnight.
-- `query_timestamp`: Unix timestamp at the time of the query
+- `tripId` is required. Returns details for the specified trip(s) only.
 
-![](./screenshots/agency-by-id.png)
+### Shapes
+- `GET /api/shapes?shapeId={shape_id}` — Get one or more shapes by ID (comma-separated or repeated shapeId params supported; required)
 
-### /api/shapes/`<shape_id>`
-- `since_midnight_timestamp`: Timestamp of the query as the number of seconds elapsed since midnight.
-- `query_timestamp`: Unix timestamp at the time of the query
+- `shapeId` is required. Returns details for the specified shape(s) only.
 
-![](./screenshots/shapes-by-id.png)
+### Trips At Stop
+- `GET /api/tripsAtStop?stopId={stop_id}` — Get incoming trips at one or more stops (comma-separated or repeated stopId params supported; required, with real-time updates)
 
-### /api/transfers/from/`<stop_id>`
-- `since_midnight_timestamp`: Timestamp of the query as the number of seconds elapsed since midnight.
-- `query_timestamp`: Unix timestamp at the time of the query
+- `stopId` is required. Returns incoming trips for the specified stop(s), including real-time updates. Supports single, comma-separated, or repeated stopId values.
 
-![](./screenshots/transfers-from-id.png)
+### Stop Times
+Stop Times endpoint supports flexible queries:
+- `GET /api/stopTimes?tripId={trip_id}` — Get stop times for one or more trips (comma-separated or repeated tripId params supported; required)
 
-### /api/transfers/to/`<stop_id>`
-- `since_midnight_timestamp`: Timestamp of the query as the number of seconds elapsed since midnight.
-- `query_timestamp`: Unix timestamp at the time of the query
+- `tripId` is required. Returns stop times for the specified trip(s). Supports single, comma-separated, or repeated tripId values.
 
-![](./screenshots/transfers-to-id.png)
+---
 
 ## Testing
 
-### Test database for docker
-
-SQL query tests are run against the GTFS dataset provided as of 16th December 2020. For this purpose a Docker image containing this GTFS feed in an mssql database can be found [here](https://hub.docker.com/repository/docker/matthewoleary/irish-transport-gtfs).
-
-To successfully run all tests you will need to download and run the test database in a docker container. You can do so by changing `docker-compose.yml` to the below:
-
-```
-version: '3.7'
-services:
-    docker-gtfs-db:
-        container_name: docker-gtfs-db-testing
-        image: matthewoleary/irish-transport-gtfs:20201216
-        ports:
-            - '1433:1433'
-        environment: 
-            SA_PASSWORD: 'YourStrong@Passw0rd'
-            ACCEPT_EULA: 'Y'
-```
-
-And running the following command:
-
-```
-docker-compose up -d
-```
-
-Note: After setup, the `SA_PASSWORD` environment variable has the above default value `YourStrong@Passw0rd`. **It is strongly recommended you change this password by following the guide to do so provided by Microsoft [here](https://docs.microsoft.com/en-us/sql/linux/quickstart-install-connect-docker?view=sql-server-ver15&pivots=cs1-bash#sapassword****).**
-
-The below example replaces the old password `YourStrong@Passw0rd`, with your own password value replacing the placeholder `<YourNewStrong@Passw0rd>`.
-
-```bash
-sudo docker exec -it docker-gtfs-db-testing /opt/mssql-tools/bin/sqlcmd \
-   -S localhost -U SA -P "YourStrong@Passw0rd" \
-   -Q 'ALTER LOGIN SA WITH PASSWORD="<YourNewStrong@Passw0rd>"'
-```
-
-### Run Tests
-
-
-
-The following command runs tests on the application:
-
-```
+### Run All Tests
+```sh
 npm test
 ```
 
 ### Linting
-The following command runs linting on the application:
-
-```
+```sh
 npm run lint
 ```
+
+---
+
+## Notes
+- For real-time data, you must provide a valid GTFS-R API key in your `.env` file.
+- The API is designed for Irish TFI GTFS feeds but can be adapted for other regions with minor changes.
+
+---
+
+## License
+MIT
