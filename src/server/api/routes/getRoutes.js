@@ -21,8 +21,6 @@ export default function getRoutes(server) {
     const logger = new ServerLogger({ client: 'getRoutes' });
     const cacheKeyBase = 'routes';
 
-
-
     // Retrieves route details for a list of route IDs, using CacheService for cache logic.
     async function getRoutesByIds(routeIds, db, cacheService, cacheKeyBase) {
         const response = [];

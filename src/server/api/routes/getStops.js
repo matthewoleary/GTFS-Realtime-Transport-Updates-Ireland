@@ -32,6 +32,93 @@ import { CacheService } from '../../../services/cache/cacheService.js';
 export default function getStops(server) {
     const logger = new ServerLogger({ client: 'getStops' });
     const cacheKeyBase = 'stops';
+
+    /**
+     * Retrieves stop details for a list of stop IDs, using Redis cache if available.
+     * Falls back to the database and updates the cache on miss or corruption.
+     *
+     * @param {string[]} stopIds - Array of stop IDs to fetch.
+     * @param {object} db - Database client with queries.
+     * @param {object|null} cacheService - Cache service instance or null.
+     * @param {string} cacheKeyBase - Base string for cache key construction.
+     * @returns {Promise<object[]>} Array of stop objects.
+     */
+    async function getStopsByIds(stopIds, db, cacheService, cacheKeyBase) {
+        const response = [];
+        for (const id of stopIds) {
+            const cacheKey = `${cacheKeyBase}:stop:${id}`;
+            let stop;
+            if (cacheService) {
+                stop = await cacheService.getOrSetCache({
+                    cacheKey,
+                    dbFetchFn: async () => {
+                        const result = await db.queries.getStopById(id);
+                        return result && result[0] ? result[0] : null;
+                    },
+                    serialize: JSON.stringify,
+                    deserialize: JSON.parse
+                });
+            } else {
+                logger.warn('Cache service not available, fetching stop directly from database for stopId: ' + id);
+                const result = await db.queries.getStopById(id);
+                stop = result && result[0] ? result[0] : null;
+            }
+            if (stop) {
+                response.push(stop);
+            }
+        }
+        return response;
+    }
+
+    /**
+     * Retrieves all stops for a given agency, using Redis cache if available.
+     * Falls back to the database and updates the cache on miss or corruption.
+     *
+     * @param {string} agencyId - Agency ID to fetch stops for.
+     * @param {object} db - Database client with queries.
+     * @param {object|null} cacheService - Cache service instance or null.
+     * @param {string} cacheKeyBase - Base string for cache key construction.
+     * @returns {Promise<object[]>} Array of stop objects for the agency.
+     */
+    async function getStopsByAgencyId(agencyId, db, cacheService, cacheKeyBase) {
+        const cacheKey = `${cacheKeyBase}:agency:${agencyId}`;
+        if (cacheService) {
+            return await cacheService.getOrSetCache({
+                cacheKey,
+                dbFetchFn: async () => await db.queries.getAllStopsByAgencyId(agencyId),
+                serialize: JSON.stringify,
+                deserialize: JSON.parse
+            });
+        } else {
+            logger.warn('Cache service not available, fetching stops directly from database for agencyId: ' + agencyId);
+            return await db.queries.getAllStopsByAgencyId(agencyId);
+        }
+    }
+
+    /**
+     * Retrieves all stops, using Redis cache if available.
+     * Falls back to the database and updates the cache on miss or corruption.
+     *
+     * @param {object} db - Database client with queries.
+     * @param {object|null} cacheService - Cache service instance or null.
+     * @param {string} cacheKeyBase - Base string for cache key construction.
+     * @returns {Promise<object[]>} Array of all stop objects.
+     */
+    async function getAllStops(db, cacheService, cacheKeyBase) {
+        const cacheKey = `${cacheKeyBase}:all`;
+        if (cacheService) {
+            return await cacheService.getOrSetCache({
+                cacheKey,
+                dbFetchFn: async () => await db.queries.getAllStops(),
+                serialize: JSON.stringify,
+                deserialize: JSON.parse
+            });
+        } else {
+            logger.warn('Cache service not available, fetching all stops directly from database');
+            return await db.queries.getAllStops();
+        }
+    }
+
     server.route({
         method: 'GET',
         path: '/api/stops',
@@ -68,93 +155,4 @@ export default function getStops(server) {
             }
         }
     });
-}
-
-/**
- * Retrieves stop details for a list of stop IDs, using Redis cache if available.
- * Falls back to the database and updates the cache on miss or corruption.
- *
- * @param {string[]} stopIds - Array of stop IDs to fetch.
- * @param {object} db - Database client with queries.
- * @param {object|null} redisClient - Redis client instance or null.
- * @param {object} logger - Logger instance for logging.
- * @param {string} cacheKeyBase - Base string for cache key construction.
- * @returns {Promise<object[]>} Array of stop objects.
- */
-async function getStopsByIds(stopIds, db, cacheService, cacheKeyBase) {
-    const response = [];
-    for (const id of stopIds) {
-        const cacheKey = `${cacheKeyBase}:stop:${id}`;
-        let stop;
-        if (cacheService) {
-            stop = await cacheService.getOrSetCache({
-                cacheKey,
-                dbFetchFn: async () => {
-                    const result = await db.queries.getStopById(id);
-                    return result && result[0] ? result[0] : null;
-                },
-                serialize: JSON.stringify,
-                deserialize: JSON.parse
-            });
-        } else {
-            logger.warn('Cache service not available, fetching stop directly from database for stopId: ' + id);
-            const result = await db.queries.getStopById(id);
-            stop = result && result[0] ? result[0] : null;
-        }
-        if (stop) {
-            response.push(stop);
-        }
-    }
-    return response;
-}
-
-/**
- * Retrieves all stops for a given agency, using Redis cache if available.
- * Falls back to the database and updates the cache on miss or corruption.
- *
- * @param {string} agencyId - Agency ID to fetch stops for.
- * @param {object} db - Database client with queries.
- * @param {object|null} redisClient - Redis client instance or null.
- * @param {object} logger - Logger instance for logging.
- * @param {string} cacheKeyBase - Base string for cache key construction.
- * @returns {Promise<object[]>} Array of stop objects for the agency.
- */
-async function getStopsByAgencyId(agencyId, db, cacheService, cacheKeyBase) {
-    const cacheKey = `${cacheKeyBase}:agency:${agencyId}`;
-    if (cacheService) {
-        return await cacheService.getOrSetCache({
-            cacheKey,
-            dbFetchFn: async () => await db.queries.getAllStopsByAgencyId(agencyId),
-            serialize: JSON.stringify,
-            deserialize: JSON.parse
-        });
-    } else {
-        logger.warn('Cache service not available, fetching stops directly from database for agencyId: ' + agencyId);
-        return await db.queries.getAllStopsByAgencyId(agencyId);
-    }
-}
-
-/**
- * Retrieves all stops, using Redis cache if available.
- * Falls back to the database and updates the cache on miss or corruption.
- *
- * @param {object} db - Database client with queries.
- * @param {object|null} redisClient - Redis client instance or null.
- * @param {object} logger - Logger instance for logging.
- * @param {string} cacheKeyBase - Base string for cache key construction.
- * @returns {Promise<object[]>} Array of all stop objects.
- */
-async function getAllStops(db, cacheService, cacheKeyBase) {
-    const cacheKey = `${cacheKeyBase}:all`;
-    if (cacheService) {
-        return await cacheService.getOrSetCache({
-            cacheKey,
-            dbFetchFn: async () => await db.queries.getAllStops(),
-            serialize: JSON.stringify,
-            deserialize: JSON.parse
-        });
-    } else {
-        logger.warn('Cache service not available, fetching all stops directly from database');
-        return await db.queries.getAllStops();
-    }
 }
