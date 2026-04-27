@@ -76,14 +76,14 @@ const register = async ({ getConnection, loadSqlQueries: injectedLoadSqlQueries 
 		return rows;
 	};
 
-	const getTripsAtStopId = async ({ stopId, serviceDay }) => {
+	const getTripsAtStopId = async (stopId, serviceDay) => {
 		const cnx = await getConnection();
 		const query = getTripsAtStopIdQuery(serviceDay);
 		const [rows] = await cnx.query(query, [stopId]);
 		return rows;
 	};
 
-	const getTripsAtStopIdWithNightServices = async ({ stopId, wrappedServiceDay, unwrappedServiceDay }) => {
+	const getTripsAtStopIdWithNightServices = async (stopId, wrappedServiceDay, unwrappedServiceDay) => {
 		const cnx = await getConnection();
 		const query = getTripsAtStopIdNightServicesQuery(wrappedServiceDay, unwrappedServiceDay);
 		const [rows] = await cnx.query(query, [stopId, stopId]);

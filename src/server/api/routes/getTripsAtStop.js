@@ -206,17 +206,17 @@ export class TripsAtStopService {
      * @param {Object} params.serviceDay - Service day object for the query window.
      * @returns {Promise<Object[]>} Array of trip objects for the stop and service day.
      */
-    async getTripsAtStopIdWithCache({ stopId, serviceDay }) {
+    async getTripsAtStopIdWithCache( stopId, serviceDay ) {
         const cacheKey = `tripsAtStopId:${stopId}:${serviceDay.dayColumn}:${serviceDay.date}:${serviceDay.lowerBoundTimestamp}:${serviceDay.upperBoundTimestamp}`;
         if (this.cacheService) {
             return this.cacheService.getOrSetCache({
                 cacheKey,
-                dbFetchFn: () => this.db.queries.getTripsAtStopId({ stopId, serviceDay }),
+                dbFetchFn: () => this.db.queries.getTripsAtStopId( stopId, serviceDay ),
                 serialize: JSON.stringify,
                 deserialize: JSON.parse
             });
         } else {
-            return this.db.queries.getTripsAtStopId({ stopId, serviceDay });
+            return this.db.queries.getTripsAtStopId( stopId, serviceDay );
         }
     }
 
@@ -232,7 +232,7 @@ export class TripsAtStopService {
      * @param {Object} params.unwrappedServiceDay - Service day object for current day (night service window).
      * @returns {Promise<Object[]>} Array of trip objects for the stop and night service window.
      */
-    async getTripsAtStopIdWithNightServicesWithCache({ stopId, wrappedServiceDay, unwrappedServiceDay }) {
+    async getTripsAtStopIdWithNightServicesWithCache( stopId, wrappedServiceDay, unwrappedServiceDay ) {
         const cacheKey = `tripsAtStopIdWithNightServices:${stopId}` +
             `:${wrappedServiceDay.dayColumn}` +
             `:${wrappedServiceDay.date}` +
@@ -245,12 +245,12 @@ export class TripsAtStopService {
         if (this.cacheService) {
             return this.cacheService.getOrSetCache({
                 cacheKey,
-                dbFetchFn: () => this.db.queries.getTripsAtStopIdWithNightServices({ stopId, wrappedServiceDay, unwrappedServiceDay }),
+                dbFetchFn: () => this.db.queries.getTripsAtStopIdWithNightServices( stopId, wrappedServiceDay, unwrappedServiceDay ),
                 serialize: JSON.stringify,
                 deserialize: JSON.parse
             });
         } else {
-            return this.db.queries.getTripsAtStopIdWithNightServices({ stopId, wrappedServiceDay, unwrappedServiceDay });
+            return this.db.queries.getTripsAtStopIdWithNightServices( stopId, wrappedServiceDay, unwrappedServiceDay );
         }
     }
 
@@ -295,7 +295,7 @@ export class TripsAtStopService {
         if (this.cacheService) {
             return this.cacheService.getOrSetCache({
                 cacheKey,
-                dbFetchFn: () => this.db.queries.getMaximumDepartureTimestamp({ scheduleDay, scheduleDate }),
+                dbFetchFn: () => this.db.queries.getMaximumDepartureTimestamp(scheduleDay, scheduleDate),
                 serialize: String,
                 /**
                  * Deserializes the cached value as a number. Returns null if the value is not a valid number (NaN).
@@ -308,7 +308,7 @@ export class TripsAtStopService {
                 }
             });
         } else {
-            return this.db.queries.getMaximumDepartureTimestamp({ scheduleDay, scheduleDate });
+            return this.db.queries.getMaximumDepartureTimestamp(scheduleDay, scheduleDate);
         }
     }
 }
