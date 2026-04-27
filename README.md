@@ -112,7 +112,7 @@ Stop Times endpoint supports flexible queries:
 ### Run Docker Test Database Container
 
 ``` sh
-docker-compose --profile testing up -d
+docker-compose up -d gtfs-db-testing redis
 ```
 
 ### Run All Tests
