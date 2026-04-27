@@ -7,6 +7,8 @@ export default {
     name: 'cache',
     version: '1.0.0',
     register: async (server) => {
+        // redis config is currently undefined, redis will be created with defaults.
+        // add a redis section to the app config to customize connection settings (e.g. host, port, password)
         const config = server.app.config.redis;
         let redisClientInstance;
         let cacheServiceInstance;
