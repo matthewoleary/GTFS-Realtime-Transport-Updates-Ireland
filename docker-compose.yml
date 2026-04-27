@@ -13,6 +13,7 @@ services:
         volumes:
             - mysql-tfi-data:/var/lib/mysql
     gtfs-db-testing:
+        profiles: ["testing"]
         container_name: gtfs-db-testing
         image: matthewoleary/gtfs-db-testing:20260316
         restart: always
