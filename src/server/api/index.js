@@ -41,7 +41,7 @@ export function getRedisClient(request) {
  * @returns {object} The Cache service instance.
  */
 export function getCacheService(request) {
-	return request.server.plugins.cache.cacheService
+	return request.server.plugins.cache.cacheService;
 }
 
 /**
