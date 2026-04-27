@@ -109,6 +109,12 @@ Stop Times endpoint supports flexible queries:
 
 ## Testing
 
+### Run Docker Test Database Container
+
+``` sh
+docker-compose --profile testing up -d
+```
+
 ### Run All Tests
 ```sh
 npm test
