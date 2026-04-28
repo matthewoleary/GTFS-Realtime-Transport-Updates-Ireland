@@ -24,7 +24,7 @@ export default function getTripsAtStop(server) {
         path: '/api/stops/{stopId}/trips',
         handler: async (request, handler) => {
             const logger = new ServerLogger({ client: 'getTripsAtStop' });
-            const db = getDatabaseClient(request);
+            const dbClient = getDatabaseClient(request);
             let cacheService = null;
             try {
                 cacheService = getCacheService(request);
@@ -32,7 +32,7 @@ export default function getTripsAtStop(server) {
                 logger.warn('Cache service not available or failed to initialize, proceeding without cache. Error: ' + error.message);
                 cacheService = null;
             }
-            const service = new TripsAtStopService({ dbClient: db, cacheService, logger });
+            const service = new TripsAtStopService(dbClient, cacheService, logger);
             try {
                 const realtimeTripUpdates = getRealtimeTripUpdatesClient(request);
                 const realtimeVehiclePositions = getRealtimeVehiclePositionsClient(request);
@@ -56,7 +56,7 @@ export default function getTripsAtStop(server) {
                 if (!realtimeTripUpdates) {
                     throw new Error('Realtime plugin is not registered or not available');
                 }
-                if (!db) {
+                if (!dbClient) {
                     throw new Error('Database client is not available');
                 }
 
@@ -68,10 +68,7 @@ export default function getTripsAtStop(server) {
                 const scheduleDay = getCurrentDay().toLowerCase();
                 const scheduleDate = getCurrentDate();
 
-                const maxDepartureTimestamp = await service.getMaximumDepartureTimestampWithCache({
-                    scheduleDay,
-                    scheduleDate
-                });
+                const maxDepartureTimestamp = await service.getMaximumDepartureTimestampWithCache(scheduleDay, scheduleDate);
                 const maxDepartureTimestampUnwrapped = getUnwrappedTimestamp(maxDepartureTimestamp);
 
                 if (checkIfNightServices(secondsSinceMidnightTimestamp, maxDepartureTimestampUnwrapped)) {
@@ -81,9 +78,7 @@ export default function getTripsAtStop(server) {
                     const wrappedUpperBoundTimestamp = getWrappedTimestamp(querySearchUpperBoundTimestamp, maxDepartureTimestampUnwrapped);
                     const wrappedServiceDay = buildServiceDay(previousScheduleDay, previousScheduleDate, wrappedLowerBoundTimestamp, wrappedUpperBoundTimestamp);
                     const unwrappedServiceDay = buildServiceDay(scheduleDay, scheduleDate, querySearchLowerBoundTimestamp, querySearchUpperBoundTimestamp);
-                    const result = await service.getTripsWithMidnightServices({
-                        stopId, realtimeTripUpdates, realtimeVehiclePositions, payload, wrappedServiceDay, unwrappedServiceDay
-                    });
+                    const result = await service.getTripsWithMidnightServices(stopId, realtimeTripUpdates, realtimeVehiclePositions, payload, wrappedServiceDay, unwrappedServiceDay);
                     return handler.response(result);
                 }
 
@@ -94,20 +89,12 @@ export default function getTripsAtStop(server) {
                     const wrappedUpperBoundTimestamp = getWrappedTimestamp(querySearchUpperBoundTimestamp, maxDepartureTimestampUnwrapped);
                     const wrappedServiceDay = buildServiceDay(scheduleDay, scheduleDate, wrappedLowerBoundTimestamp, wrappedUpperBoundTimestamp);
                     const unwrappedServiceDay = buildServiceDay(nextScheduleDay, nextScheduleDate, 0, querySearchUpperBoundTimestamp);
-                    const result = await service.getTripsWithMidnightServices({
-                        stopId, realtimeTripUpdates, realtimeVehiclePositions, payload, wrappedServiceDay, unwrappedServiceDay
-                    });
+                    const result = await service.getTripsWithMidnightServices(stopId, realtimeTripUpdates, realtimeVehiclePositions, payload, wrappedServiceDay, unwrappedServiceDay);
                     return handler.response(result);
                 }
 
                 const serviceDay = buildServiceDay(scheduleDay, scheduleDate, querySearchLowerBoundTimestamp, querySearchUpperBoundTimestamp);
-                const result = await service.getTrips({
-                    stopId,
-                    realtimeTripUpdates,
-                    realtimeVehiclePositions,
-                    payload,
-                    serviceDay
-                });
+                const result = await service.getTrips(stopId, realtimeTripUpdates, realtimeVehiclePositions, payload, serviceDay);
                 return handler.response(result);
             } catch (error) {
                 logger.error(error);
@@ -136,7 +123,7 @@ export class TripsAtStopService {
      * @param {Object} params.dbClient - Database client instance for queries.
      * @param {Object} params.logger - Logger instance for logging events and errors.
      */
-    constructor({ cacheService, dbClient, logger }) {
+    constructor(cacheService, dbClient, logger) {
         this.db = dbClient;
         this.logger = logger;
         this.cacheService = cacheService;
