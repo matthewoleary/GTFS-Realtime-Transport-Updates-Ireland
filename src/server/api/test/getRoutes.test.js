@@ -54,21 +54,26 @@ describe('getRoutes (with CacheService)', () => {
 		mockSortByRouteShortNameAsInt.mockClear();
 	});
 
-	test('registers the route on the server', () => {
+	test('registers the list and detail routes on the server', () => {
 		getRoutes(server);
 		expect(server.route).toHaveBeenCalledWith(expect.objectContaining({
 			method: 'GET',
 			path: '/api/routes',
 			handler: expect.any(Function)
 		}));
+		expect(server.route).toHaveBeenCalledWith(expect.objectContaining({
+			method: 'GET',
+			path: '/api/routes/{routeId}',
+			handler: expect.any(Function)
+		}));
 	});
 
-	test('returns all routes if no params and caches result (cache miss)', async () => {
+	test('returns all routes (list endpoint, cache miss)', async () => {
 		const routes = [{ id: 1 }, { id: 2 }];
 		db.queries.getAllRoutes.mockResolvedValue(routes);
 		mockCacheService.getOrSetCache.mockImplementation(async ({ cacheKey, dbFetchFn }) => {
 			expect(cacheKey).toBe('routes:all');
-			return dbFetchFn(); // simulate cache miss
+			return dbFetchFn();
 		});
 		getRoutes(server);
 		handler = server.route.mock.calls[0][0].handler;
@@ -87,7 +92,7 @@ describe('getRoutes (with CacheService)', () => {
 		}));
 	});
 
-	test('returns all routes from cache if present (cache hit)', async () => {
+	test('returns all routes from cache if present (list endpoint, cache hit)', async () => {
 		const routes = [{ id: 1 }, { id: 2 }];
 		mockCacheService.getOrSetCache.mockResolvedValue(routes);
 		getRoutes(server);
@@ -102,40 +107,34 @@ describe('getRoutes (with CacheService)', () => {
 		}));
 	});
 
-	test('returns routes by id if routeId param is present and caches each (cache miss)', async () => {
-		mockExtractIdsFromParam.mockReturnValue(['R1', 'R2']);
-		db.queries.getRouteById.mockResolvedValueOnce([{ id: 'R1' }]).mockResolvedValueOnce([{ id: 'R2' }]);
-		mockCacheService.getOrSetCache
-			.mockImplementationOnce(async ({ cacheKey, dbFetchFn }) => dbFetchFn())
-			.mockImplementationOnce(async ({ cacheKey, dbFetchFn }) => dbFetchFn());
+	test('returns route by id (detail endpoint, cache miss)', async () => {
+		db.queries.getRouteById.mockResolvedValueOnce([{ id: 'R1' }]);
+		mockCacheService.getOrSetCache.mockImplementationOnce(async ({ cacheKey, dbFetchFn }) => dbFetchFn());
 		getRoutes(server);
-		handler = server.route.mock.calls[0][0].handler;
-		const req = { query: { routeId: 'R1,R2' }, server };
+		handler = server.route.mock.calls[1][0].handler;
+		const req = { params: { routeId: 'R1' }, server };
 		const res = await handler(req, h);
-		expect(mockExtractIdsFromParam).toHaveBeenCalledWith('R1,R2');
 		expect(mockCacheService.getOrSetCache).toHaveBeenCalledWith(expect.objectContaining({ cacheKey: 'routes:route:R1' }));
-		expect(mockCacheService.getOrSetCache).toHaveBeenCalledWith(expect.objectContaining({ cacheKey: 'routes:route:R2' }));
-		expect(db.queries.getRouteById).toHaveBeenCalledTimes(2);
+		expect(db.queries.getRouteById).toHaveBeenCalledWith('R1');
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
-			response: [{ id: 'R1' }, { id: 'R2' }]
+			response: { id: 'R1' }
 		}));
 	});
 
-	test('returns route by id from cache if present (cache hit)', async () => {
-		mockExtractIdsFromParam.mockReturnValue(['R1']);
+	test('returns route by id from cache if present (detail endpoint, cache hit)', async () => {
 		mockCacheService.getOrSetCache.mockResolvedValueOnce({ id: 'R1' });
 		getRoutes(server);
-		handler = server.route.mock.calls[0][0].handler;
-		const req = { query: { routeId: 'R1' }, server };
+		handler = server.route.mock.calls[1][0].handler;
+		const req = { params: { routeId: 'R1' }, server };
 		const res = await handler(req, h);
 		expect(mockCacheService.getOrSetCache).toHaveBeenCalledWith(expect.objectContaining({ cacheKey: 'routes:route:R1' }));
 		expect(db.queries.getRouteById).not.toHaveBeenCalled();
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
-			response: [{ id: 'R1' }]
+			response: { id: 'R1' }
 		}));
 	});
 
-	test('returns all routes by agencyId if agencyId param is present and caches result (cache miss)', async () => {
+	test('returns all routes by agencyId if agencyId param is present and caches result (list endpoint, cache miss)', async () => {
 		db.queries.getAllRoutesByAgencyId.mockResolvedValue([{ id: 'A1' }]);
 		mockCacheService.getOrSetCache.mockImplementation(async ({ cacheKey, dbFetchFn }) => {
 			expect(cacheKey).toBe('routes:agency:A1');
@@ -152,7 +151,7 @@ describe('getRoutes (with CacheService)', () => {
 		}));
 	});
 
-	test('returns all routes by agencyId from cache if present (cache hit)', async () => {
+	test('returns all routes by agencyId from cache if present (list endpoint, cache hit)', async () => {
 		mockCacheService.getOrSetCache.mockResolvedValue([{ id: 'A1' }]);
 		getRoutes(server);
 		handler = server.route.mock.calls[0][0].handler;
@@ -165,7 +164,7 @@ describe('getRoutes (with CacheService)', () => {
 		}));
 	});
 
-	test('returns all routes from DB if cacheService is unavailable', async () => {
+	test('returns all routes from DB if cacheService is unavailable (list endpoint)', async () => {
 		server.plugins.cache.cacheService = null;
 		const routes = [{ id: 1 }];
 		db.queries.getAllRoutes.mockResolvedValue(routes);
@@ -180,7 +179,7 @@ describe('getRoutes (with CacheService)', () => {
 		}));
 	});
 
-	test('returns 500 on error', async () => {
+	test('returns 500 on error (list endpoint)', async () => {
 		db.queries.getAllRoutes.mockRejectedValue(new Error('fail'));
 		mockCacheService.getOrSetCache.mockImplementation(() => { throw new Error('fail'); });
 		getRoutes(server);

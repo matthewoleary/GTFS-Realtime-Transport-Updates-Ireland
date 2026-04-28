@@ -53,88 +53,63 @@ describe('getStopTimes (with CacheService)', () => {
 		getStopTimes(server);
 		expect(server.route).toHaveBeenCalledWith(expect.objectContaining({
 			method: 'GET',
-			path: '/api/stopTimes',
+			path: '/api/trips/{tripId}/stopTimes',
 			handler: expect.any(Function)
 		}));
 	});
 
-	test('returns stop times from cache for a single tripId', async () => {
-		mockExtractIdsFromParam.mockReturnValue(['T1']);
+	test('returns stop times from cache for a tripId (cache hit)', async () => {
 		mockCacheService.getOrSetCache.mockResolvedValueOnce([{ stop_id: 'stop1' }]);
 		getStopTimes(server);
 		handler = server.route.mock.calls[0][0].handler;
-		const req = { query: { tripId: 'T1' }, server };
+		const req = { params: { tripId: 'T1' }, server };
 		const res = await handler(req, h);
-		expect(mockExtractIdsFromParam).toHaveBeenCalledWith('T1');
 		expect(mockCacheService.getOrSetCache).toHaveBeenCalledWith(expect.objectContaining({ cacheKey: 'stopTimes:trip:T1' }));
 		expect(db.queries.getStopTimesByTripId).not.toHaveBeenCalled();
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
 			query_timestamp: 1234567890,
-			response: [{ tripId: 'T1', stopTimes: [{ stop_id: 'stop1' }] }]
-		}));
-	});
-
-	test('returns stop times from cache for multiple tripIds', async () => {
-		mockExtractIdsFromParam.mockReturnValue(['T1', 'T2']);
-		mockCacheService.getOrSetCache
-			.mockResolvedValueOnce([{ stop_id: 'stop1' }])
-			.mockResolvedValueOnce([{ stop_id: 'stop2' }]);
-		getStopTimes(server);
-		handler = server.route.mock.calls[0][0].handler;
-		const req = { query: { tripId: 'T1,T2' }, server };
-		const res = await handler(req, h);
-		expect(mockExtractIdsFromParam).toHaveBeenCalledWith('T1,T2');
-		expect(mockCacheService.getOrSetCache).toHaveBeenCalledTimes(2);
-		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
-			query_timestamp: 1234567890,
-			response: [
-				{ tripId: 'T1', stopTimes: [{ stop_id: 'stop1' }] },
-				{ tripId: 'T2', stopTimes: [{ stop_id: 'stop2' }] }
-			]
+			response: [{ stop_id: 'stop1' }]
 		}));
 	});
 
 	test('returns stop times from DB if cacheService is unavailable', async () => {
-    server.plugins.cache.cacheService = null;
+		server.plugins.cache.cacheService = null;
 		db.queries.getStopTimesByTripId.mockResolvedValueOnce([{ stop_id: 'stop-db' }]);
-		mockExtractIdsFromParam.mockReturnValue(['TDB']);
 		getStopTimes(server);
 		handler = server.route.mock.calls[0][0].handler;
-		const req = { query: { tripId: 'TDB' }, server };
+		const req = { params: { tripId: 'TDB' }, server };
 		const res = await handler(req, h);
 		expect(db.queries.getStopTimesByTripId).toHaveBeenCalledWith('TDB');
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
 			query_timestamp: 1234567890,
-			response: [{ tripId: 'TDB', stopTimes: [{ stop_id: 'stop-db' }] }]
+			response: [{ stop_id: 'stop-db' }]
 		}));
 	});
 
 	test('returns 400 if tripId is missing', async () => {
 		getStopTimes(server);
 		handler = server.route.mock.calls[0][0].handler;
-		const req = { query: {}, server };
+		const req = { params: {}, server };
 		const res = await handler(req, h);
 		expect(res.code).toBe(true);
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({ error: expect.stringMatching(/tripId/) }));
 	});
 
 	test('returns 404 if no stop times found', async () => {
-		mockExtractIdsFromParam.mockReturnValue(['T404']);
 		mockCacheService.getOrSetCache.mockResolvedValueOnce([]);
 		getStopTimes(server);
 		handler = server.route.mock.calls[0][0].handler;
-		const req = { query: { tripId: 'T404' }, server };
+		const req = { params: { tripId: 'T404' }, server };
 		const res = await handler(req, h);
 		expect(res.code).toBe(true);
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({ error: expect.stringMatching(/No stop times/) }));
 	});
 
 	test('returns 500 on handler error', async () => {
-		mockExtractIdsFromParam.mockReturnValue(['TERR']);
 		mockCacheService.getOrSetCache.mockRejectedValueOnce(new Error('fail'));
 		getStopTimes(server);
 		handler = server.route.mock.calls[0][0].handler;
-		const req = { query: { tripId: 'TERR' }, server };
+		const req = { params: { tripId: 'TERR' }, server };
 		const res = await handler(req, h);
 		expect(res.code).toBe(true);
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({ error: expect.stringMatching(/Internal Server Error/) }));

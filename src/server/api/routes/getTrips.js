@@ -4,11 +4,9 @@ import { getDatabaseClient, getRealtimeVehiclePositionsClient, getCacheService }
 import { getUnixTimestamp } from '../../../utils/timestampUtils.js';
 
 /**
- * Registers the /api/trips GET route for fetching GTFS trip data.
+ * Registers the /api/trips/{tripId} GET route for fetching a GTFS trip by ID.
  *
- * - If the optional `tripId` query parameter is provided (as a string or array, comma-separated supported),
- *   returns details for the specified trip(s) only.
- * - If `tripId` is omitted, returns an error (tripId is required for trips).
+ * - Returns details for the specified trip.
  * - Adds current and Unix timestamps to the response payload for client-side reference.
  * - Handles MySQL backend via the dynamic SQL client.
  *
@@ -18,9 +16,11 @@ import { getUnixTimestamp } from '../../../utils/timestampUtils.js';
 export default function getTrips(server) {
     const logger = new ServerLogger({ client: 'getTrips' });
     const cacheKeyBase = 'trips';
+
+    // GET /api/trips/{tripId} - Get trip by ID
     server.route({
         method: 'GET',
-        path: '/api/trips',
+        path: '/api/trips/{tripId}',
         handler: async (request, handler) => {
             try {
                 const db = getDatabaseClient(request);
@@ -32,42 +32,31 @@ export default function getTrips(server) {
                     logger.warn('Cache service not available or failed to initialize, proceeding without cache. Error: ' + error.message);
                     cacheService = null;
                 }
-                const tripIdParam = request.query.tripId;
+                const tripId = request.params.tripId;
                 const unixTimestamp = getUnixTimestamp();
-                let response = [];
-                if (tripIdParam) {
-                    const tripIds = extractIdsFromParam(tripIdParam);
-                    for (const id of tripIds) {
-                        const cacheKey = `${cacheKeyBase}:trip:${id}`;
-                        let trip;
-                        if (cacheService) {
-                            trip = await cacheService.getOrSetCache({
-                                cacheKey,
-                                dbFetchFn: async () => {
-                                    const result = await db.queries.getTripById(id);
-                                    return result && result[0] ? result[0] : null;
-                                },
-                                serialize: JSON.stringify,
-                                deserialize: JSON.parse
-                            });
-                        } else {
-                            logger.warn('Cache service not available, fetching trip directly from database for tripId: ' + id);
-                            const result = await db.queries.getTripById(id);
-                            trip = result && result[0] ? result[0] : null;
-                        }
-                        if (trip) {
-                            response.push(trip);
-                        }
-                    }
+                const cacheKey = `${cacheKeyBase}:trip:${tripId}`;
+                let trip;
+                if (cacheService) {
+                    trip = await cacheService.getOrSetCache({
+                        cacheKey,
+                        dbFetchFn: async () => {
+                            const result = await db.queries.getTripById(tripId);
+                            return result && result[0] ? result[0] : null;
+                        },
+                        serialize: JSON.stringify,
+                        deserialize: JSON.parse
+                    });
                 } else {
-                    return handler.response({ error: 'tripId query parameter is required' }).code(400);
+                    logger.warn('Cache service not available, fetching trip directly from database for tripId: ' + tripId);
+                    const result = await db.queries.getTripById(tripId);
+                    trip = result && result[0] ? result[0] : null;
                 }
-                if (response.length === 0) {
-                    return handler.response({ error: 'No trips found for the specified trip(s)' }).code(404);
+                if (!trip) {
+                    return handler.response({ error: `Trip with ID ${tripId} not found` }).code(404);
                 }
                 let payload = {
                     query_timestamp: unixTimestamp,
-                    response: response
+                    response: trip
                 };
                 payload = await realtime.queryProcessor.updateResultsWithRealtimeVehiclePositions(payload);
                 return handler.response(payload);
