@@ -40,18 +40,6 @@ const register = async ({ getConnection, loadSqlQueries: injectedLoadSqlQueries 
 		return rows;
 	};
 
-	const getTransfersFromStopId = async stopId => {
-		const cnx = await getConnection();
-		const [rows] = await cnx.query(sqlQueries.getTransfersFromStopId, [stopId]);
-		return rows;
-	};
-
-	const getTransfersToStopId = async stopId => {
-		const cnx = await getConnection();
-		const [rows] = await cnx.query(sqlQueries.getTransfersToStopId, [stopId]);
-		return rows;
-	};
-
 	const getTripById = async tripId => {
 		const cnx = await getConnection();
 		const [rows] = await cnx.query(sqlQueries.getTripById, [tripId]);
@@ -147,8 +135,6 @@ const register = async ({ getConnection, loadSqlQueries: injectedLoadSqlQueries 
 		getShapeById,
 		getStopById,
 		getStopTimesByTripId,
-		getTransfersFromStopId,
-		getTransfersToStopId,
 		getTripsAtStopId,
 		getTripsAtStopIdWithNightServices,
 		getTripById

@@ -31,18 +31,17 @@ describe('TripsAtStopService', () => {
 
   test('getTripsAtStopIdWithCache uses cacheService', async () => {
     mockCacheService.getOrSetCache.mockResolvedValueOnce([{ trip_id: 'T1' }]);
-    const result = await service.getTripsAtStopIdWithCache({ stopId: 'S1', serviceDay: { dayColumn: 'monday', date: '20260427', lowerBoundTimestamp: 900, upperBoundTimestamp: 1100 } });
+    const serviceDay = { dayColumn: 'monday', date: '20260427', lowerBoundTimestamp: 900, upperBoundTimestamp: 1100 };
+    const result = await service.getTripsAtStopIdWithCache('S1', serviceDay);
     expect(mockCacheService.getOrSetCache).toHaveBeenCalled();
     expect(result).toEqual([{ trip_id: 'T1' }]);
   });
 
   test('getTripsAtStopIdWithNightServicesWithCache uses cacheService', async () => {
     mockCacheService.getOrSetCache.mockResolvedValueOnce([{ trip_id: 'T2' }]);
-    const result = await service.getTripsAtStopIdWithNightServicesWithCache({
-      stopId: 'S2',
-      wrappedServiceDay: { dayColumn: 'sunday', date: '20260426', lowerBoundTimestamp: 800, upperBoundTimestamp: 900 },
-      unwrappedServiceDay: { dayColumn: 'monday', date: '20260427', lowerBoundTimestamp: 900, upperBoundTimestamp: 1100 },
-    });
+    const wrappedServiceDay = { dayColumn: 'sunday', date: '20260426', lowerBoundTimestamp: 800, upperBoundTimestamp: 900 };
+    const unwrappedServiceDay = { dayColumn: 'monday', date: '20260427', lowerBoundTimestamp: 900, upperBoundTimestamp: 1100 };
+    const result = await service.getTripsAtStopIdWithNightServicesWithCache('S2', wrappedServiceDay, unwrappedServiceDay);
     expect(mockCacheService.getOrSetCache).toHaveBeenCalled();
     expect(result).toEqual([{ trip_id: 'T2' }]);
   });
@@ -56,7 +55,7 @@ describe('TripsAtStopService', () => {
 
   test('getMaximumDepartureTimestampWithCache uses cacheService', async () => {
     mockCacheService.getOrSetCache.mockResolvedValueOnce(1100);
-    const result = await service.getMaximumDepartureTimestampWithCache({ scheduleDay: 'monday', scheduleDate: '20260427' });
+    const result = await service.getMaximumDepartureTimestampWithCache('monday', '20260427');
     expect(mockCacheService.getOrSetCache).toHaveBeenCalled();
     expect(result).toBe(1100);
   });
@@ -65,13 +64,13 @@ describe('TripsAtStopService', () => {
     mockCacheService.getOrSetCache.mockResolvedValueOnce([{ trip_id: 'T1' }]);
     mockCacheService.getOrSetCache.mockResolvedValueOnce([{ trip_id: 'T1', last_stop: false }]);
     const payload = { response: [] };
-    await service.getTrips({
-      stopIds: ['S1'],
-      realtimeTripUpdates: mockRealtimeTripUpdates,
-      realtimeVehiclePositions: mockRealtimeVehiclePositions,
+    await service.getTrips(
+      'S1',
+      mockRealtimeTripUpdates,
+      mockRealtimeVehiclePositions,
       payload,
-      serviceDay: { dayColumn: 'monday', date: '20260427', lowerBoundTimestamp: 900, upperBoundTimestamp: 1100 },
-    });
+      { dayColumn: 'monday', date: '20260427', lowerBoundTimestamp: 900, upperBoundTimestamp: 1100 }
+    );
     expect(payload.response).toEqual([{ trip_id: 'T1' }]);
     expect(mockRealtimeTripUpdates.queryProcessor.updateResultsWithRealtimeTripUpdates).toHaveBeenCalled();
     expect(mockRealtimeVehiclePositions.queryProcessor.updateResultsWithRealtimeVehiclePositions).toHaveBeenCalled();
@@ -81,14 +80,16 @@ describe('TripsAtStopService', () => {
     mockCacheService.getOrSetCache.mockResolvedValueOnce([{ trip_id: 'T2' }]);
     mockCacheService.getOrSetCache.mockResolvedValueOnce([{ trip_id: 'T2', last_stop: false }]);
     const payload = { response: [] };
-    await service.getTripsWithMidnightServices({
-      stopIds: ['S2'],
-      realtimeTripUpdates: mockRealtimeTripUpdates,
-      realtimeVehiclePositions: mockRealtimeVehiclePositions,
+    const wrappedServiceDay = { dayColumn: 'sunday', date: '20260426', lowerBoundTimestamp: 800, upperBoundTimestamp: 900 };
+    const unwrappedServiceDay = { dayColumn: 'monday', date: '20260427', lowerBoundTimestamp: 900, upperBoundTimestamp: 1100 };
+    await service.getTripsWithMidnightServices(
+      'S2',
+      mockRealtimeTripUpdates,
+      mockRealtimeVehiclePositions,
       payload,
-      wrappedServiceDay: { dayColumn: 'sunday', date: '20260426', lowerBoundTimestamp: 800, upperBoundTimestamp: 900 },
-      unwrappedServiceDay: { dayColumn: 'monday', date: '20260427', lowerBoundTimestamp: 900, upperBoundTimestamp: 1100 },
-    });
+      wrappedServiceDay,
+      unwrappedServiceDay,
+    );
     expect(payload.response).toEqual([{ trip_id: 'T2' }]);
     expect(mockRealtimeTripUpdates.queryProcessor.updateResultsWithRealtimeTripUpdates).toHaveBeenCalled();
     expect(mockRealtimeVehiclePositions.queryProcessor.updateResultsWithRealtimeVehiclePositions).toHaveBeenCalled();
@@ -102,18 +103,17 @@ describe('TripsAtStopService', () => {
 
     test('getTripsAtStopIdWithCache uses DB directly', async () => {
       mockDb.queries.getTripsAtStopId.mockResolvedValueOnce([{ trip_id: 'T1' }]);
-      const result = await dbOnlyService.getTripsAtStopIdWithCache({ stopId: 'S1', serviceDay: { dayColumn: 'monday', date: '20260427', lowerBoundTimestamp: 900, upperBoundTimestamp: 1100 } });
+      const serviceDay = { dayColumn: 'monday', date: '20260427', lowerBoundTimestamp: 900, upperBoundTimestamp: 1100 };
+      const result = await dbOnlyService.getTripsAtStopIdWithCache('S1', serviceDay);
       expect(mockDb.queries.getTripsAtStopId).toHaveBeenCalled();
       expect(result).toEqual([{ trip_id: 'T1' }]);
     });
 
     test('getTripsAtStopIdWithNightServicesWithCache uses DB directly', async () => {
       mockDb.queries.getTripsAtStopIdWithNightServices.mockResolvedValueOnce([{ trip_id: 'T2' }]);
-      const result = await dbOnlyService.getTripsAtStopIdWithNightServicesWithCache({
-        stopId: 'S2',
-        wrappedServiceDay: { dayColumn: 'sunday', date: '20260426', lowerBoundTimestamp: 800, upperBoundTimestamp: 900 },
-        unwrappedServiceDay: { dayColumn: 'monday', date: '20260427', lowerBoundTimestamp: 900, upperBoundTimestamp: 1100 },
-      });
+      const wrappedServiceDay = { dayColumn: 'sunday', date: '20260426', lowerBoundTimestamp: 800, upperBoundTimestamp: 900 };
+      const unwrappedServiceDay = { dayColumn: 'monday', date: '20260427', lowerBoundTimestamp: 900, upperBoundTimestamp: 1100 };
+      const result = await dbOnlyService.getTripsAtStopIdWithNightServicesWithCache('S2', wrappedServiceDay, unwrappedServiceDay);
       expect(mockDb.queries.getTripsAtStopIdWithNightServices).toHaveBeenCalled();
       expect(result).toEqual([{ trip_id: 'T2' }]);
     });
@@ -127,7 +127,7 @@ describe('TripsAtStopService', () => {
 
     test('getMaximumDepartureTimestampWithCache uses DB directly', async () => {
       mockDb.queries.getMaximumDepartureTimestamp.mockResolvedValueOnce(1100);
-      const result = await dbOnlyService.getMaximumDepartureTimestampWithCache({ scheduleDay: 'monday', scheduleDate: '20260427' });
+      const result = await dbOnlyService.getMaximumDepartureTimestampWithCache('monday', '20260427');
       expect(mockDb.queries.getMaximumDepartureTimestamp).toHaveBeenCalled();
       expect(result).toBe(1100);
     });

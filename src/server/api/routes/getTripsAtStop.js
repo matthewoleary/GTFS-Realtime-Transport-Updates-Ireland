@@ -5,12 +5,15 @@ import { getSecondsSinceMidnightTimestamp, getUnixTimestamp, getTimestampMinusNu
 import { getCurrentDay, getCurrentDate, getPreviousDay, getPreviousDate, getNextDay, getNextDayDate } from '../../../utils/dateUtils.js';
 
 /**
- * Registers the /api/tripsAtStop GET route for fetching GTFS trip data at specific stop(s).
+ * Registers the /api/stops/{stopId}/trips GET route for fetching GTFS trip data at a specific stop.
  *
- * - Accepts a required `stopId` query parameter (string or array, comma-separated supported) for one or more stop IDs.
- * - Returns trips at the specified stop(s), including real-time updates and handling night services.
+ * - Accepts a required `stopId` path parameter for the stop ID.
+ * - Optionally accepts `lowerBoundMinutes` and `upperBoundMinutes` query parameters to define the time window (default: ±90 minutes).
+ * - Returns all trips at the specified stop, including real-time updates and handling night services (spanning two service days).
  * - Adds current and Unix timestamps to the response payload for client-side reference.
- * - Handles MySQL backend via the dynamic SQL client.
+ * - Handles MySQL backend via the dynamic SQL client and supports caching.
+ *
+ * Example endpoint: /api/stops/{stopId}/trips?lowerBoundMinutes=60&upperBoundMinutes=120
  *
  * @param {object} server - Hapi server instance to register the route on.
  * @returns {void}
@@ -18,7 +21,7 @@ import { getCurrentDay, getCurrentDate, getPreviousDay, getPreviousDate, getNext
 export default function getTripsAtStop(server) {
     server.route({
         method: 'GET',
-        path: '/api/tripsAtStop',
+        path: '/api/stops/{stopId}/trips',
         handler: async (request, handler) => {
             const logger = new ServerLogger({ client: 'getTripsAtStop' });
             const db = getDatabaseClient(request);
@@ -33,11 +36,11 @@ export default function getTripsAtStop(server) {
             try {
                 const realtimeTripUpdates = getRealtimeTripUpdatesClient(request);
                 const realtimeVehiclePositions = getRealtimeVehiclePositionsClient(request);
-                const stopIdParam = request.query.stopId;
-                if (!stopIdParam) {
-                    return handler.response({ error: 'stopId query parameter is required' }).code(400);
+                const { stopId } = request.params;
+                if (!stopId) {
+                    return handler.response({ error: 'stopId path parameter is required' }).code(400);
                 }
-                const stopIds = extractIdsFromParam(stopIdParam);
+                // Optionally support query params for time window
                 const scheduleSearchWindowLowerBound = request.query.lowerBoundMinutes !== undefined
                     ? Number(request.query.lowerBoundMinutes)
                     : 90;
@@ -79,7 +82,7 @@ export default function getTripsAtStop(server) {
                     const wrappedServiceDay = buildServiceDay(previousScheduleDay, previousScheduleDate, wrappedLowerBoundTimestamp, wrappedUpperBoundTimestamp);
                     const unwrappedServiceDay = buildServiceDay(scheduleDay, scheduleDate, querySearchLowerBoundTimestamp, querySearchUpperBoundTimestamp);
                     const result = await service.getTripsWithMidnightServices({
-                        stopIds, realtimeTripUpdates, realtimeVehiclePositions, payload, wrappedServiceDay, unwrappedServiceDay
+                        stopId, realtimeTripUpdates, realtimeVehiclePositions, payload, wrappedServiceDay, unwrappedServiceDay
                     });
                     return handler.response(result);
                 }
@@ -92,14 +95,14 @@ export default function getTripsAtStop(server) {
                     const wrappedServiceDay = buildServiceDay(scheduleDay, scheduleDate, wrappedLowerBoundTimestamp, wrappedUpperBoundTimestamp);
                     const unwrappedServiceDay = buildServiceDay(nextScheduleDay, nextScheduleDate, 0, querySearchUpperBoundTimestamp);
                     const result = await service.getTripsWithMidnightServices({
-                        stopIds, realtimeTripUpdates, realtimeVehiclePositions, payload, wrappedServiceDay, unwrappedServiceDay
+                        stopId, realtimeTripUpdates, realtimeVehiclePositions, payload, wrappedServiceDay, unwrappedServiceDay
                     });
                     return handler.response(result);
                 }
 
                 const serviceDay = buildServiceDay(scheduleDay, scheduleDate, querySearchLowerBoundTimestamp, querySearchUpperBoundTimestamp);
                 const result = await service.getTrips({
-                    stopIds,
+                    stopId,
                     realtimeTripUpdates,
                     realtimeVehiclePositions,
                     payload,
@@ -116,7 +119,13 @@ export default function getTripsAtStop(server) {
 
 /**
  * Service class for fetching and caching GTFS trip data at stops, including night services and real-time updates.
- * Encapsulates all cache and DB logic for trips, last stops, and maximum departure timestamps.
+ *
+ * Responsibilities:
+ * - Fetches trips at a stop for a given time window and service day, using cache and DB as needed.
+ * - Handles special logic for night services (spanning two service days).
+ * - Updates trip results with real-time vehicle positions and trip updates.
+ * - Fetches last stops for trips and the maximum departure timestamp for a service day.
+ * - Encapsulates all cache and DB logic for trips, last stops, and maximum departure timestamps.
  */
 export class TripsAtStopService {
     /**
@@ -137,7 +146,7 @@ export class TripsAtStopService {
      * Fetches trips at stop(s) for night services (spanning two service days), using cache and DB as needed, and updates with real-time data.
      *
      * @param {Object} params
-     * @param {string[]} params.stopIds - Array of stop IDs to fetch trips for.
+     * @param {string} params.stopId - stop ID to fetch trips for.
      * @param {Object} params.realtimeTripUpdates - Real-time trip updates client (must have queryProcessor).
      * @param {Object} params.realtimeVehiclePositions - Real-time vehicle positions client (must have queryProcessor).
      * @param {Object} params.payload - Response payload object to be populated (mutated in-place).
@@ -145,24 +154,18 @@ export class TripsAtStopService {
      * @param {Object} params.unwrappedServiceDay - Service day object for current day (night service window).
      * @returns {Promise<Object>} Updated payload with trips and real-time data.
      */
-    async getTripsWithMidnightServices({
-        stopIds,
+    async getTripsWithMidnightServices(
+        stopId,
         realtimeTripUpdates,
         realtimeVehiclePositions,
         payload,
         wrappedServiceDay,
         unwrappedServiceDay
-    }) {
-        for (const stopId of stopIds) {
-            const response = await this.getTripsAtStopIdWithNightServicesWithCache({
-                stopId,
-                wrappedServiceDay,
-                unwrappedServiceDay
-            });
-            const lastStops = await this.getLastStopsWithCache(response);
-            const filteredTrips = await removeTripsAtLastStop(lastStops, response);
-            payload.response.push(...filteredTrips);
-        }
+    ) {
+        const response = await this.getTripsAtStopIdWithNightServicesWithCache(stopId, wrappedServiceDay, unwrappedServiceDay);
+        const lastStops = await this.getLastStopsWithCache(response);
+        const filteredTrips = await removeTripsAtLastStop(lastStops, response);
+        payload.response.push(...filteredTrips);
         await realtimeVehiclePositions.queryProcessor.updateResultsWithRealtimeVehiclePositions(payload);
         return await realtimeTripUpdates.queryProcessor.updateResultsWithRealtimeTripUpdates(payload);
     }
@@ -171,26 +174,24 @@ export class TripsAtStopService {
      * Fetches trips at stop(s) for a given service day, using cache and DB as needed, and updates with real-time data.
      *
      * @param {Object} params
-     * @param {string[]} params.stopIds - Array of stop IDs to fetch trips for.
+     * @param {string} params.stopId - Stop ID to fetch trips for.
      * @param {Object} params.realtimeTripUpdates - Real-time trip updates client (must have queryProcessor).
      * @param {Object} params.realtimeVehiclePositions - Real-time vehicle positions client (must have queryProcessor).
      * @param {Object} params.payload - Response payload object to be populated (mutated in-place).
      * @param {Object} params.serviceDay - Service day object for the query window.
      * @returns {Promise<Object>} Updated payload with trips and real-time data.
      */
-    async getTrips({
-        stopIds,
+    async getTrips(
+        stopId,
         realtimeTripUpdates,
         realtimeVehiclePositions,
         payload,
         serviceDay
-    }) {
-        for (const stopId of stopIds) {
-            const response = await this.getTripsAtStopIdWithCache({ stopId, serviceDay });
-            const lastStops = await this.getLastStopsWithCache(response);
-            const filteredTrips = await removeTripsAtLastStop(lastStops, response);
-            payload.response.push(...filteredTrips);
-        }
+    ) {
+        const response = await this.getTripsAtStopIdWithCache( stopId, serviceDay );
+        const lastStops = await this.getLastStopsWithCache(response);
+        const filteredTrips = await removeTripsAtLastStop(lastStops, response);
+        payload.response.push(...filteredTrips);
         await realtimeVehiclePositions.queryProcessor.updateResultsWithRealtimeVehiclePositions(payload);
         return await realtimeTripUpdates.queryProcessor.updateResultsWithRealtimeTripUpdates(payload);
     }
@@ -201,22 +202,21 @@ export class TripsAtStopService {
      * - Uses a cache key of the form `tripsAtStopId:<stopId>:<dayColumn>:<date>:<lowerBoundTimestamp>:<upperBoundTimestamp>`.
      * - Serializes and deserializes trip arrays as JSON.
      *
-     * @param {Object} params
-     * @param {string} params.stopId - Stop ID to fetch trips for.
-     * @param {Object} params.serviceDay - Service day object for the query window.
+     * @param {string} stopId - Stop ID to fetch trips for.
+     * @param {Object} serviceDay - Service day object for the query window.
      * @returns {Promise<Object[]>} Array of trip objects for the stop and service day.
      */
-    async getTripsAtStopIdWithCache( stopId, serviceDay ) {
+    async getTripsAtStopIdWithCache(stopId, serviceDay) {
         const cacheKey = `tripsAtStopId:${stopId}:${serviceDay.dayColumn}:${serviceDay.date}:${serviceDay.lowerBoundTimestamp}:${serviceDay.upperBoundTimestamp}`;
         if (this.cacheService) {
             return this.cacheService.getOrSetCache({
                 cacheKey,
-                dbFetchFn: () => this.db.queries.getTripsAtStopId( stopId, serviceDay ),
+                dbFetchFn: () => this.db.queries.getTripsAtStopId(stopId, serviceDay),
                 serialize: JSON.stringify,
                 deserialize: JSON.parse
             });
         } else {
-            return this.db.queries.getTripsAtStopId( stopId, serviceDay );
+            return this.db.queries.getTripsAtStopId(stopId, serviceDay);
         }
     }
 
@@ -226,13 +226,12 @@ export class TripsAtStopService {
      * - Uses a cache key of the form `tripsAtStopIdWithNightServices:<stopId>:...` (with all service day params).
      * - Serializes and deserializes trip arrays as JSON.
      *
-     * @param {Object} params
-     * @param {string} params.stopId - Stop ID to fetch trips for.
-     * @param {Object} params.wrappedServiceDay - Service day object for previous/next day (night service window).
-     * @param {Object} params.unwrappedServiceDay - Service day object for current day (night service window).
+     * @param {string} stopId - Stop ID to fetch trips for.
+     * @param {Object} wrappedServiceDay - Service day object for previous/next day (night service window).
+     * @param {Object} unwrappedServiceDay - Service day object for current day (night service window).
      * @returns {Promise<Object[]>} Array of trip objects for the stop and night service window.
      */
-    async getTripsAtStopIdWithNightServicesWithCache( stopId, wrappedServiceDay, unwrappedServiceDay ) {
+    async getTripsAtStopIdWithNightServicesWithCache(stopId, wrappedServiceDay, unwrappedServiceDay) {
         const cacheKey = `tripsAtStopIdWithNightServices:${stopId}` +
             `:${wrappedServiceDay.dayColumn}` +
             `:${wrappedServiceDay.date}` +
@@ -245,12 +244,12 @@ export class TripsAtStopService {
         if (this.cacheService) {
             return this.cacheService.getOrSetCache({
                 cacheKey,
-                dbFetchFn: () => this.db.queries.getTripsAtStopIdWithNightServices( stopId, wrappedServiceDay, unwrappedServiceDay ),
+                dbFetchFn: () => this.db.queries.getTripsAtStopIdWithNightServices(stopId, wrappedServiceDay, unwrappedServiceDay),
                 serialize: JSON.stringify,
                 deserialize: JSON.parse
             });
         } else {
-            return this.db.queries.getTripsAtStopIdWithNightServices( stopId, wrappedServiceDay, unwrappedServiceDay );
+            return this.db.queries.getTripsAtStopIdWithNightServices(stopId, wrappedServiceDay, unwrappedServiceDay);
         }
     }
 
@@ -285,12 +284,11 @@ export class TripsAtStopService {
      * - Deserializes using a function that parses the value as a number and returns null if the result is NaN.
      *   This ensures that corrupted or non-numeric cache entries are treated as cache misses.
      *
-     * @param {Object} params
-     * @param {string} params.scheduleDay - Schedule day (e.g., 'monday').
-     * @param {string} params.scheduleDate - Schedule date (YYYYMMDD).
+     * @param {string} scheduleDay - Schedule day (e.g., 'monday').
+     * @param {string} scheduleDate - Schedule date (YYYYMMDD).
      * @returns {Promise<number|null>} Maximum departure timestamp, or null if not available or cache is corrupt.
      */
-    async getMaximumDepartureTimestampWithCache({ scheduleDay, scheduleDate }) {
+    async getMaximumDepartureTimestampWithCache(scheduleDay, scheduleDate) {
         const cacheKey = `maxDepartureTimestamp:${scheduleDay}:${scheduleDate}`;
         if (this.cacheService) {
             return this.cacheService.getOrSetCache({

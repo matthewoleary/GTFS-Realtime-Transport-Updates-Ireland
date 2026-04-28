@@ -52,95 +52,68 @@ describe('getTrips (with CacheService)', () => {
 		mockRealtime.queryProcessor.updateResultsWithRealtimeVehiclePositions.mockClear();
 	});
 
-	test('registers the route on the server', () => {
+	test('registers the detail route on the server', () => {
 		getTrips(server);
 		expect(server.route).toHaveBeenCalledWith(expect.objectContaining({
 			method: 'GET',
-			path: '/api/trips',
+			path: '/api/trips/{tripId}',
 			handler: expect.any(Function)
 		}));
 	});
 
-	test('returns trip from cache for a single tripId', async () => {
-		mockExtractIdsFromParam.mockReturnValue(['T1']);
+	test('returns trip by id from cache if present (detail endpoint, cache hit)', async () => {
 		mockCacheService.getOrSetCache.mockResolvedValueOnce({ id: 'T1', foo: 'bar' });
 		getTrips(server);
 		handler = server.route.mock.calls[0][0].handler;
-		const req = { query: { tripId: 'T1' }, server };
+		const req = { params: { tripId: 'T1' }, server };
 		const res = await handler(req, h);
-		expect(mockExtractIdsFromParam).toHaveBeenCalledWith('T1');
 		expect(mockCacheService.getOrSetCache).toHaveBeenCalledWith(expect.objectContaining({ cacheKey: 'trips:trip:T1' }));
 		expect(db.queries.getTripById).not.toHaveBeenCalled();
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
-			query_timestamp: 11111,
-			response: [{ id: 'T1', foo: 'bar' }]
+			response: { id: 'T1', foo: 'bar' }
 		}));
 		expect(mockRealtime.queryProcessor.updateResultsWithRealtimeVehiclePositions).toHaveBeenCalled();
 	});
 
-	test('returns trips from cache for multiple tripIds', async () => {
-		mockExtractIdsFromParam.mockReturnValue(['T1', 'T2']);
-		mockCacheService.getOrSetCache
-			.mockResolvedValueOnce({ id: 'T1', foo: 'bar' })
-			.mockResolvedValueOnce({ id: 'T2', foo: 'baz' });
-		getTrips(server);
-		handler = server.route.mock.calls[0][0].handler;
-		const req = { query: { tripId: 'T1,T2' }, server };
-		const res = await handler(req, h);
-		expect(mockExtractIdsFromParam).toHaveBeenCalledWith('T1,T2');
-		expect(mockCacheService.getOrSetCache).toHaveBeenCalledTimes(2);
-		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
-			query_timestamp: 11111,
-			response: [
-				{ id: 'T1', foo: 'bar' },
-				{ id: 'T2', foo: 'baz' }
-			]
-		}));
-		expect(mockRealtime.queryProcessor.updateResultsWithRealtimeVehiclePositions).toHaveBeenCalled();
-	});
 
-	test('returns trip from DB if cacheService is unavailable', async () => {
+	test('returns trip by id from DB if cacheService is unavailable (detail endpoint)', async () => {
 		server.plugins.cache.cacheService = null;
 		db.queries.getTripById.mockResolvedValueOnce([{ id: 'TDB', foo: 'db' }]);
-		mockExtractIdsFromParam.mockReturnValue(['TDB']);
 		getTrips(server);
 		handler = server.route.mock.calls[0][0].handler;
-		const req = { query: { tripId: 'TDB' }, server };
+		const req = { params: { tripId: 'TDB' }, server };
 		const res = await handler(req, h);
 		expect(db.queries.getTripById).toHaveBeenCalledWith('TDB');
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
-			query_timestamp: 11111,
-			response: [{ id: 'TDB', foo: 'db' }]
+			response: { id: 'TDB', foo: 'db' }
 		}));
 		expect(mockRealtime.queryProcessor.updateResultsWithRealtimeVehiclePositions).toHaveBeenCalled();
 	});
 
-	test('returns 400 if tripId is missing', async () => {
+	test('returns 400 if tripId is missing (detail endpoint)', async () => {
 		getTrips(server);
 		handler = server.route.mock.calls[0][0].handler;
-		const req = { query: {}, server };
+		const req = { params: {}, server };
 		const res = await handler(req, h);
 		expect(res.code).toBe(true);
-		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({ error: expect.stringMatching(/tripId/) }));
+		expect(h.response).toHaveBeenCalledWith({ error: 'Trip with ID undefined not found' });
 	});
 
-	test('returns 404 if no trips found', async () => {
-		mockExtractIdsFromParam.mockReturnValue(['T404']);
+	test('returns 404 if no trip found (detail endpoint)', async () => {
 		mockCacheService.getOrSetCache.mockResolvedValueOnce(null);
 		getTrips(server);
 		handler = server.route.mock.calls[0][0].handler;
-		const req = { query: { tripId: 'T404' }, server };
+		const req = { params: { tripId: 'T404' }, server };
 		const res = await handler(req, h);
 		expect(res.code).toBe(true);
-		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({ error: expect.stringMatching(/No trips/) }));
+		expect(h.response).toHaveBeenCalledWith({ error: 'Trip with ID T404 not found' });
 	});
 
-	test('returns 500 on handler error', async () => {
-		mockExtractIdsFromParam.mockReturnValue(['TERR']);
+	test('returns 500 on handler error (detail endpoint)', async () => {
 		mockCacheService.getOrSetCache.mockRejectedValueOnce(new Error('fail'));
 		getTrips(server);
 		handler = server.route.mock.calls[0][0].handler;
-		const req = { query: { tripId: 'TERR' }, server };
+		const req = { params: { tripId: 'TERR' }, server };
 		const res = await handler(req, h);
 		expect(res.code).toBe(true);
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({ error: expect.stringMatching(/Internal Server Error/) }));

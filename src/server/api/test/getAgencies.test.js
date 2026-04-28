@@ -48,21 +48,26 @@ describe('getAgencies (with CacheService)', () => {
 		mockExtractIdsFromParam.mockReset();
 	});
 
-	test('registers the route on the server', () => {
+	test('registers the list and detail routes on the server', () => {
 		getAgencies(server);
 		expect(server.route).toHaveBeenCalledWith(expect.objectContaining({
 			method: 'GET',
 			path: '/api/agencies',
 			handler: expect.any(Function)
 		}));
+		expect(server.route).toHaveBeenCalledWith(expect.objectContaining({
+			method: 'GET',
+			path: '/api/agencies/{agencyId}',
+			handler: expect.any(Function)
+		}));
 	});
 
-	test('returns all agencies if no agencyId param and caches result (cache miss)', async () => {
+	test('returns all agencies (list endpoint, cache miss)', async () => {
 		const agencies = [{ id: 1 }, { id: 2 }];
 		db.queries.getAllAgencies.mockResolvedValue(agencies);
 		mockCacheService.getOrSetCache.mockImplementation(async ({ cacheKey, dbFetchFn }) => {
 			expect(cacheKey).toBe('agencies:all');
-			return dbFetchFn(); // simulate cache miss
+			return dbFetchFn();
 		});
 		getAgencies(server);
 		handler = server.route.mock.calls[0][0].handler;
@@ -81,7 +86,7 @@ describe('getAgencies (with CacheService)', () => {
 		}));
 	});
 
-	test('returns all agencies from cache if present (cache hit)', async () => {
+	test('returns all agencies from cache if present (list endpoint, cache hit)', async () => {
 		const agencies = [{ id: 1 }, { id: 2 }];
 		mockCacheService.getOrSetCache.mockResolvedValue(agencies);
 		getAgencies(server);
@@ -96,56 +101,47 @@ describe('getAgencies (with CacheService)', () => {
 		}));
 	});
 
-	test('returns agencies by id if agencyId param is present and caches each (cache miss)', async () => {
-		mockExtractIdsFromParam.mockReturnValue(['A1', 'A2']);
-		db.queries.getAgencyById.mockResolvedValueOnce([{ id: 'A1' }]).mockResolvedValueOnce([{ id: 'A2' }]);
-		mockCacheService.getOrSetCache
-			.mockImplementationOnce(async ({ cacheKey, dbFetchFn }) => dbFetchFn())
-			.mockImplementationOnce(async ({ cacheKey, dbFetchFn }) => dbFetchFn());
+	test('returns agency by id (detail endpoint, cache miss)', async () => {
+		db.queries.getAgencyById.mockResolvedValueOnce([{ id: 'A1' }]);
+		mockCacheService.getOrSetCache.mockImplementationOnce(async ({ cacheKey, dbFetchFn }) => dbFetchFn());
 		getAgencies(server);
-		handler = server.route.mock.calls[0][0].handler;
-		const req = { query: { agencyId: 'A1,A2' }, server };
+		handler = server.route.mock.calls[1][0].handler;
+		const req = { params: { agencyId: 'A1' }, server };
 		const res = await handler(req, h);
-		expect(mockExtractIdsFromParam).toHaveBeenCalledWith('A1,A2');
 		expect(mockCacheService.getOrSetCache).toHaveBeenCalledWith(expect.objectContaining({ cacheKey: 'agencies:agency:A1' }));
-		expect(mockCacheService.getOrSetCache).toHaveBeenCalledWith(expect.objectContaining({ cacheKey: 'agencies:agency:A2' }));
-		expect(db.queries.getAgencyById).toHaveBeenCalledTimes(2);
+		expect(db.queries.getAgencyById).toHaveBeenCalledWith('A1');
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
-			response: [{ id: 'A1' }, { id: 'A2' }]
+			response: { id: 'A1' }
 		}));
 	});
 
-	test('returns agency by id from cache if present (cache hit)', async () => {
-		mockExtractIdsFromParam.mockReturnValue(['A1']);
+	test('returns agency by id from cache if present (detail endpoint, cache hit)', async () => {
 		mockCacheService.getOrSetCache.mockResolvedValueOnce({ id: 'A1' });
 		getAgencies(server);
-		handler = server.route.mock.calls[0][0].handler;
-		const req = { query: { agencyId: 'A1' }, server };
+		handler = server.route.mock.calls[1][0].handler;
+		const req = { params: { agencyId: 'A1' }, server };
 		const res = await handler(req, h);
 		expect(mockCacheService.getOrSetCache).toHaveBeenCalledWith(expect.objectContaining({ cacheKey: 'agencies:agency:A1' }));
 		expect(db.queries.getAgencyById).not.toHaveBeenCalled();
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
-			response: [{ id: 'A1' }]
+			response: { id: 'A1' }
 		}));
 	});
 
-	test('returns agency by id from DB if cacheService is unavailable', async () => {
-		// Remove cacheService from server.plugins.cache
-    mockExtractIdsFromParam.mockReturnValue(['A1']);
+	test('returns agency by id from DB if cacheService is unavailable (detail endpoint)', async () => {
 		server.plugins.cache.cacheService = null;
 		db.queries.getAgencyById.mockResolvedValue([{ id: 'A1' }]);
 		getAgencies(server);
-		handler = server.route.mock.calls[0][0].handler;
-		const req = { query: { agencyId: 'A1' }, server };
+		handler = server.route.mock.calls[1][0].handler;
+		const req = { params: { agencyId: 'A1' }, server };
 		const res = await handler(req, h);
 		expect(db.queries.getAgencyById).toHaveBeenCalledWith('A1');
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
-			response: [{ id: 'A1' }]
+			response: { id: 'A1' }
 		}));
 	});
 
-	test('returns all agencies from DB if cacheService is unavailable', async () => {
-		// Remove cacheService from server.plugins.cache
+	test('returns all agencies from DB if cacheService is unavailable (list endpoint)', async () => {
 		server.plugins.cache.cacheService = null;
 		const agencies = [{ id: 1 }];
 		db.queries.getAllAgencies.mockResolvedValue(agencies);
@@ -160,7 +156,7 @@ describe('getAgencies (with CacheService)', () => {
 		}));
 	});
 
-	test('returns 404 if no agencies found', async () => {
+	test('returns 404 if no agencies found (list endpoint)', async () => {
 		db.queries.getAllAgencies.mockResolvedValue([]);
 		mockCacheService.getOrSetCache.mockResolvedValue([]);
 		getAgencies(server);
@@ -170,7 +166,7 @@ describe('getAgencies (with CacheService)', () => {
 		expect(h.response).toHaveBeenCalledWith({ error: 'No agencies found' });
 	});
 
-	test('returns 500 on error', async () => {
+	test('returns 500 on error (list endpoint)', async () => {
 		db.queries.getAllAgencies.mockRejectedValue(new Error('fail'));
 		mockCacheService.getOrSetCache.mockImplementation(() => { throw new Error('fail'); });
 		getAgencies(server);

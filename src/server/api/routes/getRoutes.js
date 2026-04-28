@@ -5,96 +5,66 @@ import { getDatabaseClient, getCacheService } from '../index.js';
 import { getUnixTimestamp } from '../../../utils/timestampUtils.js';
 
 /**
- * Registers the /api/routes GET route for fetching GTFS route data.
+ * Registers the /api/routes and /api/routes/{routeId} GET routes for fetching GTFS route data.
  *
- * - If the optional `routeId` query parameter is provided (as a string or array, comma-separated supported),
- *   returns details for the specified route(s) only.
- * - If `routeId` is omitted, returns all routes, optionally filtered by agency if the `agencyId` query parameter is provided.
- * - Adds current and Unix timestamps to the response payload for client-side reference.
- * - Handles MySQL backend via the dynamic SQL client.
+ * - GET /api/routes: Returns all routes, optionally filtered by agencyId query parameter.
+ * - GET /api/routes/{routeId}: Returns details for the specified routeId as a path parameter.
+ * - Both endpoints add a Unix timestamp to the response payload for client-side reference.
+ * - Responds with 404 if no route is found for the given routeId.
  *
- * @param {object} server - Hapi server instance to register the route on.
+ * @param {object} server - Hapi server instance to register the routes on.
  * @returns {void}
  */
 export default function getRoutes(server) {
     const logger = new ServerLogger({ client: 'getRoutes' });
     const cacheKeyBase = 'routes';
 
-    // Retrieves route details for a list of route IDs, using CacheService for cache logic.
-    async function getRoutesByIds(routeIds, db, cacheService, cacheKeyBase) {
-        const response = [];
-        for (const id of routeIds) {
-            const cacheKey = `${cacheKeyBase}:route:${id}`;
-            let route;
+    async function getAllRoutes(db, cacheService, agencyId) {
+        if (agencyId) {
+            const cacheKey = `${cacheKeyBase}:agency:${agencyId}`;
             if (cacheService) {
-                route = await cacheService.getOrSetCache({
+                return cacheService.getOrSetCache({
                     cacheKey,
-                    dbFetchFn: async () => {
-                        const result = await db.queries.getRouteById(id);
-                        return result && result[0] ? result[0] : null;
-                    },
+                    dbFetchFn: async () => await db.queries.getAllRoutesByAgencyId(agencyId),
                     serialize: JSON.stringify,
-                    deserialize: (data) => {
-                        try {
-                            return JSON.parse(data);
-                        } catch (err) {
-                            throw err;
-                        }
-                    }
+                    deserialize: JSON.parse
                 });
             } else {
-                logger.warn('Cache service not available, fetching route directly from database for routeId: ' + id);
-                const result = await db.queries.getRouteById(id);
-                route = result && result[0] ? result[0] : null;
+                logger.warn('Cache service not available, fetching routes directly from database for agencyId: ' + agencyId);
+                return await db.queries.getAllRoutesByAgencyId(agencyId);
             }
-            if (route) {
-                response.push(route);
-            }
-        }
-        return response;
-    }
-
-    // Retrieves all routes for a given agency, using CacheService for cache logic.
-    async function getRoutesByAgencyId(agencyId, db, cacheService, cacheKeyBase) {
-        const cacheKey = `${cacheKeyBase}:agency:${agencyId}`;
-        if (cacheService) {
-            return cacheService.getOrSetCache({
-                cacheKey,
-                dbFetchFn: async () => await db.queries.getAllRoutesByAgencyId(agencyId),
-                serialize: JSON.stringify,
-                deserialize: (data) => {
-                    try {
-                        return JSON.parse(data);
-                    } catch (err) {
-                        throw err;
-                    }
-                }
-            });
         } else {
-            logger.warn('Cache service not available, fetching routes directly from database for agencyId: ' + agencyId);
-            return await db.queries.getAllRoutesByAgencyId(agencyId);
+            const cacheKey = `${cacheKeyBase}:all`;
+            if (cacheService) {
+                return cacheService.getOrSetCache({
+                    cacheKey,
+                    dbFetchFn: async () => await db.queries.getAllRoutes(),
+                    serialize: JSON.stringify,
+                    deserialize: JSON.parse
+                });
+            } else {
+                logger.warn('Cache service not available, fetching all routes directly from database');
+                return await db.queries.getAllRoutes();
+            }
         }
     }
 
-    // Retrieves all routes, using CacheService for cache logic.
-    async function getAllRoutes(db, cacheService, cacheKeyBase) {
-        const cacheKey = `${cacheKeyBase}:all`;
+    async function getRouteById(routeId, db, cacheService) {
+        const cacheKey = `${cacheKeyBase}:route:${routeId}`;
         if (cacheService) {
             return cacheService.getOrSetCache({
                 cacheKey,
-                dbFetchFn: async () => await db.queries.getAllRoutes(),
+                dbFetchFn: async () => {
+                    const result = await db.queries.getRouteById(routeId);
+                    return result && result[0] ? result[0] : null;
+                },
                 serialize: JSON.stringify,
-                deserialize: (data) => {
-                    try {
-                        return JSON.parse(data);
-                    } catch (err) {
-                        throw err;
-                    }
-                }
+                deserialize: JSON.parse
             });
         } else {
-            logger.warn('Cache service not available, fetching all routes directly from database');
-            return await db.queries.getAllRoutes();
+            logger.warn('Cache service not available, fetching route directly from database for routeId: ' + routeId);
+            const result = await db.queries.getRouteById(routeId);
+            return result && result[0] ? result[0] : null;
         }
     }
 
@@ -112,21 +82,43 @@ export default function getRoutes(server) {
                     cacheService = null;
                 }
                 const agencyId = request.query.agencyId;
-                const routeIdParam = request.query.routeId;
                 const unixTimestamp = getUnixTimestamp();
-                let response;
-                if (routeIdParam) {
-                    const routeIds = extractIdsFromParam(routeIdParam);
-                    response = await getRoutesByIds(routeIds, db, cacheService, cacheKeyBase);
-                } else if (agencyId) {
-                    response = await getRoutesByAgencyId(agencyId, db, cacheService, cacheKeyBase);
-                } else {
-                    response = await getAllRoutes(db, cacheService, cacheKeyBase);
-                }
+                const response = await getAllRoutes(db, cacheService, agencyId);
                 const sortedRecords = await sortByRouteShortNameAsInt(response || []);
                 const payload = {
                     query_timestamp: unixTimestamp,
                     response: sortedRecords
+                };
+                return handler.response(payload);
+            } catch (error) {
+                logger.error(error);
+                return handler.response({ error: 'Internal Server Error' }).code(500);
+            }
+        }
+    });
+
+    server.route({
+        method: 'GET',
+        path: '/api/routes/{routeId}',
+        handler: async (request, handler) => {
+            try {
+                const db = getDatabaseClient(request);
+                let cacheService = null;
+                try {
+                    cacheService = getCacheService(request);
+                } catch (error) {
+                    logger.warn('Cache service not available or failed to initialize, proceeding without cache. Error: ' + error.message);
+                    cacheService = null;
+                }
+                const { routeId } = request.params;
+                const unixTimestamp = getUnixTimestamp();
+                const route = await getRouteById(routeId, db, cacheService);
+                if (!route) {
+                    return handler.response({ error: 'Route not found' }).code(404);
+                }
+                const payload = {
+                    query_timestamp: unixTimestamp,
+                    response: route
                 };
                 return handler.response(payload);
             } catch (error) {
