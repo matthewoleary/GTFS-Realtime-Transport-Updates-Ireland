@@ -1,0 +1,628 @@
+openapi: 3.0.3
+info:
+  title: Realtime Transport Updates API
+  version: 0.1.0
+  description: |
+    Node.js API for Irish GTFS schedule and real-time public transport updates. Provides endpoints for agencies, routes, stops, trips, shapes, and more, with robust cache/DB fallback and real-time GTFS-R integration.
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+paths:
+  /api/agencies:
+    get:
+      summary: List all agencies
+      responses:
+        '200':
+          description: List of agencies
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  query_timestamp:
+                    type: integer
+                  response:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        agency_id:
+                          type: string
+                          description: Unique agency identifier
+                        agency_name:
+                          type: string
+                          description: Agency name
+                        agency_url:
+                          type: string
+                          description: Agency website URL
+                        agency_timezone:
+                          type: string
+                          description: Agency timezone
+                        agency_lang:
+                          type: string
+                          description: Agency language
+                          nullable: true
+                        agency_phone:
+                          type: string
+                          description: Agency phone number
+                          nullable: true
+                        agency_fare_url:
+                          type: string
+                          description: Agency fare URL
+                          nullable: true
+                        agency_email:
+                          type: string
+                          description: Agency email
+                          nullable: true
+        '404':
+          description: No agencies found
+        '500':
+          description: Internal Server Error
+  /api/agencies/{agencyId}:
+    get:
+      summary: Get details for a specific agency
+      parameters:
+        - in: path
+          name: agencyId
+          required: true
+          schema:
+            type: string
+          description: Agency ID
+      responses:
+        '200':
+          description: Agency details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  query_timestamp:
+                    type: integer
+                  response:
+                    type: object
+                    properties:
+                      agency_id:
+                        type: string
+                        description: Agency ID
+                      agency_name:
+                        type: string
+                        description: Agency name
+                      agency_url:
+                        type: string
+                        description: Agency website URL
+                      agency_timezone:
+                        type: string
+                        description: Agency timezone
+        '404':
+          description: Agency not found
+        '500':
+          description: Internal Server Error
+  /api/routes:
+    get:
+      summary: List all routes
+      parameters:
+        - in: query
+          name: agencyId
+          schema:
+            type: string
+          required: false
+          description: Agency ID to filter routes
+      responses:
+        '200':
+          description: List of routes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  query_timestamp:
+                    type: integer
+                  response:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        route_id:
+                          type: string
+                          description: Unique route identifier
+                        agency_id:
+                          type: string
+                          description: Agency ID for the route
+                        agency_name:
+                          type: string
+                          description: Agency name
+                        route_short_name:
+                          type: string
+                          description: Short name for the route
+                          nullable: true
+                        route_long_name:
+                          type: string
+                          description: Long name for the route
+                          nullable: true
+                        route_desc:
+                          type: string
+                          description: Route description
+                          nullable: true
+                        route_type:
+                          type: integer
+                          description: GTFS route type (0-12)
+                        route_url:
+                          type: string
+                          description: Route URL
+                          nullable: true
+                        route_color:
+                          type: string
+                          description: Route color (hex RGB)
+                          nullable: true
+                        route_text_color:
+                          type: string
+                          description: Route text color (hex RGB)
+                          nullable: true
+                        route_sort_order:
+                          type: integer
+                          description: Route sort order
+                          nullable: true
+                        continuous_pickup:
+                          type: integer
+                          description: Continuous pickup code (0-3)
+                          nullable: true
+                        continuous_drop_off:
+                          type: integer
+                          description: Continuous drop-off code (0-3)
+                          nullable: true
+        '404':
+          description: No routes found
+        '500':
+          description: Internal Server Error
+  /api/routes/{routeId}:
+    get:
+      summary: Get details for a specific route
+      parameters:
+        - in: path
+          name: routeId
+          required: true
+          schema:
+            type: string
+          description: Route ID
+      responses:
+        '200':
+          description: Route details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  query_timestamp:
+                    type: integer
+                  response:
+                    type: object
+                    properties:
+                      route_id:
+                        type: string
+                        description: Route ID
+                      agency_id:
+                        type: string
+                        description: Agency ID
+                      agency_name:
+                        type: string
+                        description: Agency name
+                      route_short_name:
+                        type: string
+                        description: Short name for the route
+                        nullable: true
+                      route_long_name:
+                        type: string
+                        description: Long name for the route
+                        nullable: true
+                      route_type:
+                        type: integer
+                        description: GTFS route type (0-12)
+        '404':
+          description: Route not found
+        '500':
+          description: Internal Server Error
+  /api/stops:
+    get:
+      summary: List all stops
+      parameters:
+        - in: query
+          name: agencyId
+          schema:
+            type: string
+          required: false
+          description: Agency ID to filter stops
+      responses:
+        '200':
+          description: List of stops
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  query_timestamp:
+                    type: integer
+                  response:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        stop_id:
+                          type: string
+                          description: Unique stop identifier
+                        stop_code:
+                          type: string
+                          description: Public stop code
+                          nullable: true
+                        stop_name:
+                          type: string
+                          description: Stop name
+                        tts_stop_name:
+                          type: string
+                          description: Text-to-speech stop name
+                          nullable: true
+                        stop_desc:
+                          type: string
+                          description: Stop description
+                          nullable: true
+                        stop_lat:
+                          type: number
+                          format: float
+                          description: Latitude
+                        stop_lon:
+                          type: number
+                          format: float
+                          description: Longitude
+                        zone_id:
+                          type: string
+                          description: Fare zone ID
+                          nullable: true
+                        stop_url:
+                          type: string
+                          description: Stop URL
+                          nullable: true
+                        location_type:
+                          type: integer
+                          description: Location type (0-4)
+                          nullable: true
+                        parent_station:
+                          type: string
+                          description: Parent station stop_id
+                          nullable: true
+                        stop_timezone:
+                          type: string
+                          description: Stop timezone
+                          nullable: true
+                        wheelchair_boarding:
+                          type: integer
+                          description: Wheelchair boarding code (0-2)
+                          nullable: true
+                        level_id:
+                          type: string
+                          description: Level ID
+                          nullable: true
+                        platform_code:
+                          type: string
+                          description: Platform code
+                          nullable: true
+        '404':
+          description: No stops found
+        '500':
+          description: Internal Server Error
+  /api/stops/{stopId}:
+    get:
+      summary: Get details for a specific stop
+      parameters:
+        - in: path
+          name: stopId
+          required: true
+          schema:
+            type: string
+          description: Stop ID
+      responses:
+        '200':
+          description: Stop details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  query_timestamp:
+                    type: integer
+                  response:
+                    type: object
+                    properties:
+                      stop_id:
+                        type: string
+                        description: Stop ID
+                      stop_name:
+                        type: string
+                        description: Stop name
+                      stop_lat:
+                        type: number
+                        format: float
+                        description: Latitude
+                      stop_lon:
+                        type: number
+                        format: float
+                        description: Longitude
+        '404':
+          description: Stop not found
+        '500':
+          description: Internal Server Error
+  /api/trips/{tripId}:
+    get:
+      summary: Get details for a specific trip
+      parameters:
+        - in: path
+          name: tripId
+          required: true
+          schema:
+            type: string
+          description: Trip ID
+      responses:
+        '200':
+          description: Trip details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  query_timestamp:
+                    type: integer
+                  response:
+                    type: object
+                    properties:
+                      trip_id:
+                        type: string
+                        description: Trip ID
+                      route_id:
+                        type: string
+                        description: Route ID
+                      service_id:
+                        type: string
+                        description: Service ID
+                      trip_headsign:
+                        type: string
+                        description: Trip headsign
+                        nullable: true
+                      trip_short_name:
+                        type: string
+                        description: Trip short name
+                        nullable: true
+                      direction_id:
+                        type: integer
+                        description: Direction ID (0 or 1)
+                        nullable: true
+                      block_id:
+                        type: string
+                        description: Block ID
+                        nullable: true
+                      shape_id:
+                        type: string
+                        description: Shape ID
+                        nullable: true
+        '404':
+          description: Trip not found
+        '500':
+          description: Internal Server Error
+  /api/shapes/{shapeId}:
+    get:
+      summary: Get details for a specific shape
+      parameters:
+        - in: path
+          name: shapeId
+          required: true
+          schema:
+            type: string
+          description: Shape ID
+      responses:
+        '200':
+          description: Shape details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  query_timestamp:
+                    type: integer
+                  response:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        shape_id:
+                          type: string
+                          description: Shape ID
+                        shape_pt_lat:
+                          type: number
+                          format: float
+                          description: Latitude of shape point
+                        shape_pt_lon:
+                          type: number
+                          format: float
+                          description: Longitude of shape point
+                        shape_pt_sequence:
+                          type: integer
+                          description: Sequence of the point along the shape
+                        shape_dist_traveled:
+                          type: number
+                          format: float
+                          description: Distance traveled along the shape (optional, may be null)
+        '404':
+          description: Shape not found
+        '500':
+          description: Internal Server Error
+  /api/stops/{stopId}/trips:
+    get:
+      summary: Get incoming trips at a stop (with real-time updates)
+      parameters:
+        - in: path
+          name: stopId
+          required: true
+          schema:
+            type: string
+          description: Stop ID
+        - in: query
+          name: lowerBoundMinutes
+          schema:
+            type: integer
+          required: false
+          description: Lower bound of time window in minutes (default: 90)
+        - in: query
+          name: upperBoundMinutes
+          schema:
+            type: integer
+          required: false
+          description: Upper bound of time window in minutes (default: 90)
+      responses:
+        '200':
+          description: Incoming trips at stop
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  query_timestamp:
+                    type: integer
+                  response:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        trip_id:
+                          type: string
+                          description: Trip ID
+                        trip_headsign:
+                          type: string
+                          description: Trip headsign
+                        route_id:
+                          type: string
+                          description: Route ID
+                        route_short_name:
+                          type: string
+                          description: Route short name
+                        route_long_name:
+                          type: string
+                          description: Route long name
+                        agency_id:
+                          type: string
+                          description: Agency ID
+                        stop_id:
+                          type: string
+                          description: Stop ID
+                        arrival_time:
+                          type: string
+                          description: Scheduled arrival time (HH:MM:SS)
+                        arrival_timestamp:
+                          type: integer
+                          description: Arrival time as Unix timestamp (seconds)
+                        departure_time:
+                          type: string
+                          description: Scheduled departure time (HH:MM:SS)
+                        departure_timestamp:
+                          type: integer
+                          description: Departure time as Unix timestamp (seconds)
+                        stop_sequence:
+                          type: integer
+                          description: Sequence of the stop along the trip
+                        service_id:
+                          type: string
+                          description: Service ID
+                        direction_id:
+                          type: integer
+                          description: Direction ID (0 or 1)
+                          nullable: true
+                        shape_id:
+                          type: string
+                          description: Shape ID
+                          nullable: true
+                        due_in:
+                          type: integer
+                          description: Minutes until departure (real-time, if available)
+                          nullable: true
+                        arrived:
+                          type: boolean
+                          description: True if the trip has already departed
+                          nullable: true
+                        is_realtime:
+                          type: boolean
+                          description: True if real-time data was applied
+                          nullable: true
+                        tripScheduleRelationship:
+                          type: string
+                          description: Real-time trip schedule relationship (e.g., SCHEDULED, CANCELED)
+                          nullable: true
+                        stopScheduleRelationship:
+                          type: string
+                          description: Real-time stop schedule relationship (e.g., SCHEDULED, SKIPPED)
+                          nullable: true
+        '404':
+          description: No trips found
+        '500':
+          description: Internal Server Error
+  /api/trips/{tripId}/stopTimes:
+    get:
+      summary: Get stop times for a specific trip
+      parameters:
+        - in: path
+          name: tripId
+          required: true
+          schema:
+            type: string
+          description: Trip ID
+      responses:
+        '200':
+          description: Stop times for trip
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  query_timestamp:
+                    type: integer
+                  response:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        trip_id:
+                          type: string
+                          description: Trip ID
+                        arrival_time:
+                          type: string
+                          description: Scheduled arrival time (HH:MM:SS)
+                        arrival_timestamp:
+                          type: integer
+                          description: Arrival time as Unix timestamp (seconds)
+                        departure_time:
+                          type: string
+                          description: Scheduled departure time (HH:MM:SS)
+                        departure_timestamp:
+                          type: integer
+                          description: Departure time as Unix timestamp (seconds)
+                        stop_id:
+                          type: string
+                          description: Stop ID
+                        stop_sequence:
+                          type: integer
+                          description: Sequence of the stop along the trip
+                        stop_headsign:
+                          type: string
+                          description: Stop headsign
+                          nullable: true
+                        pickup_type:
+                          type: integer
+                          description: Pickup type (0-3)
+                          nullable: true
+                        drop_off_type:
+                          type: integer
+                          description: Drop-off type (0-3)
+                          nullable: true
+                        timepoint:
+                          type: integer
+                          description: Timepoint (0 or 1)
+                          nullable: true
+        '404':
+          description: No stop times found
+        '500':
+          description: Internal Server Error
