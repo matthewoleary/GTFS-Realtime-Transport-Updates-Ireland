@@ -1,7 +1,6 @@
 
 import Joi from 'joi';
 import ServerLogger from '../../serverLogger.js';
-import { extractIdsFromParam } from './utils.js';
 import { getDatabaseClient, getCacheService } from '../index.js';
 import { getUnixTimestamp } from '../../../utils/timestampUtils.js';
 
