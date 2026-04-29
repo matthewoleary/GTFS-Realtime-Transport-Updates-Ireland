@@ -48,7 +48,7 @@ export default function getShapes(server) {
         options: {
             validate: {
                 params: Joi.object({
-                    shapeId: Joi.string().trim().min(1).max(64).regex(/^[a-zA-Z0-9_-]+$/)
+                    shapeId: Joi.string().trim().min(1).max(64).regex(/^[a-zA-Z0-9_.-]+$/)
                         .required()
                         .messages({
                             'string.base': 'shapeId must be a string',

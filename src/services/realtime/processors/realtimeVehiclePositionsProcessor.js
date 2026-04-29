@@ -33,7 +33,6 @@ class RealtimeVehiclePositionsProcessor {
 	}
 
 	/**
-	/**
 	* Processes a list or single vehicle/trip element, applying real-time vehicle position updates if available.
 	*
 	* For each element in the query response:

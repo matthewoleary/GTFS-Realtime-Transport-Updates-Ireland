@@ -99,6 +99,10 @@ export default function getTripsAtStop(server) {
                 const scheduleDate = getCurrentDate();
 
                 const maxDepartureTimestamp = await service.getMaximumDepartureTimestampWithCache(scheduleDay, scheduleDate);
+                if (maxDepartureTimestamp == null) {
+                    logger.error('No maximum departure timestamp found for scheduleDay:', scheduleDay, 'scheduleDate:', scheduleDate);
+                    return handler.response({ error: 'Internal Server Error: No maximum departure timestamp found for service day.' }).code(500);
+                }
                 const maxDepartureTimestampUnwrapped = getUnwrappedTimestamp(maxDepartureTimestamp);
 
                 let result;
@@ -202,7 +206,7 @@ export class TripsAtStopService {
         payload,
         serviceDay
     ) {
-        const response = await this.getTripsAtStopIdWithCache( stopId, serviceDay );
+        const response = await this.getTripsAtStopIdWithCache(stopId, serviceDay);
         const lastStops = await this.getLastStopsWithCache(response);
         const filteredTrips = await removeTripsAtLastStop(lastStops, response);
         payload.response.push(...filteredTrips);
