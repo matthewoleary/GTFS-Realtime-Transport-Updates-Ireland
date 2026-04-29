@@ -26,7 +26,7 @@ describe('TripsAtStopService', () => {
   beforeEach(() => {
     mockCacheService.getOrSetCache.mockReset();
     Object.values(mockDb.queries).forEach(fn => fn.mockReset && fn.mockReset());
-    service = new TripsAtStopService({ cacheService: mockCacheService, dbClient: mockDb, logger: mockLogger });
+    service = new TripsAtStopService(mockDb, mockCacheService, mockLogger);
   });
 
   test('getTripsAtStopIdWithCache uses cacheService', async () => {
@@ -98,7 +98,7 @@ describe('TripsAtStopService', () => {
   describe('no cacheService (fallback to DB)', () => {
     let dbOnlyService;
     beforeEach(() => {
-      dbOnlyService = new TripsAtStopService({ cacheService: null, dbClient: mockDb, logger: mockLogger });
+      dbOnlyService = new TripsAtStopService(mockDb, null, mockLogger);
     });
 
     test('getTripsAtStopIdWithCache uses DB directly', async () => {
