@@ -1,4 +1,3 @@
-// Unit tests for getAgencies route (CacheService abstraction)
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import getAgencies from '../routes/getAgencies.js';
 
