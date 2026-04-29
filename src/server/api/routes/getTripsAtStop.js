@@ -101,6 +101,7 @@ export default function getTripsAtStop(server) {
                 const maxDepartureTimestamp = await service.getMaximumDepartureTimestampWithCache(scheduleDay, scheduleDate);
                 const maxDepartureTimestampUnwrapped = getUnwrappedTimestamp(maxDepartureTimestamp);
 
+                let result;
                 if (checkIfNightServices(secondsSinceMidnightTimestamp, maxDepartureTimestampUnwrapped)) {
                     const previousScheduleDay = getPreviousDay().toLowerCase();
                     const previousScheduleDate = getPreviousDate();
@@ -108,23 +109,22 @@ export default function getTripsAtStop(server) {
                     const wrappedUpperBoundTimestamp = getWrappedTimestamp(querySearchUpperBoundTimestamp, maxDepartureTimestampUnwrapped);
                     const wrappedServiceDay = buildServiceDay(previousScheduleDay, previousScheduleDate, wrappedLowerBoundTimestamp, wrappedUpperBoundTimestamp);
                     const unwrappedServiceDay = buildServiceDay(scheduleDay, scheduleDate, querySearchLowerBoundTimestamp, querySearchUpperBoundTimestamp);
-                    const result = await service.getTripsWithMidnightServices(stopId, realtimeTripUpdates, realtimeVehiclePositions, payload, wrappedServiceDay, unwrappedServiceDay);
-                    return handler.response(result);
-                }
-
-                if (checkIfNightServices(querySearchUpperBoundTimestampUnWrapped, maxDepartureTimestampUnwrapped)) {
+                    result = await service.getTripsWithMidnightServices(stopId, realtimeTripUpdates, realtimeVehiclePositions, payload, wrappedServiceDay, unwrappedServiceDay);
+                } else if (checkIfNightServices(querySearchUpperBoundTimestampUnWrapped, maxDepartureTimestampUnwrapped)) {
                     const nextScheduleDay = getNextDay().toLowerCase();
                     const nextScheduleDate = getNextDayDate();
                     const wrappedLowerBoundTimestamp = getWrappedTimestamp(querySearchLowerBoundTimestamp, maxDepartureTimestampUnwrapped);
                     const wrappedUpperBoundTimestamp = getWrappedTimestamp(querySearchUpperBoundTimestamp, maxDepartureTimestampUnwrapped);
                     const wrappedServiceDay = buildServiceDay(scheduleDay, scheduleDate, wrappedLowerBoundTimestamp, wrappedUpperBoundTimestamp);
                     const unwrappedServiceDay = buildServiceDay(nextScheduleDay, nextScheduleDate, 0, querySearchUpperBoundTimestamp);
-                    const result = await service.getTripsWithMidnightServices(stopId, realtimeTripUpdates, realtimeVehiclePositions, payload, wrappedServiceDay, unwrappedServiceDay);
-                    return handler.response(result);
+                    result = await service.getTripsWithMidnightServices(stopId, realtimeTripUpdates, realtimeVehiclePositions, payload, wrappedServiceDay, unwrappedServiceDay);
+                } else {
+                    const serviceDay = buildServiceDay(scheduleDay, scheduleDate, querySearchLowerBoundTimestamp, querySearchUpperBoundTimestamp);
+                    result = await service.getTrips(stopId, realtimeTripUpdates, realtimeVehiclePositions, payload, serviceDay);
                 }
-
-                const serviceDay = buildServiceDay(scheduleDay, scheduleDate, querySearchLowerBoundTimestamp, querySearchUpperBoundTimestamp);
-                const result = await service.getTrips(stopId, realtimeTripUpdates, realtimeVehiclePositions, payload, serviceDay);
+                if (payload.response.length === 0) {
+                    return handler.response({ error: 'No trips found' }).code(404);
+                }
                 return handler.response(result);
             } catch (error) {
                 logger.error(error);
