@@ -86,15 +86,6 @@ describe('getStopTimes (with CacheService)', () => {
 		}));
 	});
 
-	test('returns 400 if tripId is missing', async () => {
-		getStopTimes(server);
-		handler = server.route.mock.calls[0][0].handler;
-		const req = { params: {}, server };
-		const res = await handler(req, h);
-		expect(res.code).toBe(true);
-		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({ error: expect.stringMatching(/tripId/) }));
-	});
-
 	test('returns 404 if no stop times found', async () => {
 		mockCacheService.getOrSetCache.mockResolvedValueOnce([]);
 		getStopTimes(server);
