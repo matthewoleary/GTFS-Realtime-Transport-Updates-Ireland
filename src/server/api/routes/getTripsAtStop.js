@@ -148,10 +148,9 @@ export class TripsAtStopService {
     /**
      * Constructs a TripsAtStopService instance for fetching and caching GTFS trip data at stops.
      *
-     * @param {Object} params
-     * @param {Object} params.cacheService - CacheService instance for caching (required).
-     * @param {Object} params.dbClient - Database client instance for queries.
-     * @param {Object} params.logger - Logger instance for logging events and errors.
+     * @param {Object} cacheService - CacheService instance for caching (required).
+     * @param {Object} dbClient - Database client instance for queries.
+     * @param {Object} logger - Logger instance for logging events and errors.
      */
     constructor(cacheService, dbClient, logger) {
         this.db = dbClient;
@@ -160,15 +159,14 @@ export class TripsAtStopService {
     }
 
     /**
-     * Fetches trips at stop(s) for night services (spanning two service days), using cache and DB as needed, and updates with real-time data.
+     * Fetches trips at a stop for night services (spanning two service days), using cache and DB as needed, and updates with real-time data.
      *
-     * @param {Object} params
-     * @param {string} params.stopId - stop ID to fetch trips for.
-     * @param {Object} params.realtimeTripUpdates - Real-time trip updates client (must have queryProcessor).
-     * @param {Object} params.realtimeVehiclePositions - Real-time vehicle positions client (must have queryProcessor).
-     * @param {Object} params.payload - Response payload object to be populated (mutated in-place).
-     * @param {Object} params.wrappedServiceDay - Service day object for previous/next day (night service window).
-     * @param {Object} params.unwrappedServiceDay - Service day object for current day (night service window).
+     * @param {string} stopId - Stop ID to fetch trips for.
+     * @param {Object} realtimeTripUpdates - Real-time trip updates client (must have queryProcessor).
+     * @param {Object} realtimeVehiclePositions - Real-time vehicle positions client (must have queryProcessor).
+     * @param {Object} payload - Response payload object to be populated (mutated in-place).
+     * @param {{dayColumn: string, date: string, lowerBoundTimestamp: number, upperBoundTimestamp: number}} wrappedServiceDay - Service day object for previous/next day (night service window).
+     * @param {{dayColumn: string, date: string, lowerBoundTimestamp: number, upperBoundTimestamp: number}} unwrappedServiceDay - Service day object for current day (night service window).
      * @returns {Promise<Object>} Updated payload with trips and real-time data.
      */
     async getTripsWithMidnightServices(
@@ -188,14 +186,13 @@ export class TripsAtStopService {
     }
 
     /**
-     * Fetches trips at stop(s) for a given service day, using cache and DB as needed, and updates with real-time data.
+     * Fetches trips at a stop for a given service day, using cache and DB as needed, and updates with real-time data.
      *
-     * @param {Object} params
-     * @param {string} params.stopId - Stop ID to fetch trips for.
-     * @param {Object} params.realtimeTripUpdates - Real-time trip updates client (must have queryProcessor).
-     * @param {Object} params.realtimeVehiclePositions - Real-time vehicle positions client (must have queryProcessor).
-     * @param {Object} params.payload - Response payload object to be populated (mutated in-place).
-     * @param {Object} params.serviceDay - Service day object for the query window.
+     * @param {string} stopId - Stop ID to fetch trips for.
+     * @param {Object} realtimeTripUpdates - Real-time trip updates client (must have queryProcessor).
+     * @param {Object} realtimeVehiclePositions - Real-time vehicle positions client (must have queryProcessor).
+     * @param {Object} payload - Response payload object to be populated (mutated in-place).
+     * @param {{dayColumn: string, date: string, lowerBoundTimestamp: number, upperBoundTimestamp: number}} serviceDay - Service day object for the query window.
      * @returns {Promise<Object>} Updated payload with trips and real-time data.
      */
     async getTrips(
