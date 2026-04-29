@@ -1,3 +1,4 @@
+import Joi from 'joi';
 import ServerLogger from '../../serverLogger.js';
 import { extractIdsFromParam } from './utils.js';
 import { getDatabaseClient, getCacheService } from '../index.js';
@@ -104,6 +105,19 @@ export default function getStops(server) {
     server.route({
         method: 'GET',
         path: '/api/stops',
+        options: {
+            validate: {
+                query: Joi.object({
+                    agencyId: Joi.string().trim().min(1).max(64).regex(/^[a-zA-Z0-9_-]+$/)
+                        .optional()
+                        .messages({
+                            'string.base': 'agencyId must be a string',
+                            'string.empty': 'agencyId cannot be empty',
+                            'string.pattern.base': 'agencyId contains invalid characters'
+                        })
+                })
+            }
+        },
         handler: async (request, handler) => {
             try {
                 const db = getDatabaseClient(request);
@@ -138,6 +152,20 @@ export default function getStops(server) {
     server.route({
         method: 'GET',
         path: '/api/stops/{stopId}',
+        options: {
+            validate: {
+                params: Joi.object({
+                    stopId: Joi.string().trim().min(1).max(64).regex(/^[a-zA-Z0-9_-]+$/)
+                        .required()
+                        .messages({
+                            'string.base': 'stopId must be a string',
+                            'string.empty': 'stopId cannot be empty',
+                            'string.pattern.base': 'stopId contains invalid characters',
+                            'any.required': 'stopId is required'
+                        })
+                })
+            }
+        },
         handler: async (request, handler) => {
             try {
                 const db = getDatabaseClient(request);

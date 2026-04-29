@@ -1,3 +1,4 @@
+import Joi from 'joi';
 import ServerLogger from '../../serverLogger.js';
 import { extractIdsFromParam } from './utils.js';
 import { getDatabaseClient, getCacheService } from '../index.js';
@@ -99,6 +100,20 @@ export default function getAgencies(server) {
     server.route({
         method: 'GET',
         path: '/api/agencies/{agencyId}',
+        options: {
+            validate: {
+                params: Joi.object({
+                    agencyId: Joi.string().trim().min(1).max(64).regex(/^[a-zA-Z0-9_-]+$/)
+                        .required()
+                        .messages({
+                            'string.base': 'agencyId must be a string',
+                            'string.empty': 'agencyId cannot be empty',
+                            'string.pattern.base': 'agencyId contains invalid characters',
+                            'any.required': 'agencyId is required'
+                        })
+                })
+            }
+        },
         handler: async (request, handler) => {
             try {
                 const db = getDatabaseClient(request);

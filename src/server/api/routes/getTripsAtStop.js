@@ -1,3 +1,4 @@
+import Joi from 'joi';
 import ServerLogger from '../../serverLogger.js';
 import { extractIdsFromParam, removeTripsAtLastStop, buildServiceDay } from './utils.js';
 import { getDatabaseClient, getRealtimeTripUpdatesClient, getRealtimeVehiclePositionsClient, getCacheService } from '../index.js';
@@ -22,6 +23,38 @@ export default function getTripsAtStop(server) {
     server.route({
         method: 'GET',
         path: '/api/stops/{stopId}/trips',
+        options: {
+            validate: {
+                params: Joi.object({
+                    stopId: Joi.string().trim().min(1).max(64).regex(/^[a-zA-Z0-9_-]+$/)
+                        .required()
+                        .messages({
+                            'string.base': 'stopId must be a string',
+                            'string.empty': 'stopId cannot be empty',
+                            'string.pattern.base': 'stopId contains invalid characters',
+                            'any.required': 'stopId is required'
+                        })
+                }),
+                query: Joi.object({
+                    lowerBoundMinutes: Joi.number().integer().min(1).max(1440)
+                        .optional()
+                        .messages({
+                            'number.base': 'lowerBoundMinutes must be a number',
+                            'number.integer': 'lowerBoundMinutes must be an integer',
+                            'number.min': 'lowerBoundMinutes must be at least 1',
+                            'number.max': 'lowerBoundMinutes must be at most 1440'
+                        }),
+                    upperBoundMinutes: Joi.number().integer().min(1).max(1440)
+                        .optional()
+                        .messages({
+                            'number.base': 'upperBoundMinutes must be a number',
+                            'number.integer': 'upperBoundMinutes must be an integer',
+                            'number.min': 'upperBoundMinutes must be at least 1',
+                            'number.max': 'upperBoundMinutes must be at most 1440'
+                        })
+                })
+            }
+        },
         handler: async (request, handler) => {
             const logger = new ServerLogger({ client: 'getTripsAtStop' });
             const dbClient = getDatabaseClient(request);
@@ -37,9 +70,6 @@ export default function getTripsAtStop(server) {
                 const realtimeTripUpdates = getRealtimeTripUpdatesClient(request);
                 const realtimeVehiclePositions = getRealtimeVehiclePositionsClient(request);
                 const { stopId } = request.params;
-                if (!stopId) {
-                    return handler.response({ error: 'stopId path parameter is required' }).code(400);
-                }
                 // Optionally support query params for time window
                 const scheduleSearchWindowLowerBound = request.query.lowerBoundMinutes !== undefined
                     ? Number(request.query.lowerBoundMinutes)

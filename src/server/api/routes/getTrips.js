@@ -1,3 +1,4 @@
+import Joi from 'joi';
 import ServerLogger from '../../serverLogger.js';
 import { extractIdsFromParam } from './utils.js';
 import { getDatabaseClient, getRealtimeVehiclePositionsClient, getCacheService } from '../index.js';
@@ -21,6 +22,20 @@ export default function getTrips(server) {
     server.route({
         method: 'GET',
         path: '/api/trips/{tripId}',
+        options: {
+            validate: {
+                params: Joi.object({
+                    tripId: Joi.string().trim().min(1).max(64).regex(/^[a-zA-Z0-9_-]+$/)
+                        .required()
+                        .messages({
+                            'string.base': 'tripId must be a string',
+                            'string.empty': 'tripId cannot be empty',
+                            'string.pattern.base': 'tripId contains invalid characters',
+                            'any.required': 'tripId is required'
+                        })
+                })
+            }
+        },
         handler: async (request, handler) => {
             try {
                 const db = getDatabaseClient(request);
