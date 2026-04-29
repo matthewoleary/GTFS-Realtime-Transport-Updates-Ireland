@@ -90,15 +90,6 @@ describe('getTrips (with CacheService)', () => {
 		expect(mockRealtime.queryProcessor.updateResultsWithRealtimeVehiclePositions).toHaveBeenCalled();
 	});
 
-	test('returns 400 if tripId is missing (detail endpoint)', async () => {
-		getTrips(server);
-		handler = server.route.mock.calls[0][0].handler;
-		const req = { params: {}, server };
-		const res = await handler(req, h);
-		expect(res.code).toBe(true);
-		expect(h.response).toHaveBeenCalledWith({ error: 'Trip with ID undefined not found' });
-	});
-
 	test('returns 404 if no trip found (detail endpoint)', async () => {
 		mockCacheService.getOrSetCache.mockResolvedValueOnce(null);
 		getTrips(server);

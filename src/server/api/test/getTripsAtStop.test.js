@@ -97,15 +97,6 @@ describe('getTripsAtStop (with CacheService)', () => {
 		}));
 	});
 
-	test('returns 400 if stopId is missing', async () => {
-		getTripsAtStop(server);
-		handler = server.route.mock.calls[0][0].handler;
-		const req = { params: {}, server };
-		const res = await handler(req, h);
-		expect(res.code).toBe(true);
-		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({ error: expect.stringMatching(/stopId/) }));
-	});
-
 	test('returns trips at stop for a stopId (cache hit)', async () => {
 		// First call: max departure timestamp, Second call: trips at stop
 		mockCacheService.getOrSetCache

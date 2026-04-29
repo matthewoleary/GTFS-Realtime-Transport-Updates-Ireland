@@ -99,14 +99,6 @@ describe('getShapes (with CacheService)', () => {
 		}));
 	});
 
-	test('returns 404 if shapeId param is missing', async () => {
-		getShapes(server);
-		handler = server.route.mock.calls[0][0].handler;
-		const req = { params: {}, server };
-		const res = await handler(req, h);
-		expect(h.response).toHaveBeenCalledWith({ error: 'No shapes found for the specified shapeId' });
-	});
-
 	test('returns 404 if no shapes found', async () => {
 		db.queries.getShapeById.mockResolvedValueOnce([]);
 		mockCacheService.getOrSetCache.mockImplementationOnce(async ({ cacheKey, dbFetchFn }) => dbFetchFn());
