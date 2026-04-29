@@ -98,6 +98,9 @@ export default function getRoutes(server) {
                 const unixTimestamp = getUnixTimestamp();
                 const response = await getAllRoutes(db, cacheService, agencyId);
                 const sortedRecords = await sortByRouteShortNameAsInt(response || []);
+                if (!sortedRecords || sortedRecords.length === 0) {
+                    return handler.response({ error: 'No routes found' }).code(404);
+                }
                 const payload = {
                     query_timestamp: unixTimestamp,
                     response: sortedRecords

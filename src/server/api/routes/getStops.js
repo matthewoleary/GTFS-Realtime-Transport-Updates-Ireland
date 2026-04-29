@@ -135,6 +135,9 @@ export default function getStops(server) {
                 } else {
                     response = await getAllStops(db, cacheService, cacheKeyBase);
                 }
+                if (!response || response.length === 0) {
+                    return handler.response({ error: 'No stops found' }).code(404);
+                }
                 const payload = {
                     query_timestamp: unixTimestamp,
                     response: response

@@ -24,7 +24,7 @@ export default function getStopTimes(server) {
         options: {
             validate: {
                 params: Joi.object({
-                    tripId: Joi.string().trim().min(1).max(64).regex(/^[a-zA-Z0-9_-]+$/)
+                    tripId: Joi.string().trim().min(1).max(64).regex(/^[a-zA-Z0-9_.-]+$/)
                         .required()
                         .messages({
                             'string.base': 'tripId must be a string',
