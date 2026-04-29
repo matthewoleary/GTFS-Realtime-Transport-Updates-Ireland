@@ -25,8 +25,6 @@ describe('databaseQueriesProcessor', () => {
       getRouteById: 'SELECT * FROM routes WHERE route_id = ?',
       getAgencyById: 'SELECT * FROM agencies WHERE agency_id = ?',
       getShapeById: 'SELECT * FROM shapes WHERE shape_id = ?',
-      getTransfersFromStopId: 'SELECT * FROM transfers WHERE from_stop_id = ?',
-      getTransfersToStopId: 'SELECT * FROM transfers WHERE to_stop_id = ?',
       getTripById: 'SELECT * FROM trips WHERE trip_id = ?',
       getLastStopOnTrip: 'SELECT * FROM stops WHERE trip_index = ?',
       getStopTimesByTripId: 'SELECT * FROM stop_times WHERE trip_id = ?',
@@ -66,15 +64,6 @@ describe('databaseQueriesProcessor', () => {
     await processor.getShapeById(shapeId);
     const cnx = await getConnection.mock.results[0].value;
     expect(cnx.query).toHaveBeenCalledWith(sqlQueries.getShapeById, [shapeId]);
-  });
-
-  it('should call getTransfersFromStopId and getTransfersToStopId', async () => {
-    const stopId = 111;
-    await processor.getTransfersFromStopId(stopId);
-    await processor.getTransfersToStopId(stopId);
-    const cnx = await getConnection.mock.results[0].value;
-    expect(cnx.query).toHaveBeenCalledWith(sqlQueries.getTransfersFromStopId, [stopId]);
-    expect(cnx.query).toHaveBeenCalledWith(sqlQueries.getTransfersToStopId, [stopId]);
   });
 
   it('should call getTripById with correct SQL and param', async () => {
