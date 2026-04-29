@@ -148,14 +148,14 @@ export class TripsAtStopService {
     /**
      * Constructs a TripsAtStopService instance for fetching and caching GTFS trip data at stops.
      *
-     * @param {Object} cacheService - CacheService instance for caching (required).
      * @param {Object} dbClient - Database client instance for queries.
+     * @param {Object} cacheService - CacheService instance for caching.
      * @param {Object} logger - Logger instance for logging events and errors.
      */
-    constructor(cacheService, dbClient, logger) {
+    constructor(dbClient, cacheService, logger) {
         this.db = dbClient;
-        this.logger = logger;
         this.cacheService = cacheService;
+        this.logger = logger;
     }
 
     /**
