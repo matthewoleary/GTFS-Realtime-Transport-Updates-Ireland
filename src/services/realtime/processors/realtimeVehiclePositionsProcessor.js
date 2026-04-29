@@ -20,11 +20,7 @@ class RealtimeVehiclePositionsProcessor {
 			if (feedTimestamp && feedTripIdMap) {
 				try {
 					payload.realtime_vehicle_positions_feed_timestamp = feedTimestamp;
-					if (Array.isArray(payload.response)) {
-						payload.response = await processor.processVehicleResponse(payload.response, feedTripIdMap);
-					} else {
-						processor.logger.warn('Payload response is not an array, skipping vehicle positions processing.', payload.response);
-					}
+					payload.response = await processor.processVehicleResponse(payload.response, feedTripIdMap);
 				} catch (error) {
 					processor.logger.error('No realtime vehicle positions information available.', error);
 				}
@@ -37,26 +33,46 @@ class RealtimeVehiclePositionsProcessor {
 	}
 
 	/**
-	 * Processes a list of vehicle/trip elements, applying real-time updates if available.
-	 *
-	 * For each element:
-	 *   - Looks up the corresponding GTFS-realtime feed entity to the entity in the query response.
-	 *   - Applies the vehicle position information to the entity in the query response.
-	 *
-	 * @param {Array<Object>} queryResponse - The query response object.
-	 * @param {Map<string, Object>} feedEntityMap - Map of trip_id to GTFS-realtime feed entity.
-	 * @returns {Promise<Array<Object>>} Array of updated vehicle/trip elements.
-	 */
+	/**
+	* Processes a list or single vehicle/trip element, applying real-time vehicle position updates if available.
+	*
+	* For each element in the query response:
+	*   - Looks up the corresponding GTFS-realtime feed entity using the element's trip_id.
+	*   - If a matching feed entity with vehicle data exists, attaches the vehicle position to the element.
+	*   - If no matching vehicle data exists, sets the element's vehicle property to null.
+	*
+	* @param {Array<Object>|Object} queryResponse - The query response object or a single element to update.
+	* @param {Map<string, Object>} feedEntityMap - Map of trip_id to GTFS-realtime feed entity.
+	* @returns {Promise<Array<Object>|Object>} The updated query response with vehicle positions applied.
+	*/
 	async processVehicleResponse(queryResponse, feedEntityMap) {
-		for (const element of queryResponse) {
-			const vehicleEntity = feedEntityMap.get(element.trip_id);
-			if (vehicleEntity && vehicleEntity.vehicle) {
-				element.vehicle = vehicleEntity.vehicle;
-			} else {
-				element.vehicle = null;
+		if (Array.isArray(queryResponse)) {
+			for (const element of queryResponse) {
+				await this.getElementVehiclePositionIfExists(element, feedEntityMap);
 			}
+		} else {
+			await this.getElementVehiclePositionIfExists(queryResponse, feedEntityMap);
 		}
 		return queryResponse;
+	}
+
+	/**
+	 * Attaches vehicle position information to a single element if available in the feed entity map.
+	 *
+	 * - If a feed entity exists for the element's trip_id and contains vehicle data, sets element.vehicle to that data.
+	 * - Otherwise, sets element.vehicle to null.
+	 *
+	 * @param {Object} element - The vehicle/trip element to update.
+	 * @param {Map<string, Object>} feedEntityMap - Map of trip_id to GTFS-realtime feed entity.
+	 * @returns {Promise<void>} Resolves when the element has been updated.
+	 */
+	async getElementVehiclePositionIfExists(element, feedEntityMap) {
+		const vehicleEntity = feedEntityMap.get(element.trip_id);
+		if (vehicleEntity && vehicleEntity.vehicle) {
+			element.vehicle = vehicleEntity.vehicle;
+		} else {
+			element.vehicle = null;
+		}
 	}
 }
 
