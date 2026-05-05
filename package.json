@@ -35,7 +35,7 @@
     "pretty-error": "^4.0.0",
     "sinon": "^21.0.3",
     "vitest": "^4.0.18",
-    "@redocly/cli": "latest"
+    "@redocly/cli": "2.30.3"
   },
   "scripts": {
     "start": "node . prod",
