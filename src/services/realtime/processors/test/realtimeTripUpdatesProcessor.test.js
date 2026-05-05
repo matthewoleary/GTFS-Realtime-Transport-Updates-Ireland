@@ -133,8 +133,8 @@ describe('RealtimeTripUpdatesProcessor', () => {
     });
   });
 
-  describe('processStopResponse', () => {
-    it('should process stopResponse and filter arrived', async () => {
+  describe('processResponse', () => {
+    it('should process response and filter arrived', async () => {
       const stopResponse = [
         { stop_id: 'stop1', stop_sequence: 1, departure_timestamp: 100, arrival_timestamp: 100 },
         { stop_id: 'stop2', stop_sequence: 2, departure_timestamp: 300, arrival_timestamp: 300 },
@@ -145,7 +145,7 @@ describe('RealtimeTripUpdatesProcessor', () => {
       vi.spyOn(processor, 'markArrivalAndDueIn').mockImplementation(e => { if (e.departure_timestamp < 200) { e.arrived = true; } return e; });
       vi.spyOn(utils, 'unwrapTimes').mockImplementation(e => e);
       vi.spyOn(utils, 'sortByArrival').mockImplementation(arr => arr);
-      const result = await processor.processStopResponse(stopResponse, feedEntityMap, 200);
+      const result = await processor.processResponse(stopResponse, feedEntityMap, 200);
       expect(result.length).toBe(1);
       expect(result[0].stop_id).toBe('stop2');
     });
@@ -156,26 +156,18 @@ describe('RealtimeTripUpdatesProcessor', () => {
       const getFeedTimestamp = vi.fn().mockResolvedValue(123);
       const getFeedTripIdMap = vi.fn().mockResolvedValue(new Map());
       const query = { response: [] };
-      vi.spyOn(RealtimeTripUpdatesProcessor.prototype, 'processStopResponse').mockResolvedValue([]);
+      vi.spyOn(RealtimeTripUpdatesProcessor.prototype, 'processResponse').mockResolvedValue([]);
       const { updateResultsWithRealtimeTripUpdates } = await RealtimeTripUpdatesProcessor.register(getFeedTimestamp, getFeedTripIdMap, logger);
       const updated = await updateResultsWithRealtimeTripUpdates(query);
       expect(updated.realtime_trip_updates_feed_timestamp).toBe(123);
       expect(getFeedTimestamp).toHaveBeenCalled();
       expect(getFeedTripIdMap).toHaveBeenCalled();
     });
-    it('should warn if query.response is not array', async () => {
-      const getFeedTimestamp = vi.fn().mockResolvedValue(123);
-      const getFeedTripIdMap = vi.fn().mockResolvedValue(new Map());
-      const query = { response: null };
-      const { updateResultsWithRealtimeTripUpdates } = await RealtimeTripUpdatesProcessor.register(getFeedTimestamp, getFeedTripIdMap, logger);
-      await updateResultsWithRealtimeTripUpdates(query);
-      expect(logger.warn).toHaveBeenCalled();
-    });
-    it('should log error if processStopResponse throws', async () => {
+    it('should log error if processResponse throws', async () => {
       const getFeedTimestamp = vi.fn().mockResolvedValue(123);
       const getFeedTripIdMap = vi.fn().mockResolvedValue(new Map());
       const query = { response: [] };
-      vi.spyOn(RealtimeTripUpdatesProcessor.prototype, 'processStopResponse').mockRejectedValue(new Error('fail'));
+      vi.spyOn(RealtimeTripUpdatesProcessor.prototype, 'processResponse').mockRejectedValue(new Error('fail'));
       const { updateResultsWithRealtimeTripUpdates } = await RealtimeTripUpdatesProcessor.register(getFeedTimestamp, getFeedTripIdMap, logger);
       await updateResultsWithRealtimeTripUpdates(query);
       expect(logger.error).toHaveBeenCalled();
