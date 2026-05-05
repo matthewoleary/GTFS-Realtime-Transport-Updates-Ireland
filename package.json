@@ -34,14 +34,16 @@
     "eslint": "^10.0.1",
     "pretty-error": "^4.0.0",
     "sinon": "^21.0.3",
-    "vitest": "^4.0.18"
+    "vitest": "^4.0.18",
+    "@redocly/cli": "latest"
   },
   "scripts": {
     "start": "node . prod",
     "test": "vitest",
     "import": "node ./import/gtfs-import",
     "lint": "xo",
-    "test:integration:db": "docker-compose up -d gtfs-db-testing && vitest run src/database/queries/test/mysql-queries.test.js && docker-compose down"
+    "test:integration:db": "docker-compose up -d gtfs-db-testing && vitest run src/database/queries/test/mysql-queries.test.js && docker-compose down",
+    "docs": "redocly build-docs openapi.yaml --output dist/index.html"
   },
   "author": "Matthew O'Leary",
   "license": "MIT",
