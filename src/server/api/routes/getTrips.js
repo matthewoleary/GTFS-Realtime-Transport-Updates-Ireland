@@ -1,6 +1,6 @@
 import Joi from 'joi';
 import ServerLogger from '../../serverLogger.js';
-import { getDatabaseClient, getRealtimeVehiclePositionsClient, getCacheService } from '../index.js';
+import { getDatabaseClient, getRealtimeVehiclePositionsClient, getRealtimeTripUpdatesClient, getCacheService } from '../index.js';
 import { getUnixTimestamp } from '../../../utils/timestampUtils.js';
 
 /**
@@ -38,7 +38,8 @@ export default function getTrips(server) {
         handler: async (request, handler) => {
             try {
                 const db = getDatabaseClient(request);
-                const realtime = getRealtimeVehiclePositionsClient(request);
+                const realtimeVehiclePositions = getRealtimeVehiclePositionsClient(request);
+                const realtimeTripUpdates = getRealtimeTripUpdatesClient(request);
                 let cacheService = null;
                 try {
                     cacheService = getCacheService(request);
@@ -72,7 +73,8 @@ export default function getTrips(server) {
                     query_timestamp: unixTimestamp,
                     response: trip
                 };
-                payload = await realtime.queryProcessor.updateResultsWithRealtimeVehiclePositions(payload);
+                payload = await realtimeVehiclePositions.queryProcessor.updateResultsWithRealtimeVehiclePositions(payload);
+                payload = await realtimeTripUpdates.queryProcessor.updateResultsWithRealtimeTripUpdates(payload);
                 return handler.response(payload);
             } catch (error) {
                 logger.error(error);
