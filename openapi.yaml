@@ -461,19 +461,19 @@ paths:
           required: true
           schema:
             type: string
-          description: Stop ID
+          description: The stop ID to query for incoming trips.
         - in: query
           name: lowerBoundMinutes
           schema:
             type: integer
           required: false
-          description: Lower bound of time window in minutes (default: 90)
+          description: The lower bound in minutes for filtering incoming trips. Trips departing this many minutes before now will be included in the response.
         - in: query
           name: upperBoundMinutes
           schema:
             type: integer
           required: false
-          description: Upper bound of time window in minutes (default: 90)
+          description: The upper bound in minutes for filtering incoming trips. Trips departing within this many minutes from now will be included in the response.
       responses:
         '200':
           description: Incoming trips at stop
