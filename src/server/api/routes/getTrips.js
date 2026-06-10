@@ -74,7 +74,7 @@ export default function getTrips(server) {
                     response: trip
                 };
                 payload = await realtimeVehiclePositions.queryProcessor.updateResultsWithRealtimeVehiclePositions(payload);
-                payload = await realtimeTripUpdates.queryProcessor.updateResultsWithRealtimeTripUpdates(payload);
+                payload = await realtimeTripUpdates.queryProcessor.updateTripWithRealtimeUpdates(payload);
                 return handler.response(payload);
             } catch (error) {
                 logger.error(error);
