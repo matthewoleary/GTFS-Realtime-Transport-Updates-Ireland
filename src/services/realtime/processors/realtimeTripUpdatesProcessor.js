@@ -17,89 +17,102 @@ class RealtimeTripUpdatesProcessor {
 	 */
 	static async register(getFeedTimestamp, getFeedTripIdMap, logger = console) {
 		const processor = new RealtimeTripUpdatesProcessor(logger);
+		const feedTimestamp = await getFeedTimestamp();
+		const feedTripIdMap = await getFeedTripIdMap();
+
 		/**
-		 * Updates query results with realtime information.
+		 * Update the query for a single trip with the realtime trip update object if available.
 		 * @param {Object} query - The query object to update.
 		 * @returns {Object} The updated query object.
 		 */
-		const updateResultsWithRealtimeTripUpdates = async query => {
-			const feedTimestamp = await getFeedTimestamp();
-			const feedTripIdMap = await getFeedTripIdMap();
+		const updateTripWithRealtimeUpdates = async query => {
 			if (feedTimestamp && feedTripIdMap) {
 				try {
 					query.realtime_trip_updates_feed_timestamp = feedTimestamp;
 					const secondsSinceMidnightTimestamp = getSecondsSinceMidnightTimestamp(query.timestamp);
-					query.response = await processor.processStopResponse(query.response, feedTripIdMap, secondsSinceMidnightTimestamp);
+					query.response = await processor.processTripResponse(query.response, feedTripIdMap, secondsSinceMidnightTimestamp);
 				} catch (error) {
-					// Log error if realtime information is unavailable
 					processor.logger.error('No realtime trip updates information available. Error:', error.message);
 				}
 			}
 			return query;
-		};
-		return {
-			updateResultsWithRealtimeTripUpdates
-		};
-	}
+		}
 
-	/**
-	 * Processes a single trip element or an array of trip elements, applying real-time updates, marking arrivals, and unwrapping times.
-	 *
-	 * For each element:
-	 *   - Creates a shallow copy to avoid mutating the input.
-	 *   - Looks up the corresponding GTFS-realtime feed entity and sets the tripScheduleRelationship.
-	 *   - Applies real-time delay if not canceled (tripScheduleRelationship !== 'CANCELED').
-	 *   - Marks arrival or due_in, and unwraps times if needed.
-	 *   - Filters out elements that have already arrived (removes them from the result).
-	 *   - Sorts the result by arrival time if input is an array.
-	 *
-	 * @param {Array<Object>|Object} response - A single trip element or an array of trip elements to process.
-	 * @param {Map<string, Object>} feedEntityMap - Map of trip_id to GTFS-realtime feed entity.
-	 * @param {number} secondsSinceMidnightTimestamp - Current timestamp in seconds since midnight.
-	 * @returns {Promise<Array<Object>|Object>} Filtered and sorted array of updated trip elements, or a single updated element if input was not an array.
-	 */
-	async processResponse(response, feedEntityMap, secondsSinceMidnightTimestamp) {
-		if (Array.isArray(response)) {
-			const filteredResponse = [];
-			for (const origElement of response) {
-				let element = await this.processElementWithRealtime(origElement, feedEntityMap, secondsSinceMidnightTimestamp);
-				if (!element.arrived) {
-					filteredResponse.push(element);
+		/**
+		 * Update the query for each trip arriving at a stop with the related realtime stop updates for each trip along with updated departure/arrival times.
+		 * @param {Object} query - The query object to update.
+		 * @returns {Object} The updated query object.
+		 */
+		const updateStopWithRealtimeUpdates = async query => {
+			if (feedTimestamp && feedTripIdMap) {
+				try {
+					query.realtime_trip_updates_feed_timestamp = feedTimestamp;
+					const secondsSinceMidnightTimestamp = getSecondsSinceMidnightTimestamp(query.timestamp);
+					if (Array.isArray(query.response)) {
+						query.response = await processor.processStopResponse(query.response, feedTripIdMap, secondsSinceMidnightTimestamp);
+					} else {
+						processor.logger.warn('Query response is not an array, skipping trip updates processing.', query.response);
+					}
+				} catch (error) {
+					processor.logger.error('No realtime trip updates information available. Error:', error.message);
 				}
 			}
-			return sortByArrival(filteredResponse);
-		} else {
-			return await this.processElementWithRealtime(response, feedEntityMap, secondsSinceMidnightTimestamp);
+			return query;
 		}
+		return {
+			updateTripWithRealtimeUpdates,
+			updateStopWithRealtimeUpdates
+		};
 	}
 
 	/**
-	 * Processes a single trip/stop element, applying real-time updates and marking arrival/due_in status.
+	 * Processes a list of stop/trip elements, applying real-time updates, marking arrivals, and unwrapping times.
 	 *
-	 * Steps:
-	 *   - Creates a shallow copy of the input element to avoid mutation.
-	 *   - Looks up the corresponding GTFS-realtime feed entity for the trip.
-	 *   - Sets the tripScheduleRelationship property based on the feed entity.
-	 *   - Applies stop-level schedule relationship if present.
-	 *   - If the trip is not CANCELED, applies real-time delay using stopTimeUpdate data.
-	 *   - Sets is_realtime flag based on real-time data or vehicle presence.
-	 *   - Marks arrival or due_in based on current time.
-	 *   - Unwraps times for the element.
+	 * For each element in stopResponse:
+	 *   - Creates a shallow copy to avoid mutating the input array.
+	 *   - Looks up the corresponding GTFS-realtime feed entity and sets the scheduleRelationship (defaults to undefined if not found).
+	 *   - Applies real-time delay if not canceled (scheduleRelationship !== 3).
+	 *   - Marks arrival or due_in, and unwraps times if needed.
+	 *   - Filters out elements that have already arrived or have scheduleRelationship === 7 (GTFS-realtime DELETED).
+	 *   - Sorts the result by arrival time.
 	 *
-	 * @param {Object} origElement - The original trip/stop element to process.
+	 * @param {Array<Object>} stopResponse - Array of stop/trip elements to process.
 	 * @param {Map<string, Object>} feedEntityMap - Map of trip_id to GTFS-realtime feed entity.
 	 * @param {number} secondsSinceMidnightTimestamp - Current timestamp in seconds since midnight.
-	 * @returns {Promise<Object>} The processed element with real-time updates and arrival/due_in status.
+	 * @returns {Promise<Array<Object>>} Filtered and sorted array of updated stop/trip elements.
 	 */
-	async processElementWithRealtime(origElement, feedEntityMap, secondsSinceMidnightTimestamp) {
-		let element = { ...origElement };
-		const feedEntity = findFeedEntityForTrip(element, feedEntityMap);
+	async processStopResponse(stopResponse, feedEntityMap, secondsSinceMidnightTimestamp) {
+		const filteredResponse = [];
+		for (const origElement of stopResponse) {
+			let element = { ...origElement };
+			const feedEntity = findFeedEntityForTrip(element, feedEntityMap);
+			element.tripUpdate = feedEntity?.tripUpdate;
+			const scheduleRelationshipValue = feedEntity?.tripUpdate?.trip?.scheduleRelationship ?? 0;
+			element.tripScheduleRelationship = getTripDescriptorScheduleRelationshipName(scheduleRelationshipValue);
+			// if feedEntity.tripUpdate.stopTimeUpdate exists, check if an update is provided for element.stop_id
+			// If a scheduleRelationship is present, update element.scheduleRelationship to that value.
+			this.applyStopScheduleRelationshipIfPresent(element, feedEntity);
+			// If the tripScheduleRelationship is not CANCELED (3), apply real-time delay
+			if (feedEntity && element.tripScheduleRelationship !== 'CANCELED') {
+				element = this.applyRealtimeDelay(element, feedEntity);
+			} else if (element.vehicle) {
+				element.is_realtime = true;
+			} else {
+				element.is_realtime = false;
+			}
+			element = this.markArrivalAndDueIn(element, secondsSinceMidnightTimestamp);
+			element = unwrapTimes(element);
+			if (!element.arrived) {
+				filteredResponse.push(element);
+			}
+		}
+		return sortByArrival(filteredResponse);
+	}
+
+	async processTripResponse(tripResponse, feedEntityMap, secondsSinceMidnightTimestamp) {
+		const feedEntity = findFeedEntityForTrip(tripResponse, feedEntityMap);
 		const scheduleRelationshipValue = feedEntity?.tripUpdate?.trip?.scheduleRelationship ?? 0;
-		element.tripScheduleRelationship = getTripDescriptorScheduleRelationshipName(scheduleRelationshipValue);
-		// if feedEntity.tripUpdate.stopTimeUpdate exists, check if an update is provided for element.stop_id
-		// If a scheduleRelationship is present, update element.scheduleRelationship to that value.
-		this.applyStopScheduleRelationshipIfPresent(element, feedEntity);
-		// If the tripScheduleRelationship is not CANCELED (3), apply real-time delay
+		tripResponse.tripScheduleRelationship = getTripDescriptorScheduleRelationshipName(scheduleRelationshipValue);
 		if (feedEntity && element.tripScheduleRelationship !== 'CANCELED') {
 			element = this.applyRealtimeDelay(element, feedEntity);
 		} else if (element.vehicle) {
@@ -107,8 +120,6 @@ class RealtimeTripUpdatesProcessor {
 		} else {
 			element.is_realtime = false;
 		}
-		element = this.markArrivalAndDueIn(element, secondsSinceMidnightTimestamp);
-		return element = unwrapTimes(element);
 	}
 
 	/**
@@ -207,7 +218,6 @@ class RealtimeTripUpdatesProcessor {
 				element.due_in = getDueInValue(arrivalTimestamp, secondsSinceMidnightTimestamp);
 			}
 		} else {
-			// Error handling for missing timestamps
 			this.logger.error('No departure or arrival timestamp available for element:', element);
 		}
 		return element;

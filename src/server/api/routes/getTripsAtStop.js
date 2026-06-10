@@ -186,7 +186,7 @@ export class TripsAtStopService {
         const filteredTrips = await removeTripsAtLastStop(lastStops, response);
         payload.response.push(...filteredTrips);
         await realtimeVehiclePositions.queryProcessor.updateResultsWithRealtimeVehiclePositions(payload);
-        return await realtimeTripUpdates.queryProcessor.updateResultsWithRealtimeTripUpdates(payload);
+        return await realtimeTripUpdates.queryProcessor.updateStopWithRealtimeTripUpdates(payload);
     }
 
     /**
@@ -211,7 +211,7 @@ export class TripsAtStopService {
         const filteredTrips = await removeTripsAtLastStop(lastStops, response);
         payload.response.push(...filteredTrips);
         await realtimeVehiclePositions.queryProcessor.updateResultsWithRealtimeVehiclePositions(payload);
-        return await realtimeTripUpdates.queryProcessor.updateResultsWithRealtimeTripUpdates(payload);
+        return await realtimeTripUpdates.queryProcessor.updateStopWithRealtimeTripUpdates(payload);
     }
 
     /**
