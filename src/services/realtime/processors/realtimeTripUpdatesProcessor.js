@@ -117,7 +117,7 @@ class RealtimeTripUpdatesProcessor {
 		const scheduleRelationshipValue = feedEntity?.tripUpdate?.trip?.scheduleRelationship ?? 0;
 		tripResponse.tripScheduleRelationship = getTripDescriptorScheduleRelationshipName(scheduleRelationshipValue);
 		if (feedEntity && tripResponse.tripScheduleRelationship !== 'CANCELED') {
-			tripResponse.isRealtime = true;
+			tripResponse.is_realtime = true;
 		} else if (tripResponse.vehicle) {
 			tripResponse.is_realtime = true;
 		} else {
