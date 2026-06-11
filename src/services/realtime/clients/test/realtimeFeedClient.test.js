@@ -119,7 +119,7 @@ describe('RealtimeFeedClient', () => {
         client.retryBaseDelay = 5;
         client.retryMaxDelay = 20;
         client.retryJitterMax = 3;
-        vi.spyOn(Math, 'random').mockReturnValue(0.25);
+        vi.spyOn(Math, 'random').mockReturnValue(0.75);
         axios.mockRejectedValueOnce(new Error('Network error'))
             .mockResolvedValueOnce({ status: 200, data: new Uint8Array([1, 2, 3]) });
         gtfsRealtimeBindings.transit_realtime.FeedMessage.decode.mockReturnValue({ entity: [{}] });
@@ -128,7 +128,12 @@ describe('RealtimeFeedClient', () => {
         await Promise.resolve();
 
         expect(vi.getTimerCount()).toBe(1);
-        vi.advanceTimersByTime(8);
+
+        vi.advanceTimersByTime(6);
+        await Promise.resolve();
+        expect(axios).toHaveBeenCalledTimes(1);
+
+        vi.advanceTimersByTime(1);
         await Promise.resolve();
         await Promise.resolve();
 
