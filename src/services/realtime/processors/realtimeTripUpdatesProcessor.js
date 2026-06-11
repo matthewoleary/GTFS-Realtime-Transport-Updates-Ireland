@@ -113,10 +113,11 @@ class RealtimeTripUpdatesProcessor {
 
 	async processTripResponse(tripResponse, feedEntityMap, secondsSinceMidnightTimestamp) {
 		const feedEntity = findFeedEntityForTrip(tripResponse, feedEntityMap);
+		tripResponse.tripUpdate = feedEntity?.tripUpdate;
 		const scheduleRelationshipValue = feedEntity?.tripUpdate?.trip?.scheduleRelationship ?? 0;
 		tripResponse.tripScheduleRelationship = getTripDescriptorScheduleRelationshipName(scheduleRelationshipValue);
 		if (feedEntity && tripResponse.tripScheduleRelationship !== 'CANCELED') {
-			tripResponse = this.applyRealtimeDelay(tripResponse, feedEntity);
+			tripResponse.isRealtime = true;
 		} else if (tripResponse.vehicle) {
 			tripResponse.is_realtime = true;
 		} else {
