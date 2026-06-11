@@ -46,7 +46,8 @@ function createClient(overrides = {}) {
         overrides.nightServiceInterval || 10,
         overrides.recoveryInterval || 10,
         overrides.retryBaseDelay ?? 0,
-        overrides.retryMaxDelay ?? 0
+        overrides.retryMaxDelay ?? 0,
+        overrides.retryJitterMax ?? 0
     );
 }
 
@@ -93,6 +94,7 @@ describe('RealtimeFeedClient', () => {
         const client = createClient();
         client.retryBaseDelay = 5;
         client.retryMaxDelay = 20;
+        client.retryJitterMax = 0;
         axios.mockRejectedValueOnce(new Error('Network error'))
             .mockResolvedValueOnce({ status: 200, data: new Uint8Array([1, 2, 3]) });
         gtfsRealtimeBindings.transit_realtime.FeedMessage.decode.mockReturnValue({ entity: [{}] });
@@ -247,7 +249,10 @@ describe('RealtimeFeedClient', () => {
             mockBuildTripIdMapFn,
             10,
             10,
-            10
+            10,
+            0,
+            0,
+            0
         );
         // Fail primary URL 3 times
         axios.mockRejectedValueOnce(new Error('Primary fail 1'));
