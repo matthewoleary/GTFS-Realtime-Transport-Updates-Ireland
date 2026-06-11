@@ -12,7 +12,7 @@ const mockGetUnixTimestamp = vi.fn();
 const mockCacheService = { getOrSetCache: vi.fn() };
 const mockDb = { queries: { getTripById: vi.fn() } };
 const mockRealtimeVehiclePositions = { queryProcessor: { updateResultsWithRealtimeVehiclePositions: vi.fn(async (p) => p) } };
-const mockRealtimeTripUpdates = { queryProcessor: { updateResultsWithRealtimeTripUpdates: vi.fn(async (p) => p) } };
+const mockRealtimeTripUpdates = { queryProcessor: { updateTripWithRealtimeUpdates: vi.fn(async (p) => p) } };
 
 vi.mock('../../serverLogger.js', () => ({
 	default: function (...args) { return mockLogger(...args); }
@@ -41,7 +41,7 @@ describe('getTrips.js handler', () => {
 		mockCacheService.getOrSetCache.mockReset();
 		mockDb.queries.getTripById.mockReset();
 		mockRealtimeVehiclePositions.queryProcessor.updateResultsWithRealtimeVehiclePositions.mockClear();
-		mockRealtimeTripUpdates.queryProcessor.updateResultsWithRealtimeTripUpdates.mockClear();
+		mockRealtimeTripUpdates.queryProcessor.updateTripWithRealtimeUpdates.mockClear();
 	});
 
 	test('registers the route', () => {
@@ -65,7 +65,7 @@ describe('getTrips.js handler', () => {
 			query_timestamp: 12345
 		}));
 		expect(mockRealtimeVehiclePositions.queryProcessor.updateResultsWithRealtimeVehiclePositions).toHaveBeenCalled();
-		expect(mockRealtimeTripUpdates.queryProcessor.updateResultsWithRealtimeTripUpdates).toHaveBeenCalled();
+		expect(mockRealtimeTripUpdates.queryProcessor.updateTripWithRealtimeUpdates).toHaveBeenCalled();
 	});
 
 	test('returns trip from DB if cache unavailable', async () => {
@@ -81,7 +81,7 @@ describe('getTrips.js handler', () => {
 			query_timestamp: 12345
 		}));
 		expect(mockRealtimeVehiclePositions.queryProcessor.updateResultsWithRealtimeVehiclePositions).toHaveBeenCalled();
-		expect(mockRealtimeTripUpdates.queryProcessor.updateResultsWithRealtimeTripUpdates).toHaveBeenCalled();
+		expect(mockRealtimeTripUpdates.queryProcessor.updateTripWithRealtimeUpdates).toHaveBeenCalled();
 	});
 
 	test('returns 404 if no trip found', async () => {

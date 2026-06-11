@@ -122,6 +122,7 @@ class RealtimeTripUpdatesProcessor {
 		} else {
 			tripResponse.is_realtime = false;
 		}
+		return tripResponse;
 	}
 
 	/**
