@@ -44,13 +44,17 @@ function createClient(overrides = {}) {
         overrides.buildTripIdMapFn || mockBuildTripIdMapFn,
         overrides.dayServiceInterval || 10,
         overrides.nightServiceInterval || 10,
-        overrides.recoveryInterval || 10
+        overrides.recoveryInterval || 10,
+        overrides.retryBaseDelay ?? 0,
+        overrides.retryMaxDelay ?? 0
     );
 }
 
 describe('RealtimeFeedClient', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        axios.mockReset();
+        mockBuildTripIdMapFn.mockReset().mockReturnValue({});
     });
 
     it('should start polling only once', async () => {
@@ -82,6 +86,29 @@ describe('RealtimeFeedClient', () => {
         axios.mockRejectedValue(new Error('Network error'));
         await client.sendGetRequest();
         expect(mockLogger.errorFetchingFeed).toHaveBeenCalled();
+    });
+
+    it('should apply backoff before retrying after a failed request', async () => {
+        vi.useFakeTimers();
+        const client = createClient();
+        client.retryBaseDelay = 5;
+        client.retryMaxDelay = 20;
+        axios.mockRejectedValueOnce(new Error('Network error'))
+            .mockResolvedValueOnce({ status: 200, data: new Uint8Array([1, 2, 3]) });
+        gtfsRealtimeBindings.transit_realtime.FeedMessage.decode.mockReturnValue({ entity: [{}] });
+
+        const sendPromise = client.sendGetRequest();
+        await Promise.resolve();
+        expect(axios).toHaveBeenCalledTimes(1);
+        expect(vi.getTimerCount()).toBe(1);
+
+        vi.advanceTimersByTime(5);
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(axios).toHaveBeenCalledTimes(2);
+        await sendPromise;
+        vi.useRealTimers();
     });
 
     it('should register query processor with bound methods', async () => {

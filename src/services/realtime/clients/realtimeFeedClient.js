@@ -17,9 +17,11 @@ export default class RealtimeFeedClient {
      * @param {number} [dayServiceInterval] - Polling interval for day service
      * @param {number} [nightServiceInterval] - Polling interval for night service
      * @param {number} [recoveryInterval] - Interval for checking recovery of primary URL when fallback is active.
+     * @param {number} [retryBaseDelay] - Base delay in milliseconds before retrying after a failed request.
+     * @param {number} [retryMaxDelay] - Maximum delay in milliseconds for exponential backoff.
      * @property {string} activeURL - The currently active URL being used to fetch the feed.
      */
-    constructor(logger, apiKey, apiURL, apiURLFallback, processor, buildTripIdMapFn, dayServiceInterval = 60000, nightServiceInterval = 180000, recoveryInterval = 300000) {
+    constructor(logger, apiKey, apiURL, apiURLFallback, processor, buildTripIdMapFn, dayServiceInterval = 60000, nightServiceInterval = 180000, recoveryInterval = 300000, retryBaseDelay = 5000, retryMaxDelay = 30000) {
         this.logger = logger;
         this.apiKey = apiKey;
         this.apiURL = apiURL;
@@ -30,6 +32,8 @@ export default class RealtimeFeedClient {
         this.dayServiceInterval = dayServiceInterval;
         this.nightServiceInterval = nightServiceInterval;
         this.recoveryInterval = recoveryInterval;
+        this.retryBaseDelay = retryBaseDelay;
+        this.retryMaxDelay = retryMaxDelay;
         this.recoveryTimer = null;
         this.feed = null;
         this.feedTripIdMap = null;
@@ -105,6 +109,7 @@ export default class RealtimeFeedClient {
                 } catch (error) {
                     if (attempt < maxRetries) {
                         this.logger.errorFetchingFeed(error, `Retrying (${attempt}/${maxRetries}) for ${url}`);
+                        await this.waitBeforeRetry(attempt);
                     } else if (urlIndex === 0 && urls.length > 1) {
                         this.logger.errorFetchingFeed(
                             error,
@@ -120,6 +125,13 @@ export default class RealtimeFeedClient {
                     }
                 }
             }
+        }
+    }
+
+    async waitBeforeRetry(attempt) {
+        const delay = Math.min(this.retryBaseDelay * (2 ** (attempt - 1)), this.retryMaxDelay);
+        if (delay > 0) {
+            await new Promise(resolve => setTimeout(resolve, delay));
         }
     }
 
