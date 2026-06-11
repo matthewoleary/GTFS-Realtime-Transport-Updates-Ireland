@@ -17,8 +17,6 @@ class RealtimeTripUpdatesProcessor {
 	 */
 	static async register(getFeedTimestamp, getFeedTripIdMap, logger = console) {
 		const processor = new RealtimeTripUpdatesProcessor(logger);
-		const feedTimestamp = await getFeedTimestamp();
-		const feedTripIdMap = await getFeedTripIdMap();
 
 		/**
 		 * Update the query for a single trip with the realtime trip update object if available.
@@ -26,6 +24,8 @@ class RealtimeTripUpdatesProcessor {
 		 * @returns {Object} The updated query object.
 		 */
 		const updateTripWithRealtimeUpdates = async query => {
+			const feedTimestamp = await getFeedTimestamp();
+			const feedTripIdMap = await getFeedTripIdMap();
 			if (feedTimestamp && feedTripIdMap) {
 				try {
 					query.realtime_trip_updates_feed_timestamp = feedTimestamp;
@@ -44,6 +44,8 @@ class RealtimeTripUpdatesProcessor {
 		 * @returns {Object} The updated query object.
 		 */
 		const updateStopWithRealtimeUpdates = async query => {
+			const feedTimestamp = await getFeedTimestamp();
+			const feedTripIdMap = await getFeedTripIdMap();
 			if (feedTimestamp && feedTripIdMap) {
 				try {
 					query.realtime_trip_updates_feed_timestamp = feedTimestamp;
@@ -113,12 +115,12 @@ class RealtimeTripUpdatesProcessor {
 		const feedEntity = findFeedEntityForTrip(tripResponse, feedEntityMap);
 		const scheduleRelationshipValue = feedEntity?.tripUpdate?.trip?.scheduleRelationship ?? 0;
 		tripResponse.tripScheduleRelationship = getTripDescriptorScheduleRelationshipName(scheduleRelationshipValue);
-		if (feedEntity && element.tripScheduleRelationship !== 'CANCELED') {
-			element = this.applyRealtimeDelay(element, feedEntity);
-		} else if (element.vehicle) {
-			element.is_realtime = true;
+		if (feedEntity && tripResponse.tripScheduleRelationship !== 'CANCELED') {
+			tripResponse = this.applyRealtimeDelay(tripResponse, feedEntity);
+		} else if (tripResponse.vehicle) {
+			tripResponse.is_realtime = true;
 		} else {
-			element.is_realtime = false;
+			tripResponse.is_realtime = false;
 		}
 	}
 
