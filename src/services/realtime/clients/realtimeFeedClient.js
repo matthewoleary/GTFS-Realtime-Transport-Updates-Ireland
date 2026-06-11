@@ -19,9 +19,10 @@ export default class RealtimeFeedClient {
      * @param {number} [recoveryInterval] - Interval for checking recovery of primary URL when fallback is active.
      * @param {number} [retryBaseDelay] - Base delay in milliseconds before retrying after a failed request.
      * @param {number} [retryMaxDelay] - Maximum delay in milliseconds for exponential backoff.
+     * @param {number} [retryJitterMax] - Maximum random jitter in milliseconds to add to the backoff delay.
      * @property {string} activeURL - The currently active URL being used to fetch the feed.
      */
-    constructor(logger, apiKey, apiURL, apiURLFallback, processor, buildTripIdMapFn, dayServiceInterval = 60000, nightServiceInterval = 180000, recoveryInterval = 300000, retryBaseDelay = 5000, retryMaxDelay = 30000) {
+    constructor(logger, apiKey, apiURL, apiURLFallback, processor, buildTripIdMapFn, dayServiceInterval = 60000, nightServiceInterval = 180000, recoveryInterval = 300000, retryBaseDelay = 5000, retryMaxDelay = 30000, retryJitterMax = 1000) {
         this.logger = logger;
         this.apiKey = apiKey;
         this.apiURL = apiURL;
@@ -34,6 +35,7 @@ export default class RealtimeFeedClient {
         this.recoveryInterval = recoveryInterval;
         this.retryBaseDelay = retryBaseDelay;
         this.retryMaxDelay = retryMaxDelay;
+        this.retryJitterMax = retryJitterMax;
         this.recoveryTimer = null;
         this.feed = null;
         this.feedTripIdMap = null;
@@ -129,7 +131,9 @@ export default class RealtimeFeedClient {
     }
 
     async waitBeforeRetry(attempt) {
-        const delay = Math.min(this.retryBaseDelay * (2 ** (attempt - 1)), this.retryMaxDelay);
+        const exponentialDelay = Math.min(this.retryBaseDelay * (2 ** (attempt - 1)), this.retryMaxDelay);
+        const jitter = this.retryJitterMax > 0 ? Math.floor(Math.random() * this.retryJitterMax) : 0;
+        const delay = exponentialDelay + jitter;
         if (delay > 0) {
             await new Promise(resolve => setTimeout(resolve, delay));
         }
