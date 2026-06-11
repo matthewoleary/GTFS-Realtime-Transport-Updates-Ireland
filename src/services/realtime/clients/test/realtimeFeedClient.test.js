@@ -113,6 +113,31 @@ describe('RealtimeFeedClient', () => {
         vi.useRealTimers();
     });
 
+    it('should add jitter to the retry delay', async () => {
+        vi.useFakeTimers();
+        const client = createClient();
+        client.retryBaseDelay = 5;
+        client.retryMaxDelay = 20;
+        client.retryJitterMax = 3;
+        vi.spyOn(Math, 'random').mockReturnValue(0.25);
+        axios.mockRejectedValueOnce(new Error('Network error'))
+            .mockResolvedValueOnce({ status: 200, data: new Uint8Array([1, 2, 3]) });
+        gtfsRealtimeBindings.transit_realtime.FeedMessage.decode.mockReturnValue({ entity: [{}] });
+
+        const sendPromise = client.sendGetRequest();
+        await Promise.resolve();
+
+        expect(vi.getTimerCount()).toBe(1);
+        vi.advanceTimersByTime(8);
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(axios).toHaveBeenCalledTimes(2);
+        await sendPromise;
+        vi.useRealTimers();
+        vi.restoreAllMocks();
+    });
+
     it('should register query processor with bound methods', async () => {
         const client = createClient();
         const result = await client.registerQueryProcessor(mockLogger);
