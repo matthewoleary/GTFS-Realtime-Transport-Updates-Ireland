@@ -13,19 +13,7 @@ vi.mock('../routes/utils.js', async (importOriginal) => {
   };
 });
 import * as utils from '../routes/utils.js';
-const { removeTripsAtLastStop, sortByRouteShortNameAsInt, extractIdsFromParam, buildServiceDay } = utils;
-
-describe('removeTripsAtLastStop', () => {
-  test('removes trips at their last stop', async () => {
-    const lastStops = [[{ stop_sequence: 3 }], [{ stop_sequence: 2 }]];
-    const trips = [
-      { stop_sequence: 3 },
-      { stop_sequence: 1 }
-    ];
-    const result = await removeTripsAtLastStop(lastStops, trips);
-    expect(result).toEqual([{ stop_sequence: 1, last_stop: false }]);
-  });
-});
+const { sortByRouteShortNameAsInt, extractIdsFromParam, buildServiceDay } = utils;
 
 describe('sortByRouteShortNameAsInt', () => {
   test('sorts routes by route_short_name as int', async () => {

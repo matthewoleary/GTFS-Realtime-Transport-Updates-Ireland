@@ -35,31 +35,21 @@ export function getTripDescriptorScheduleRelationshipName(value) {
 }
 
 /**
-* Sorts a list of trip elements by arrival timestamp (soonest first).
-* @param {Array<Object>} tripList - List of trip elements.
-* @returns {Array<Object>} Sorted list by arrival time.
-*/
-export function sortByArrival(tripList) {
-    return tripList.sort((a, b) =>
-        a.arrival_timestamp > b.arrival_timestamp ? 1 :
-        a.arrival_timestamp < b.arrival_timestamp ? -1 : 0
-    );
-}
-
-/**
 * Unwraps departure and arrival timestamps that exceed 86400 seconds (24 hours).
 * Mutates the input element in place.
 * @param {Object} element - The stop/trip object. This object will be modified directly.
 * @returns {Object} The same element object with unwrapped times.
 */
 export function unwrapTimes(element) {
-    if (element.departure_timestamp >= 86400) {
-        const unwrappedTimestamp = getUnwrappedTimestamp(element.departure_timestamp);
+    const departureTimestamp = element.updated_departure_timestamp ?? element.departure_timestamp;
+    const arrivalTimestamp = element.updated_arrival_timestamp ?? element.arrival_timestamp;
+    if (departureTimestamp >= 86400) {
+        const unwrappedTimestamp = getUnwrappedTimestamp(departureTimestamp);
         element.departure_timestamp = unwrappedTimestamp;
         element.departure_time = getTimestampAsTimeFormatted(unwrappedTimestamp);
     }
-    if (element.arrival_timestamp >= 86400) {
-        const unwrappedTimestamp = getUnwrappedTimestamp(element.arrival_timestamp);
+    if (arrivalTimestamp >= 86400) {
+        const unwrappedTimestamp = getUnwrappedTimestamp(arrivalTimestamp);
         element.arrival_timestamp = unwrappedTimestamp;
         element.arrival_time = getTimestampAsTimeFormatted(unwrappedTimestamp);
     }

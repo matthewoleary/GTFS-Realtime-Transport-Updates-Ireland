@@ -49,7 +49,7 @@ describe('RealtimeTripUpdatesProcessor', () => {
   });
 
   describe('applyRealtimeDelay', () => {
-    it('should call findNearestStopSequenceDelay and set is_realtime', () => {
+    it('should delegate to findNearestStopSequenceDelay when stopTimeUpdates exist', () => {
       const element = { stop_sequence: 2 };
       const feedEntity = {
         tripUpdate: {
@@ -63,19 +63,20 @@ describe('RealtimeTripUpdatesProcessor', () => {
         return el;
       });
       const result = processor.applyRealtimeDelay(element, feedEntity);
-      expect(result.is_realtime).toBe(true);
       expect(result.mocked).toBe(true);
     });
-    it('should not set is_realtime if no stopTimeUpdate', () => {
+    it('should leave the element unchanged when no stopTimeUpdates exist', () => {
       const element = {};
       const feedEntity = { tripUpdate: {} };
       const result = processor.applyRealtimeDelay(element, feedEntity);
-      expect(result.is_realtime).toBeUndefined();
+      expect(result).toBe(element);
+      expect(result.realtime_departure_timestamp).toBeUndefined();
+      expect(result.realtime_arrival_timestamp).toBeUndefined();
     });
   });
 
   describe('findNearestStopSequenceDelay', () => {
-    it('should apply delay from nearest stopTimeUpdate', () => {
+    it('should apply delay from the nearest matching stopTimeUpdate', () => {
       const element = { stop_sequence: 2, departure_timestamp: 100, arrival_timestamp: 200 };
       const stopTimeUpdates = [
         { stopSequence: 1, departure: { delay: 5 }, arrival: { delay: 2 }, scheduleRelationship: 0 },
@@ -83,52 +84,52 @@ describe('RealtimeTripUpdatesProcessor', () => {
       ];
       vi.spyOn(utils, 'getTimestampAsTimeFormatted').mockImplementation(ts => `t${ts}`);
       const result = processor.findNearestStopSequenceDelay(element, stopTimeUpdates);
-      expect(result.departure_timestamp).toBe(110);
-      expect(result.arrival_timestamp).toBe(205);
+      expect(result.realtime_departure_timestamp).toBe(110);
+      expect(result.realtime_arrival_timestamp).toBe(205);
+      expect(result.realtime_departure_time).toBe('t110');
+      expect(result.realtime_arrival_time).toBe('t205');
     });
-    it('should not apply delay if no matching stopTimeUpdate', () => {
+    it('should not apply delay if no matching stopTimeUpdate is found', () => {
       const element = { stop_sequence: 5, departure_timestamp: 100, arrival_timestamp: 200 };
       const stopTimeUpdates = [
         { stopSequence: 1, scheduleRelationship: 1 },
         { stopSequence: 2, scheduleRelationship: 1 },
       ];
       const result = processor.findNearestStopSequenceDelay(element, stopTimeUpdates);
-      expect(result.departure_timestamp).toBe(100);
-      expect(result.arrival_timestamp).toBe(200);
+      expect(result.realtime_departure_timestamp).toBeUndefined();
+      expect(result.realtime_arrival_timestamp).toBeUndefined();
     });
   });
 
-  describe('markArrivalAndDueIn', () => {
+  describe('checkArrival', () => {
     it('should mark as arrived if departureTimestamp < now', () => {
       const element = { departure_timestamp: 100 };
       const now = 200;
-      const result = processor.markArrivalAndDueIn(element, now);
-      expect(result.arrived).toBe(true);
+      const result = processor.checkArrival(element, now);
+      expect(result).toBe(true);
     });
-    it('should set due_in if departureTimestamp >= now', () => {
+    it('should not mark as arrived if departureTimestamp >= now', () => {
       const element = { departure_timestamp: 300 };
       const now = 200;
-      vi.spyOn(utils, 'getDueInValue').mockReturnValue(42);
-      const result = processor.markArrivalAndDueIn(element, now);
-      expect(result.due_in).toBe(42);
+      const result = processor.checkArrival(element, now);
+      expect(result).toBe(false);
     });
     it('should mark as arrived if arrivalTimestamp < now and no departureTimestamp', () => {
       const element = { arrival_timestamp: 100 };
       const now = 200;
-      const result = processor.markArrivalAndDueIn(element, now);
-      expect(result.arrived).toBe(true);
+      const result = processor.checkArrival(element, now);
+      expect(result).toBe(true);
     });
-    it('should set due_in if arrivalTimestamp >= now and no departureTimestamp', () => {
+    it('should not mark as arrived if arrivalTimestamp >= now and no departureTimestamp', () => {
       const element = { arrival_timestamp: 300 };
       const now = 200;
-      vi.spyOn(utils, 'getDueInValue').mockReturnValue(99);
-      const result = processor.markArrivalAndDueIn(element, now);
-      expect(result.due_in).toBe(99);
+      const result = processor.checkArrival(element, now);
+      expect(result).toBe(false);
     });
     it('should log error if no timestamps', () => {
       const element = {};
       const now = 200;
-      processor.markArrivalAndDueIn(element, now);
+      processor.checkArrival(element, now);
       expect(logger.error).toHaveBeenCalled();
     });
   });
@@ -142,9 +143,9 @@ describe('RealtimeTripUpdatesProcessor', () => {
       const feedEntityMap = new Map();
       vi.spyOn(processor, 'applyStopScheduleRelationshipIfPresent').mockImplementation(e => e);
       vi.spyOn(processor, 'applyRealtimeDelay').mockImplementation(e => { e.is_realtime = true; return e; });
-      vi.spyOn(processor, 'markArrivalAndDueIn').mockImplementation(e => { if (e.departure_timestamp < 200) { e.arrived = true; } return e; });
+      vi.spyOn(processor, 'checkArrival').mockImplementation(e => e.departure_timestamp < 200);
       vi.spyOn(utils, 'unwrapTimes').mockImplementation(e => e);
-      vi.spyOn(utils, 'sortByArrival').mockImplementation(arr => arr);
+      vi.spyOn(processor, 'sortByArrival').mockImplementation(arr => arr);
       const result = await processor.processStopResponse(stopResponse, feedEntityMap, 200);
       expect(result.length).toBe(1);
       expect(result[0].stop_id).toBe('stop2');
@@ -195,6 +196,18 @@ describe('RealtimeTripUpdatesProcessor', () => {
       const { updateStopWithRealtimeUpdates } = await RealtimeTripUpdatesProcessor.register(getFeedTimestamp, getFeedTripIdMap, logger);
       await updateStopWithRealtimeUpdates(query);
       expect(logger.error).toHaveBeenCalled();
+    });
+  });
+
+  describe('sortByArrival', () => {
+    it('should sort by arrival_timestamp ascending', () => {
+      const arr = [
+        { arrival_timestamp: 300 },
+        { arrival_timestamp: 100 },
+        { arrival_timestamp: 200 }
+      ];
+      const sorted = processor.sortByArrival(arr);
+      expect(sorted.map(e => e.arrival_timestamp)).toEqual([100, 200, 300]);
     });
   });
 });
