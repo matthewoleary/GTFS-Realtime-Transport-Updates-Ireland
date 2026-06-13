@@ -51,7 +51,7 @@ class RealtimeTripUpdatesProcessor {
 					query.realtime_trip_updates_feed_timestamp = feedTimestamp;
 					const secondsSinceMidnightTimestamp = getSecondsSinceMidnightTimestamp(query.timestamp);
 					if (Array.isArray(query.response)) {
-						query.response = await processor.processStopResponse(query.response, feedTripIdMap, secondsSinceMidnightTimestamp);
+						query.response = await processor.processTripsAtStopResponse(query.response, feedTripIdMap, secondsSinceMidnightTimestamp);
 					} else {
 						processor.logger.warn('Query response is not an array, skipping stop updates processing.', query.response);
 					}
@@ -104,7 +104,7 @@ class RealtimeTripUpdatesProcessor {
 	 * @param {number} secondsSinceMidnightTimestamp - Current timestamp in seconds since midnight.
 	 * @returns {Promise<Array<Object>>} Filtered and sorted array of updated stop/trip elements.
 	 */
-	async processStopResponse(stopResponse, feedEntityMap, secondsSinceMidnightTimestamp) {
+	async processTripsAtStopResponse(stopResponse, feedEntityMap, secondsSinceMidnightTimestamp) {
 		const filteredResponse = [];
 		for (const origElement of stopResponse) {
 			let element = { ...origElement };
@@ -112,7 +112,7 @@ class RealtimeTripUpdatesProcessor {
 			element.tripUpdate = feedEntity?.tripUpdate;
 			element.stopUpdate = feedEntity?.tripUpdate?.stopTimeUpdate?.find(update => update.stopId === element.stop_id);
 			// If the tripScheduleRelationship is not CANCELED (3), apply real-time delay
-			if (feedEntity && element.tripScheduleRelationship !== 'CANCELED') {
+			if (feedEntity && element.tripUpdate?.scheduleRelationship !== 'CANCELED') {
 				element = this.applyRealtimeDelay(element, feedEntity);
 			}
 			const arrived = this.checkArrival(element, secondsSinceMidnightTimestamp);
@@ -242,8 +242,8 @@ class RealtimeTripUpdatesProcessor {
 	 * @returns {Object} The updated element with 'arrived' property set to true if the trip has already arrived.
 	 */
 	checkArrival(element, secondsSinceMidnightTimestamp) {
-		const departureTimestamp = element.updated_departure_timestamp ?? element.departure_timestamp;
-		const arrivalTimestamp = element.updated_arrival_timestamp ?? element.arrival_timestamp;
+		const departureTimestamp = element.realtime_departure_timestamp ?? element.departure_timestamp;
+		const arrivalTimestamp = element.realtime_arrival_timestamp ?? element.arrival_timestamp;
 		let arrived = false;
 		if (departureTimestamp) {
 			if (departureTimestamp < secondsSinceMidnightTimestamp) {
@@ -266,8 +266,8 @@ class RealtimeTripUpdatesProcessor {
 	*/
 	sortByArrival(tripList) {
 		return tripList.sort((a, b) => {
-			const aArrival = a.updated_arrival_timestamp ?? a.arrival_timestamp;
-			const bArrival = b.updated_arrival_timestamp ?? b.arrival_timestamp;
+			const aArrival = a.realtime_arrival_timestamp ?? a.arrival_timestamp;
+			const bArrival = b.realtime_arrival_timestamp ?? b.arrival_timestamp;
 	
 			if (aArrival > bArrival) {
 				return 1;
