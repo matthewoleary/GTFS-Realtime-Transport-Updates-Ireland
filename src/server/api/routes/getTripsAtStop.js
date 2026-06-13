@@ -1,6 +1,6 @@
 import Joi from 'joi';
 import ServerLogger from '../../serverLogger.js';
-import { removeTripsAtLastStop, buildServiceDay } from './utils.js';
+import { buildServiceDay } from './utils.js';
 import { getDatabaseClient, getRealtimeTripUpdatesClient, getRealtimeVehiclePositionsClient, getCacheService } from '../index.js';
 import { getSecondsSinceMidnightTimestamp, getUnixTimestamp, getTimestampMinusNumberMinutes, getTimestampPlusNumberMinutes, checkIfNightServices, getWrappedTimestamp, getUnwrappedTimestamp } from '../../../utils/timestampUtils.js';
 import { getCurrentDay, getCurrentDate, getPreviousDay, getPreviousDate, getNextDay, getNextDayDate } from '../../../utils/dateUtils.js';
@@ -186,7 +186,7 @@ export class TripsAtStopService {
         const filteredTrips = await removeTripsAtLastStop(lastStops, response);
         payload.response.push(...filteredTrips);
         await realtimeVehiclePositions.queryProcessor.updateResultsWithRealtimeVehiclePositions(payload);
-        return await realtimeTripUpdates.queryProcessor.updateStopWithRealtimeTripUpdates(payload);
+        return await realtimeTripUpdates.queryProcessor.updateStopWithRealtimeUpdates(payload);
     }
 
     /**
@@ -208,10 +208,10 @@ export class TripsAtStopService {
     ) {
         const response = await this.getTripsAtStopIdWithCache(stopId, serviceDay);
         const lastStops = await this.getLastStopsWithCache(response);
-        const filteredTrips = await removeTripsAtLastStop(lastStops, response);
+        const filteredTrips = await this.removeTripsAtLastStop(lastStops, response);
         payload.response.push(...filteredTrips);
         await realtimeVehiclePositions.queryProcessor.updateResultsWithRealtimeVehiclePositions(payload);
-        return await realtimeTripUpdates.queryProcessor.updateStopWithRealtimeTripUpdates(payload);
+        return await realtimeTripUpdates.queryProcessor.updateStopWithRealtimeUpdates(payload);
     }
 
     /**
@@ -327,4 +327,21 @@ export class TripsAtStopService {
             return this.db.queries.getMaximumDepartureTimestamp(scheduleDay, scheduleDate);
         }
     }
+
+    /**
+    * Filters out trips that are already at their final stop.
+    *
+    * For each trip, checks whether its stop sequence matches the corresponding last stop's stop sequence.
+    * Trips that match are excluded from the returned array.
+    *
+    * @param {Array<Array<Object>>} lastStops - An array of arrays, each containing the last stop(s) for a trip.
+    * @param {Array<Object>} trips - An array of trip objects to be filtered.
+    * @returns {Array<Object>} Trips that are not at their last stop.
+    */
+    removeTripsAtLastStop = async (lastStops, trips) => {
+        return trips.filter((trip, index) => {
+            const lastStop = lastStops[index]?.[0];
+            return !(lastStop && lastStop.stop_sequence === trip.stop_sequence);
+        });
+    };
 }

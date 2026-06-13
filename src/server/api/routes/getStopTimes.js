@@ -1,6 +1,6 @@
 import Joi from 'joi';
 import ServerLogger from '../../serverLogger.js';
-import { getDatabaseClient, getCacheService } from '../index.js';
+import { getDatabaseClient, getCacheService, getRealtimeTripUpdatesClient } from '../index.js';
 import { getUnixTimestamp } from '../../../utils/timestampUtils.js';
 
 /**
@@ -38,6 +38,7 @@ export default function getStopTimes(server) {
         handler: async (request, handler) => {
             try {
                 const db = getDatabaseClient(request);
+                const realtimeTripUpdates = getRealtimeTripUpdatesClient(request);
                 let cacheService = null;
                 try {
                     cacheService = getCacheService(request);
@@ -63,10 +64,11 @@ export default function getStopTimes(server) {
                 if (!stopTimes || stopTimes.length === 0) {
                     return handler.response({ error: `No stop times found for tripId ${tripId}` }).code(404);
                 }
-                const payload = {
+                let payload = {
                     query_timestamp: unixTimestamp,
                     response: stopTimes
                 };
+                payload = await realtimeTripUpdates.queryProcessor.updateStopTimesWithRealtimeUpdates(payload);
                 return handler.response(payload);
             } catch (error) {
                 logger.error(error);

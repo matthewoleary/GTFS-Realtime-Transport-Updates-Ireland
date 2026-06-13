@@ -70,6 +70,8 @@ describe('getTripsAtStop (with CacheService)', () => {
 		server = { route: mockRoute.mockReset() };
 		h = { response: vi.fn((payload) => ({ code: vi.fn().mockReturnValue({ payload, code: true }) })) };
 		mockExtractIdsFromParam.mockReset();
+		mockRemoveTripsAtLastStop.mockReset();
+		mockRemoveTripsAtLastStop.mockImplementation(async (lastStops, trips) => trips);
 		mockCacheService.getOrSetCache.mockReset();
 		mockDb.queries.getTripsAtStopId.mockReset();
 		mockDb.queries.getTripsAtStopIdWithNightServices.mockReset();
@@ -114,6 +116,28 @@ describe('getTripsAtStop (with CacheService)', () => {
 		}));
 		expect(mockRealtimeTripUpdates.queryProcessor.updateResultsWithRealtimeTripUpdates).toHaveBeenCalled();
 		expect(mockRealtimeVehiclePositions.queryProcessor.updateResultsWithRealtimeVehiclePositions).toHaveBeenCalled();
+	});
+
+	test('filters out trips that are at their last stop', async () => {
+		mockRemoveTripsAtLastStop.mockImplementation(async (lastStops, trips) => trips.filter((trip, index) => {
+			const lastStop = lastStops[index]?.[0];
+			return !(lastStop && lastStop.stop_sequence === trip.stop_sequence);
+		}));
+		mockCacheService.getOrSetCache
+			.mockResolvedValueOnce(86400)
+			.mockResolvedValueOnce([
+				{ trip_id: 'T1', stop_sequence: 3 },
+				{ trip_id: 'T2', stop_sequence: 2 }
+			])
+			.mockResolvedValueOnce([[{ stop_sequence: 3 }], [{ stop_sequence: 2 }]]);
+		getTripsAtStop(server);
+		handler = server.route.mock.calls[0][0].handler;
+		const req = { params: { stopId: 'S1' }, query: {}, server };
+		await handler(req, h);
+		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
+			query_timestamp: 1234567890,
+			response: [{ trip_id: 'T2', stop_sequence: 2 }]
+		}));
 	});
 
 	test('returns 500 on handler error', async () => {

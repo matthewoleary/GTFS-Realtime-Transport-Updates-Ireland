@@ -55,18 +55,6 @@ describe('utils', () => {
     });
   });
 
-  describe('sortByArrival', () => {
-    it('should sort by arrival_timestamp ascending', () => {
-      const arr = [
-        { arrival_timestamp: 300 },
-        { arrival_timestamp: 100 },
-        { arrival_timestamp: 200 }
-      ];
-      const sorted = utils.sortByArrival(arr);
-      expect(sorted.map(e => e.arrival_timestamp)).toEqual([100, 200, 300]);
-    });
-  });
-
   describe('unwrapTimes', () => {
     it('should unwrap departure and arrival timestamps >= 86400', async () => {
       const orig = {

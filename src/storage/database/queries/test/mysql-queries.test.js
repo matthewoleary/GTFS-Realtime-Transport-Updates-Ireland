@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import mysql from 'mysql2/promise';
 import fs from 'fs';
 import path from 'path';
-import config from '../../../config.js';
+import config from '../../../../config.js';
 
 let connection;
 
@@ -165,9 +165,15 @@ describe('MySQL Query Tests (uses gtfs-db-testing docker container)', () => {
       const [rows] = await connection.query(sql, [sampleTripId]);
       expect(Array.isArray(rows)).toBe(true);
       expect(rows.length).toBeGreaterThan(0); // Fail if no rows returned
+      expect(rows[0]).toHaveProperty('stop_name');
+      expect(rows[0]).toHaveProperty('stop_code');
+      expect(rows[0]).toHaveProperty('stop_lat');
+      expect(rows[0]).toHaveProperty('stop_lon');
       // Assert that all the resulting stop times belong to the specified trip
       const allBelongToTrip = rows.every(row => row.trip_id === sampleTripId);
       expect(allBelongToTrip).toBe(true);
+      const allIncludeStopDetails = rows.every(row => 'stop_code' in row && 'stop_name' in row && 'stop_lat' in row && 'stop_lon' in row);
+      expect(allIncludeStopDetails).toBe(true);
     });
 
     it('should return last stop on trip from getLastStopOnTrip.sql', async () => {

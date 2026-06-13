@@ -1,4 +1,4 @@
-import { unwrapTimes, getTripDescriptorScheduleRelationshipName, findFeedEntityForTrip, getTimestampAsTimeFormatted, getDueInValue, sortByArrival } from "./utils.js";
+import { unwrapTimes, getTripDescriptorScheduleRelationshipName, findFeedEntityForTrip, getTimestampAsTimeFormatted, getDueInValue } from "./utils.js";
 import { getSecondsSinceMidnightTimestamp } from "../../../utils/timestampUtils.js";
 
 class RealtimeTripUpdatesProcessor {
@@ -32,7 +32,7 @@ class RealtimeTripUpdatesProcessor {
 					const secondsSinceMidnightTimestamp = getSecondsSinceMidnightTimestamp(query.timestamp);
 					query.response = await processor.processTripResponse(query.response, feedTripIdMap, secondsSinceMidnightTimestamp);
 				} catch (error) {
-					processor.logger.error('No realtime trip updates information available. Error:', error.message);
+					processor.logger.error(`No realtime trip updates information available. Error: ${error.message}`);
 				}
 			}
 			return query;
@@ -53,17 +53,38 @@ class RealtimeTripUpdatesProcessor {
 					if (Array.isArray(query.response)) {
 						query.response = await processor.processStopResponse(query.response, feedTripIdMap, secondsSinceMidnightTimestamp);
 					} else {
-						processor.logger.warn('Query response is not an array, skipping trip updates processing.', query.response);
+						processor.logger.warn('Query response is not an array, skipping stop updates processing.', query.response);
 					}
 				} catch (error) {
-					processor.logger.error('No realtime trip updates information available. Error:', error.message);
+					processor.logger.error(`No realtime trip updates information available. Error: ${error.message}`);
 				}
 			}
 			return query;
 		}
+
+		const updateStopTimesWithRealtimeUpdates = async query => {
+			const feedTimestamp = await getFeedTimestamp();
+			const feedTripIdMap = await getFeedTripIdMap();
+			if (feedTimestamp && feedTripIdMap) {
+				try {
+					query.realtime_trip_updates_feed_timestamp = feedTimestamp;
+					const secondsSinceMidnightTimestamp = getSecondsSinceMidnightTimestamp(query.timestamp);
+					if (Array.isArray(query.response)) {
+						query.response = await processor.processStopTimesResponse(query.response, feedTripIdMap, secondsSinceMidnightTimestamp);
+					} else {
+						processor.logger.warn('Query response is not an array, skipping stop times updates processing.', query.response);
+					}
+				} catch (error) {
+					processor.logger.error(`No realtime trip updates information available. Error: ${error.message}`);
+				}
+			}
+			return query;
+		}
+
 		return {
 			updateTripWithRealtimeUpdates,
-			updateStopWithRealtimeUpdates
+			updateStopWithRealtimeUpdates,
+			updateStopTimesWithRealtimeUpdates
 		};
 	}
 
@@ -74,7 +95,7 @@ class RealtimeTripUpdatesProcessor {
 	 *   - Creates a shallow copy to avoid mutating the input array.
 	 *   - Looks up the corresponding GTFS-realtime feed entity and sets the scheduleRelationship (defaults to undefined if not found).
 	 *   - Applies real-time delay if not canceled (scheduleRelationship !== 3).
-	 *   - Marks arrival or due_in, and unwraps times if needed.
+	 *   - Marks arrival, and unwraps times if needed.
 	 *   - Filters out elements that have already arrived or have scheduleRelationship === 7 (GTFS-realtime DELETED).
 	 *   - Sorts the result by arrival time.
 	 *
@@ -89,59 +110,72 @@ class RealtimeTripUpdatesProcessor {
 			let element = { ...origElement };
 			const feedEntity = findFeedEntityForTrip(element, feedEntityMap);
 			element.tripUpdate = feedEntity?.tripUpdate;
-			const scheduleRelationshipValue = feedEntity?.tripUpdate?.trip?.scheduleRelationship ?? 0;
-			element.tripScheduleRelationship = getTripDescriptorScheduleRelationshipName(scheduleRelationshipValue);
-			// if feedEntity.tripUpdate.stopTimeUpdate exists, check if an update is provided for element.stop_id
-			// If a scheduleRelationship is present, update element.scheduleRelationship to that value.
-			this.applyStopScheduleRelationshipIfPresent(element, feedEntity);
+			element.stopUpdate = feedEntity?.tripUpdate?.stopTimeUpdate?.find(update => update.stopId === element.stop_id);
 			// If the tripScheduleRelationship is not CANCELED (3), apply real-time delay
 			if (feedEntity && element.tripScheduleRelationship !== 'CANCELED') {
 				element = this.applyRealtimeDelay(element, feedEntity);
-			} else if (element.vehicle) {
-				element.is_realtime = true;
-			} else {
-				element.is_realtime = false;
 			}
-			element = this.markArrivalAndDueIn(element, secondsSinceMidnightTimestamp);
+			const arrived = this.checkArrival(element, secondsSinceMidnightTimestamp);
 			element = unwrapTimes(element);
-			if (!element.arrived) {
+			if (!arrived) {
 				filteredResponse.push(element);
 			}
 		}
-		return sortByArrival(filteredResponse);
+		return this.sortByArrival(filteredResponse);
 	}
 
+	/**
+	 * Processes stop times responses by attaching matching realtime stop time updates to each stop time entry.
+	 *
+	 * @param {Array<Object>} stopTimesResponse - Array of stop time objects to enrich with realtime updates.
+	 * @param {Map<string, Object>} feedEntityMap - Map of trip identifiers to GTFS-realtime feed entities.
+	 * @param {number} secondsSinceMidnightTimestamp - Current timestamp in seconds since midnight.
+	 * @returns {Array<Object>} The enriched stop time response array with attached stopTimeUpdate data when available.
+	 */
+	async processStopTimesResponse(stopTimesResponse, feedEntityMap, secondsSinceMidnightTimestamp) {
+		const feedEntity = findFeedEntityForTrip(stopTimesResponse[0], feedEntityMap);
+		if (feedEntity) {
+			if (feedEntity.tripUpdate && feedEntity.tripUpdate.stopTimeUpdate) {
+				for (const stopTime of stopTimesResponse) {
+					let stopTimeUpdate = feedEntity.tripUpdate.stopTimeUpdate.find(update => update.stopId === stopTime.stop_id);
+					if (stopTimeUpdate) {
+						stopTime.stopTimeUpdate = stopTimeUpdate;
+					}
+				}
+			}
+		}
+		return stopTimesResponse;
+	}
+
+	/**
+	 * Processes a single trip response by attaching the matching realtime trip update data when available.
+	 *
+	 * @param {Object} tripResponse - The trip response object to enrich.
+	 * @param {Map<string, Object>} feedEntityMap - Map of trip identifiers to GTFS-realtime feed entities.
+	 * @param {number} secondsSinceMidnightTimestamp - Current timestamp in seconds since midnight.
+	 * @returns {Object} The enriched trip response with attached tripUpdate data when available.
+	 */
 	async processTripResponse(tripResponse, feedEntityMap, secondsSinceMidnightTimestamp) {
 		const feedEntity = findFeedEntityForTrip(tripResponse, feedEntityMap);
 		tripResponse.tripUpdate = feedEntity?.tripUpdate;
-		const scheduleRelationshipValue = feedEntity?.tripUpdate?.trip?.scheduleRelationship ?? 0;
-		tripResponse.tripScheduleRelationship = getTripDescriptorScheduleRelationshipName(scheduleRelationshipValue);
-		if (feedEntity && tripResponse.tripScheduleRelationship !== 'CANCELED') {
-			tripResponse.is_realtime = true;
-		} else if (tripResponse.vehicle) {
-			tripResponse.is_realtime = true;
-		} else {
-			tripResponse.is_realtime = false;
-		}
 		return tripResponse;
 	}
 
 	/**
-	 * Applies real-time delay information to a stop/trip element using GTFS-realtime feed entity data.
+	 * Applies real-time delay information from a GTFS-realtime feed entity to a stop/trip element.
 	 *
-	 * If the element is not marked as "CANCELED" (scheduleRelationship !== 3),
-	 * sets is_realtime to true and updates the element's timestamps and times
-	 * using the nearest stop delay from the feed entity's stopTimeUpdate array.
+	 * If the feed entity contains stopTimeUpdate entries, the method resolves the nearest applicable
+	 * update and writes the resulting realtime departure and arrival timestamps and formatted times
+	 * onto the element.
 	 *
-	 * @param {Object} element - The stop/trip object to update (mutated in place).
+	 * @param {Object} element - The stop/trip object to update. The method mutates this object in place.
 	 * @param {Object} feedEntity - The GTFS-realtime feed entity containing tripUpdate data.
-	 * @returns {Object} The updated element with real-time delay applied if available.
+	 * @returns {Object} The updated element with realtime timestamps applied when an applicable update exists.
 	 */
 	applyRealtimeDelay(element, feedEntity) {
 		if (feedEntity?.tripUpdate?.stopTimeUpdate) {
 			const stopTimeUpdates = feedEntity.tripUpdate.stopTimeUpdate;
 			element = this.findNearestStopSequenceDelay(element, stopTimeUpdates);
-			element.is_realtime = true;
 		}
 		return element;
 	}
@@ -165,9 +199,10 @@ class RealtimeTripUpdatesProcessor {
 	 *  2 = NO_DATA 
 	 *  3 = UNSCHEDULED
 	 *
-	 * @param {Object} element - The stop/trip object to update (mutated in place).
+	 * @param {Object} element - The stop/trip object to update. The method mutates this object in place.
 	 * @param {Array<Object>} stopTimeUpdates - Array of stopTimeUpdate objects from the GTFS-realtime feed.
-	 * @returns {Object} The updated element with delay applied from the nearest stopTimeUpdate.
+	 * @returns {Object} The updated element with realtime departure/arrival timestamps and formatted times
+	 * set when an applicable update is found.
 	 */
 	findNearestStopSequenceDelay(element, stopTimeUpdates) {
 		for (let index = stopTimeUpdates.length - 1; index >= 0; index--) {
@@ -178,10 +213,10 @@ class RealtimeTripUpdatesProcessor {
 			) {
 				const departureDelay = update.departure ? update.departure.delay : 0;
 				const arrivalDelay = update.arrival ? update.arrival.delay : 0;
-				element.departure_timestamp += departureDelay;
-				element.arrival_timestamp += arrivalDelay;
-				element.departure_time = getTimestampAsTimeFormatted(element.departure_timestamp);
-				element.arrival_time = getTimestampAsTimeFormatted(element.arrival_timestamp);
+				element.realtime_departure_timestamp = element.departure_timestamp + departureDelay;
+				element.realtime_arrival_timestamp = element.arrival_timestamp + arrivalDelay;
+				element.realtime_departure_time = getTimestampAsTimeFormatted(element.realtime_departure_timestamp);
+				element.realtime_arrival_time = getTimestampAsTimeFormatted(element.realtime_arrival_timestamp);
 				break;
 			}
 		}
@@ -201,30 +236,49 @@ class RealtimeTripUpdatesProcessor {
 	}
 
 	/**
-	 * Marks arrival or due_in for a stop/trip element based on current timestamp.
+	 * Returns true/false for a stop/trip element based on its arrival status relative to the current timestamp.
 	 * @param {Object} element - The stop/trip object.
 	 * @param {number} secondsSinceMidnightTimestamp - Current timestamp in seconds since midnight.
-	 * @returns {Object} The updated element with arrival/due_in status.
+	 * @returns {Object} The updated element with 'arrived' property set to true if the trip has already arrived.
 	 */
-	markArrivalAndDueIn(element, secondsSinceMidnightTimestamp) {
-		const departureTimestamp = element.departure_timestamp;
-		const arrivalTimestamp = element.arrival_timestamp;
+	checkArrival(element, secondsSinceMidnightTimestamp) {
+		const departureTimestamp = element.updated_departure_timestamp ?? element.departure_timestamp;
+		const arrivalTimestamp = element.updated_arrival_timestamp ?? element.arrival_timestamp;
+		let arrived = false;
 		if (departureTimestamp) {
 			if (departureTimestamp < secondsSinceMidnightTimestamp) {
-				element.arrived = true;
-			} else {
-				element.due_in = getDueInValue(departureTimestamp, secondsSinceMidnightTimestamp);
+				arrived = true;
 			}
 		} else if (arrivalTimestamp) {
 			if (arrivalTimestamp < secondsSinceMidnightTimestamp) {
-				element.arrived = true;
-			} else {
-				element.due_in = getDueInValue(arrivalTimestamp, secondsSinceMidnightTimestamp);
+				arrived = true;
 			}
 		} else {
 			this.logger.error('No departure or arrival timestamp available for element:', element);
 		}
-		return element;
+		return arrived;
+	}
+
+	/**
+	* Sorts a list of trip elements by arrival timestamp (soonest first).
+	* @param {Array<Object>} tripList - List of trip elements.
+	* @returns {Array<Object>} Sorted list by arrival time.
+	*/
+	sortByArrival(tripList) {
+		return tripList.sort((a, b) => {
+			const aArrival = a.updated_arrival_timestamp ?? a.arrival_timestamp;
+			const bArrival = b.updated_arrival_timestamp ?? b.arrival_timestamp;
+	
+			if (aArrival > bArrival) {
+				return 1;
+			}
+	
+			if (aArrival < bArrival) {
+				return -1;
+			}
+	
+			return 0;
+		});
 	}
 }
 
