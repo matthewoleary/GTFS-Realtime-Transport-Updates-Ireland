@@ -134,7 +134,7 @@ describe('RealtimeTripUpdatesProcessor', () => {
     });
   });
 
-  describe('processStopResponse', () => {
+  describe('processTripsAtStopResponse', () => {
     it('should process response and filter arrived', async () => {
       const stopResponse = [
         { stop_id: 'stop1', stop_sequence: 1, departure_timestamp: 100, arrival_timestamp: 100 },
@@ -146,7 +146,7 @@ describe('RealtimeTripUpdatesProcessor', () => {
       vi.spyOn(processor, 'checkArrival').mockImplementation(e => e.departure_timestamp < 200);
       vi.spyOn(utils, 'unwrapTimes').mockImplementation(e => e);
       vi.spyOn(processor, 'sortByArrival').mockImplementation(arr => arr);
-      const result = await processor.processStopResponse(stopResponse, feedEntityMap, 200);
+      const result = await processor.processTripsAtStopResponse(stopResponse, feedEntityMap, 200);
       expect(result.length).toBe(1);
       expect(result[0].stop_id).toBe('stop2');
     });
@@ -180,7 +180,7 @@ describe('RealtimeTripUpdatesProcessor', () => {
       const getFeedTimestamp = vi.fn().mockResolvedValue(123);
       const getFeedTripIdMap = vi.fn().mockResolvedValue(new Map());
       const query = { response: [] };
-      vi.spyOn(RealtimeTripUpdatesProcessor.prototype, 'processStopResponse').mockResolvedValue([]);
+      vi.spyOn(RealtimeTripUpdatesProcessor.prototype, 'processTripsAtStopResponse').mockResolvedValue([]);
       const { updateStopWithRealtimeUpdates } = await RealtimeTripUpdatesProcessor.register(getFeedTimestamp, getFeedTripIdMap, logger);
       const updated = await updateStopWithRealtimeUpdates(query);
       expect(updated.realtime_trip_updates_feed_timestamp).toBe(123);
@@ -188,11 +188,11 @@ describe('RealtimeTripUpdatesProcessor', () => {
       expect(getFeedTripIdMap).toHaveBeenCalled();
     });
 
-    it('should log error if processStopResponse throws', async () => {
+    it('should log error if processTripsAtStopResponse throws', async () => {
       const getFeedTimestamp = vi.fn().mockResolvedValue(123);
       const getFeedTripIdMap = vi.fn().mockResolvedValue(new Map());
       const query = { response: [] };
-      vi.spyOn(RealtimeTripUpdatesProcessor.prototype, 'processStopResponse').mockRejectedValue(new Error('fail'));
+      vi.spyOn(RealtimeTripUpdatesProcessor.prototype, 'processTripsAtStopResponse').mockRejectedValue(new Error('fail'));
       const { updateStopWithRealtimeUpdates } = await RealtimeTripUpdatesProcessor.register(getFeedTimestamp, getFeedTripIdMap, logger);
       await updateStopWithRealtimeUpdates(query);
       expect(logger.error).toHaveBeenCalled();

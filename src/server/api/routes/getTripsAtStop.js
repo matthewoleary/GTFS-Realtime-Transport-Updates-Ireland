@@ -183,7 +183,7 @@ export class TripsAtStopService {
     ) {
         const response = await this.getTripsAtStopIdWithNightServicesWithCache(stopId, wrappedServiceDay, unwrappedServiceDay);
         const lastStops = await this.getLastStopsWithCache(response);
-        const filteredTrips = await removeTripsAtLastStop(lastStops, response);
+        const filteredTrips = await this.removeTripsAtLastStop(lastStops, response);
         payload.response.push(...filteredTrips);
         await realtimeVehiclePositions.queryProcessor.updateResultsWithRealtimeVehiclePositions(payload);
         return await realtimeTripUpdates.queryProcessor.updateStopWithRealtimeUpdates(payload);
