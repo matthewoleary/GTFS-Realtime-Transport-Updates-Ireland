@@ -41,17 +41,17 @@ export function getTripDescriptorScheduleRelationshipName(value) {
 * @returns {Object} The same element object with unwrapped times.
 */
 export function unwrapTimes(element) {
-    const departureTimestamp = element.updated_departure_timestamp ?? element.departure_timestamp;
-    const arrivalTimestamp = element.updated_arrival_timestamp ?? element.arrival_timestamp;
+    const departureTimestamp = element.realtime_departure_timestamp ?? element.departure_timestamp;
+    const arrivalTimestamp = element.realtime_arrival_timestamp ?? element.arrival_timestamp;
     if (departureTimestamp >= 86400) {
         const unwrappedTimestamp = getUnwrappedTimestamp(departureTimestamp);
-        element.departure_timestamp = unwrappedTimestamp;
-        element.departure_time = getTimestampAsTimeFormatted(unwrappedTimestamp);
+        element.unwrapped_departure_timestamp = unwrappedTimestamp;
+        element.unwrapped_departure_time = getTimestampAsTimeFormatted(unwrappedTimestamp);
     }
     if (arrivalTimestamp >= 86400) {
         const unwrappedTimestamp = getUnwrappedTimestamp(arrivalTimestamp);
-        element.arrival_timestamp = unwrappedTimestamp;
-        element.arrival_time = getTimestampAsTimeFormatted(unwrappedTimestamp);
+        element.unwrapped_arrival_timestamp = unwrappedTimestamp;
+        element.unwrapped_arrival_time = getTimestampAsTimeFormatted(unwrappedTimestamp);
     }
     return element;
 }
