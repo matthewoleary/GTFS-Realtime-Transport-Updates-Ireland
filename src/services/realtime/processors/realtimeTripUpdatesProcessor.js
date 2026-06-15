@@ -137,7 +137,12 @@ class RealtimeTripUpdatesProcessor {
 		if (feedEntity) {
 			if (feedEntity.tripUpdate && feedEntity.tripUpdate.stopTimeUpdate) {
 				for (const stopTime of stopTimesResponse) {
-					let stopTimeUpdate = feedEntity.tripUpdate.stopTimeUpdate.find(update => update.stopId === stopTime.stop_id);
+					const stopTimeUpdate = feedEntity.tripUpdate.stopTimeUpdate.find(update => {
+						if (stopTime.stop_sequence !== undefined && update.stopSequence !== undefined) {
+							return update.stopSequence === stopTime.stop_sequence;
+						}
+						return update.stopId === stopTime.stop_id;
+					});
 					if (stopTimeUpdate) {
 						stopTime.stopTimeUpdate = stopTimeUpdate;
 					}
