@@ -6,6 +6,8 @@ const mockLogger = vi.fn().mockImplementation(() => ({ error: vi.fn(), warn: vi.
 const mockExtractIdsFromParam = vi.fn();
 const mockGetDatabaseClient = vi.fn();
 const mockGetUnixTimestamp = vi.fn();
+const mockGetRealtimeTripUpdatesClient = vi.fn();
+const mockUpdateStopTimesWithRealtimeUpdates = vi.fn();
 const mockCacheService = {
 	getOrSetCache: vi.fn(),
 };
@@ -19,6 +21,7 @@ vi.mock('../routes/utils.js', () => ({
 vi.mock('../index.js', () => ({
 	getDatabaseClient: (...args) => mockGetDatabaseClient(...args),
 	getCacheService: (req) => req?.server?.plugins?.cache?.cacheService,
+	getRealtimeTripUpdatesClient: (...args) => mockGetRealtimeTripUpdatesClient(...args),
 }));
 vi.mock('../../../utils/timestampUtils.js', () => ({
 	getUnixTimestamp: (...args) => mockGetUnixTimestamp(...args)
@@ -44,6 +47,12 @@ describe('getStopTimes (with CacheService)', () => {
 		}};
 		mockGetDatabaseClient.mockReturnValue(db);
 		mockGetUnixTimestamp.mockReturnValue(1234567890);
+		mockGetRealtimeTripUpdatesClient.mockReturnValue({
+			queryProcessor: {
+				updateStopTimesWithRealtimeUpdates: mockUpdateStopTimesWithRealtimeUpdates
+			}
+		});
+		mockUpdateStopTimesWithRealtimeUpdates.mockImplementation(async (payload) => payload);
 		h = { response: vi.fn((payload) => ({ code: vi.fn().mockReturnValue({ payload, code: true }) })) };
 		mockCacheService.getOrSetCache.mockReset();
 		mockExtractIdsFromParam.mockReset();
@@ -60,15 +69,28 @@ describe('getStopTimes (with CacheService)', () => {
 
 	test('returns stop times from cache for a tripId (cache hit)', async () => {
 		mockCacheService.getOrSetCache.mockResolvedValueOnce([{ stop_id: 'stop1' }]);
+		mockUpdateStopTimesWithRealtimeUpdates.mockResolvedValueOnce({
+			query_timestamp: 1234567890,
+			response: [{ stop_id: 'stop1', stopTimeUpdate: { stopId: 'stop1' } }]
+		});
+		mockGetRealtimeTripUpdatesClient.mockReturnValue({
+			queryProcessor: {
+				updateStopTimesWithRealtimeUpdates: mockUpdateStopTimesWithRealtimeUpdates
+			}
+		});
 		getStopTimes(server);
 		handler = server.route.mock.calls[0][0].handler;
 		const req = { params: { tripId: 'T1' }, server };
 		const res = await handler(req, h);
 		expect(mockCacheService.getOrSetCache).toHaveBeenCalledWith(expect.objectContaining({ cacheKey: 'stopTimes:trip:T1' }));
+		expect(mockUpdateStopTimesWithRealtimeUpdates).toHaveBeenCalledWith(expect.objectContaining({
+			query_timestamp: 1234567890,
+			response: [{ stop_id: 'stop1' }]
+		}));
 		expect(db.queries.getStopTimesByTripId).not.toHaveBeenCalled();
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
 			query_timestamp: 1234567890,
-			response: [{ stop_id: 'stop1' }]
+			response: [{ stop_id: 'stop1', stopTimeUpdate: { stopId: 'stop1' } }]
 		}));
 	});
 

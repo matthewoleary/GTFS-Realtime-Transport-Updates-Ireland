@@ -112,7 +112,7 @@ class RealtimeTripUpdatesProcessor {
 			element.tripUpdate = feedEntity?.tripUpdate;
 			element.stopUpdate = feedEntity?.tripUpdate?.stopTimeUpdate?.find(update => update.stopId === element.stop_id);
 			// If the tripScheduleRelationship is not CANCELED (3), apply real-time delay
-			if (feedEntity && element.tripUpdate?.scheduleRelationship !== 'CANCELED') {
+			if (feedEntity && element.tripUpdate?.trip.scheduleRelationship !== 0) {
 				element = this.applyRealtimeDelay(element, feedEntity);
 			}
 			const arrived = this.checkArrival(element, secondsSinceMidnightTimestamp);

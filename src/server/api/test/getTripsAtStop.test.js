@@ -19,8 +19,7 @@ const mockGetPreviousDate = vi.fn();
 const mockGetNextDay = vi.fn();
 const mockGetNextDayDate = vi.fn();
 const mockBuildServiceDay = vi.fn();
-const mockRemoveTripsAtLastStop = vi.fn(async (lastStops, trips) => trips);
-const mockRealtimeTripUpdates = { queryProcessor: { updateResultsWithRealtimeTripUpdates: vi.fn(async (payload) => payload) } };
+const mockRealtimeTripUpdates = { queryProcessor: { updateStopWithRealtimeUpdates: vi.fn(async (payload) => payload) } };
 const mockRealtimeVehiclePositions = { queryProcessor: { updateResultsWithRealtimeVehiclePositions: vi.fn(async (payload) => payload) } };
 const mockCacheService = { getOrSetCache: vi.fn() };
 const mockDb = { queries: {
@@ -35,7 +34,6 @@ vi.mock('../../serverLogger.js', () => ({
 }));
 vi.mock('../routes/utils.js', () => ({
 	extractIdsFromParam: (...args) => mockExtractIdsFromParam(...args),
-	removeTripsAtLastStop: (...args) => mockRemoveTripsAtLastStop(...args),
 	buildServiceDay: (...args) => mockBuildServiceDay(...args)
 }));
 vi.mock('../index.js', () => ({
@@ -70,14 +68,12 @@ describe('getTripsAtStop (with CacheService)', () => {
 		server = { route: mockRoute.mockReset() };
 		h = { response: vi.fn((payload) => ({ code: vi.fn().mockReturnValue({ payload, code: true }) })) };
 		mockExtractIdsFromParam.mockReset();
-		mockRemoveTripsAtLastStop.mockReset();
-		mockRemoveTripsAtLastStop.mockImplementation(async (lastStops, trips) => trips);
 		mockCacheService.getOrSetCache.mockReset();
 		mockDb.queries.getTripsAtStopId.mockReset();
 		mockDb.queries.getTripsAtStopIdWithNightServices.mockReset();
 		mockDb.queries.getLastStops.mockReset();
 		mockDb.queries.getMaximumDepartureTimestamp.mockReset();
-		mockRealtimeTripUpdates.queryProcessor.updateResultsWithRealtimeTripUpdates.mockClear();
+		mockRealtimeTripUpdates.queryProcessor.updateStopWithRealtimeUpdates.mockClear();
 		mockRealtimeVehiclePositions.queryProcessor.updateResultsWithRealtimeVehiclePositions.mockClear();
 		mockGetUnixTimestamp.mockReturnValue(1234567890);
 		mockGetSecondsSinceMidnightTimestamp.mockReturnValue(1000);
@@ -103,8 +99,8 @@ describe('getTripsAtStop (with CacheService)', () => {
 		// First call: max departure timestamp, Second call: trips at stop
 		mockCacheService.getOrSetCache
 			.mockResolvedValueOnce(86400) // max departure timestamp
-			.mockResolvedValueOnce([{ trip_id: 'T1' }]); // trips at stop
-		mockDb.queries.getLastStops.mockResolvedValueOnce([{ trip_id: 'T1', last_stop: false }]);
+			.mockResolvedValueOnce([{ trip_id: 'T1' }]) // trips at stop
+			.mockResolvedValueOnce([{ trip_id: 'T1', last_stop: false }]); // last stops
 		getTripsAtStop(server);
 		handler = server.route.mock.calls[0][0].handler;
 		const req = { params: { stopId: 'S1' }, query: {}, server };
@@ -114,20 +110,16 @@ describe('getTripsAtStop (with CacheService)', () => {
 			query_timestamp: 1234567890,
 			response: [{ trip_id: 'T1' }]
 		}));
-		expect(mockRealtimeTripUpdates.queryProcessor.updateResultsWithRealtimeTripUpdates).toHaveBeenCalled();
+		expect(mockRealtimeTripUpdates.queryProcessor.updateStopWithRealtimeUpdates).toHaveBeenCalled();
 		expect(mockRealtimeVehiclePositions.queryProcessor.updateResultsWithRealtimeVehiclePositions).toHaveBeenCalled();
 	});
 
 	test('filters out trips that are at their last stop', async () => {
-		mockRemoveTripsAtLastStop.mockImplementation(async (lastStops, trips) => trips.filter((trip, index) => {
-			const lastStop = lastStops[index]?.[0];
-			return !(lastStop && lastStop.stop_sequence === trip.stop_sequence);
-		}));
 		mockCacheService.getOrSetCache
 			.mockResolvedValueOnce(86400)
 			.mockResolvedValueOnce([
 				{ trip_id: 'T1', stop_sequence: 3 },
-				{ trip_id: 'T2', stop_sequence: 2 }
+				{ trip_id: 'T2', stop_sequence: 4 }
 			])
 			.mockResolvedValueOnce([[{ stop_sequence: 3 }], [{ stop_sequence: 2 }]]);
 		getTripsAtStop(server);
@@ -136,7 +128,7 @@ describe('getTripsAtStop (with CacheService)', () => {
 		await handler(req, h);
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
 			query_timestamp: 1234567890,
-			response: [{ trip_id: 'T2', stop_sequence: 2 }]
+			response: [{ trip_id: 'T2', stop_sequence: 4 }]
 		}));
 	});
 
