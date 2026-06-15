@@ -169,7 +169,7 @@ describe('RealtimeTripUpdatesProcessor', () => {
         }]
       ]);
 
-      const result = await processor.processStopTimesResponse(stopTimesResponse, feedEntityMap, 0);
+      const result = await processor.processStopTimesResponse(stopTimesResponse, feedEntityMap);
 
       expect(result[0].stopTimeUpdate.stopSequence).toBe(1);
       expect(result[1].stopTimeUpdate.stopSequence).toBe(5);
@@ -232,6 +232,15 @@ describe('RealtimeTripUpdatesProcessor', () => {
       ];
       const sorted = processor.sortByArrival(arr);
       expect(sorted.map(e => e.arrival_timestamp)).toEqual([100, 200, 300]);
+    });
+
+    it('should prefer unwrapped arrival timestamps when present', () => {
+      const arr = [
+        { id: 'previous-service', arrival_timestamp: 90000, unwrapped_arrival_timestamp: 3600 },
+        { id: 'next-day', arrival_timestamp: 5400 }
+      ];
+      const sorted = processor.sortByArrival(arr);
+      expect(sorted.map(e => e.id)).toEqual(['previous-service', 'next-day']);
     });
   });
 });
