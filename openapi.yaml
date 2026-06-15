@@ -375,6 +375,10 @@ paths:
                     type: integer
                     nullable: true
                     description: Timestamp for the realtime trip updates feed used to enrich the response.
+                  realtime_vehicle_positions_feed_timestamp:
+                    type: integer
+                    nullable: true
+                    description: Timestamp for the realtime vehicle positions feed used to enrich the response.
                   response:
                     type: object
                     properties:
