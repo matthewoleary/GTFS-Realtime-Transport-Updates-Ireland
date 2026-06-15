@@ -152,6 +152,30 @@ describe('RealtimeTripUpdatesProcessor', () => {
     });
   });
 
+  describe('processStopTimesResponse', () => {
+    it('matches repeated stops by stopSequence before falling back to stopId', async () => {
+      const stopTimesResponse = [
+        { trip_id: 'trip-1', stop_id: 'stop-1', stop_sequence: 1 },
+        { trip_id: 'trip-1', stop_id: 'stop-1', stop_sequence: 5 }
+      ];
+      const feedEntityMap = new Map([
+        ['trip-1', {
+          tripUpdate: {
+            stopTimeUpdate: [
+              { stopId: 'stop-1', stopSequence: 1, departure: { delay: 60 } },
+              { stopId: 'stop-1', stopSequence: 5, departure: { delay: 120 } }
+            ]
+          }
+        }]
+      ]);
+
+      const result = await processor.processStopTimesResponse(stopTimesResponse, feedEntityMap, 0);
+
+      expect(result[0].stopTimeUpdate.stopSequence).toBe(1);
+      expect(result[1].stopTimeUpdate.stopSequence).toBe(5);
+    });
+  });
+
   describe('register', () => {
     it('should return updateTripWithRealtimeUpdates that updates query', async () => {
       const getFeedTimestamp = vi.fn().mockResolvedValue(123);

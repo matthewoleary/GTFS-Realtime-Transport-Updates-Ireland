@@ -63,8 +63,10 @@ describe('utils', () => {
       };
       const { unwrapTimes } = await import('../utils.js');
       const result = unwrapTimes({ ...orig });
-      expect(result.departure_timestamp).toBe(100);
-      expect(result.arrival_timestamp).toBe(600);
+      expect(result.unwrapped_departure_timestamp).toBe(100);
+      expect(result.unwrapped_departure_time).toBe('00:01:40');
+      expect(result.unwrapped_arrival_timestamp).toBe(600);
+      expect(result.unwrapped_arrival_time).toBe('00:10:00');
       vi.resetModules();
     });
     it('should not unwrap if timestamps < 86400', () => {
@@ -73,8 +75,10 @@ describe('utils', () => {
         arrival_timestamp: 200
       };
       const result = utils.unwrapTimes({ ...orig });
-      expect(result.departure_timestamp).toBe(100);
-      expect(result.arrival_timestamp).toBe(200);
+      expect(result.unwrapped_departure_timestamp).toBeUndefined();
+      expect(result.unwrapped_departure_time).toBeUndefined();
+      expect(result.unwrapped_arrival_timestamp).toBeUndefined();
+      expect(result.unwrapped_arrival_time).toBeUndefined();
     });
   });
 
