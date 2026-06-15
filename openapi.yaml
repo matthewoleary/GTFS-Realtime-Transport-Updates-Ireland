@@ -4,6 +4,8 @@ info:
   version: 0.1.0
   description: |
     Node.js API for Irish GTFS schedule and real-time public transport updates. Provides endpoints for agencies, routes, stops, trips, shapes, and more, with robust cache/DB fallback and real-time GTFS-R integration.
+
+    Realtime enrichment fields such as realtime_arrival_timestamp, realtime_departure_timestamp, unwrapped_arrival_timestamp, unwrapped_departure_timestamp, tripUpdate, stopUpdate, stopTimeUpdate, and vehicle are only included when GTFS-realtime data is available for the requested trip or stop. The vehicle field indicates that realtime vehicle position updates are available for the trip.
 servers:
   - url: http://localhost:3000
     description: Local development server
@@ -401,6 +403,50 @@ paths:
                         type: string
                         description: Shape ID
                         nullable: true
+                      vehicle:
+                        type: object
+                        nullable: true
+                        description: GTFS-realtime vehicle position data attached when realtime vehicle updates are available for the trip.
+                      tripUpdate:
+                        type: object
+                        nullable: true
+                        description: GTFS-realtime trip update data attached when realtime updates are available.
+                        properties:
+                          trip:
+                            type: object
+                            properties:
+                              tripId:
+                                type: string
+                                nullable: true
+                              scheduleRelationship:
+                                type: integer
+                                nullable: true
+                          stopTimeUpdate:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                stopSequence:
+                                  type: integer
+                                  nullable: true
+                                stopId:
+                                  type: string
+                                  nullable: true
+                                scheduleRelationship:
+                                  type: integer
+                                  nullable: true
+                                departure:
+                                  type: object
+                                  properties:
+                                    delay:
+                                      type: integer
+                                      nullable: true
+                                arrival:
+                                  type: object
+                                  properties:
+                                    delay:
+                                      type: integer
+                                      nullable: true
         '404':
           description: Trip not found
         '500':
@@ -548,6 +594,38 @@ paths:
                           type: boolean
                           description: True if real-time data was applied
                           nullable: true
+                        realtime_arrival_timestamp:
+                          type: integer
+                          nullable: true
+                          description: Real-time arrival timestamp when a stop-time update is applied.
+                        realtime_arrival_time:
+                          type: string
+                          nullable: true
+                          description: Real-time arrival time formatted as HH:MM:SS.
+                        realtime_departure_timestamp:
+                          type: integer
+                          nullable: true
+                          description: Real-time departure timestamp when a stop-time update is applied.
+                        realtime_departure_time:
+                          type: string
+                          nullable: true
+                          description: Real-time departure time formatted as HH:MM:SS.
+                        unwrapped_arrival_timestamp:
+                          type: integer
+                          nullable: true
+                          description: Unwrapped arrival timestamp for services that cross midnight.
+                        unwrapped_arrival_time:
+                          type: string
+                          nullable: true
+                          description: Unwrapped arrival time formatted as HH:MM:SS.
+                        unwrapped_departure_timestamp:
+                          type: integer
+                          nullable: true
+                          description: Unwrapped departure timestamp for services that cross midnight.
+                        unwrapped_departure_time:
+                          type: string
+                          nullable: true
+                          description: Unwrapped departure time formatted as HH:MM:SS.
                         tripScheduleRelationship:
                           type: string
                           description: Real-time trip schedule relationship (e.g., SCHEDULED, CANCELED)
@@ -556,6 +634,76 @@ paths:
                           type: string
                           description: Real-time stop schedule relationship (e.g., SCHEDULED, SKIPPED)
                           nullable: true
+                        vehicle:
+                          type: object
+                          nullable: true
+                          description: GTFS-realtime vehicle position data attached when realtime vehicle updates are available for the trip.
+                        tripUpdate:
+                          type: object
+                          nullable: true
+                          description: GTFS-realtime trip update data attached for the trip.
+                          properties:
+                            trip:
+                              type: object
+                              properties:
+                                tripId:
+                                  type: string
+                                  nullable: true
+                                scheduleRelationship:
+                                  type: integer
+                                  nullable: true
+                            stopTimeUpdate:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  stopSequence:
+                                    type: integer
+                                    nullable: true
+                                  stopId:
+                                    type: string
+                                    nullable: true
+                                  scheduleRelationship:
+                                    type: integer
+                                    nullable: true
+                                  departure:
+                                    type: object
+                                    properties:
+                                      delay:
+                                        type: integer
+                                        nullable: true
+                                  arrival:
+                                    type: object
+                                    properties:
+                                      delay:
+                                        type: integer
+                                        nullable: true
+                        stopUpdate:
+                          type: object
+                          nullable: true
+                          description: Matching GTFS-realtime stop update for the current stop.
+                          properties:
+                            stopSequence:
+                              type: integer
+                              nullable: true
+                            stopId:
+                              type: string
+                              nullable: true
+                            scheduleRelationship:
+                              type: integer
+                              nullable: true
+                            departure:
+                              type: object
+                              properties:
+                                delay:
+                                  type: integer
+                                  nullable: true
+                            arrival:
+                              type: object
+                              properties:
+                                delay:
+                                  type: integer
+                                  nullable: true
         '404':
           description: No trips found
         '500':
@@ -622,6 +770,32 @@ paths:
                           type: integer
                           description: Timepoint (0 or 1)
                           nullable: true
+                        stopTimeUpdate:
+                          type: object
+                          nullable: true
+                          description: Matching GTFS-realtime stop time update attached when realtime updates are available.
+                          properties:
+                            stopSequence:
+                              type: integer
+                              nullable: true
+                            stopId:
+                              type: string
+                              nullable: true
+                            scheduleRelationship:
+                              type: integer
+                              nullable: true
+                            departure:
+                              type: object
+                              properties:
+                                delay:
+                                  type: integer
+                                  nullable: true
+                            arrival:
+                              type: object
+                              properties:
+                                delay:
+                                  type: integer
+                                  nullable: true
         '404':
           description: No stop times found
         '500':
