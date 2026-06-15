@@ -5,7 +5,7 @@ info:
   description: |
     Node.js API for Irish GTFS schedule and real-time public transport updates. Provides endpoints for agencies, routes, stops, trips, shapes, and more, with robust cache/DB fallback and real-time GTFS-R integration.
 
-    Realtime enrichment fields such as realtime_arrival_timestamp, realtime_departure_timestamp, unwrapped_arrival_timestamp, unwrapped_departure_timestamp, tripUpdate, stopUpdate, stopTimeUpdate, and vehicle are only included when GTFS-realtime data is available for the requested trip or stop. The vehicle field indicates that realtime vehicle position updates are available for the trip.
+    Realtime enrichment fields such as realtime_arrival_timestamp, realtime_departure_timestamp, unwrapped_arrival_timestamp, unwrapped_departure_timestamp, tripUpdate, stopUpdate, stopTimeUpdate, and vehicle are only included when GTFS-realtime data is available for the requested trip or stop. On vehicle-enriched endpoints, the vehicle field is always present and nullable, with a null value when no matching realtime vehicle position update exists for the trip.
 servers:
   - url: http://localhost:3000
     description: Local development server
@@ -371,6 +371,10 @@ paths:
                 properties:
                   query_timestamp:
                     type: integer
+                  realtime_trip_updates_feed_timestamp:
+                    type: integer
+                    nullable: true
+                    description: Timestamp for the realtime trip updates feed used to enrich the response.
                   response:
                     type: object
                     properties:
@@ -406,7 +410,7 @@ paths:
                       vehicle:
                         type: object
                         nullable: true
-                        description: GTFS-realtime vehicle position data attached when realtime vehicle updates are available for the trip.
+                        description: GTFS-realtime vehicle position data for the trip. This field is always present on vehicle-enriched responses and is null when no matching vehicle update exists.
                       tripUpdate:
                         type: object
                         nullable: true
@@ -530,6 +534,14 @@ paths:
                 properties:
                   query_timestamp:
                     type: integer
+                  realtime_trip_updates_feed_timestamp:
+                    type: integer
+                    nullable: true
+                    description: Timestamp for the realtime trip updates feed used to enrich the response.
+                  realtime_vehicle_positions_feed_timestamp:
+                    type: integer
+                    nullable: true
+                    description: Timestamp for the realtime vehicle positions feed used to enrich the response.
                   response:
                     type: array
                     items:
@@ -582,18 +594,6 @@ paths:
                           type: string
                           description: Shape ID
                           nullable: true
-                        due_in:
-                          type: integer
-                          description: Minutes until departure (real-time, if available)
-                          nullable: true
-                        arrived:
-                          type: boolean
-                          description: True if the trip has already departed
-                          nullable: true
-                        is_realtime:
-                          type: boolean
-                          description: True if real-time data was applied
-                          nullable: true
                         realtime_arrival_timestamp:
                           type: integer
                           nullable: true
@@ -626,18 +626,10 @@ paths:
                           type: string
                           nullable: true
                           description: Unwrapped departure time formatted as HH:MM:SS.
-                        tripScheduleRelationship:
-                          type: string
-                          description: Real-time trip schedule relationship (e.g., SCHEDULED, CANCELED)
-                          nullable: true
-                        stopScheduleRelationship:
-                          type: string
-                          description: Real-time stop schedule relationship (e.g., SCHEDULED, SKIPPED)
-                          nullable: true
                         vehicle:
                           type: object
                           nullable: true
-                          description: GTFS-realtime vehicle position data attached when realtime vehicle updates are available for the trip.
+                          description: GTFS-realtime vehicle position data for the trip. This field is always present on vehicle-enriched responses and is null when no matching vehicle update exists.
                         tripUpdate:
                           type: object
                           nullable: true
@@ -728,6 +720,10 @@ paths:
                 properties:
                   query_timestamp:
                     type: integer
+                  realtime_trip_updates_feed_timestamp:
+                    type: integer
+                    nullable: true
+                    description: Timestamp for the realtime trip updates feed used to enrich the response.
                   response:
                     type: array
                     items:
@@ -751,6 +747,21 @@ paths:
                         stop_id:
                           type: string
                           description: Stop ID
+                        stop_code:
+                          type: string
+                          nullable: true
+                          description: Public stop code
+                        stop_name:
+                          type: string
+                          description: Stop name
+                        stop_lat:
+                          type: number
+                          format: float
+                          description: Latitude
+                        stop_lon:
+                          type: number
+                          format: float
+                          description: Longitude
                         stop_sequence:
                           type: integer
                           description: Sequence of the stop along the trip
