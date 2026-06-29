@@ -40,6 +40,7 @@ describe('MysqlImporter', () => {
     let dbClientInstance;
     let importer;
     let logger;
+    let redisClientInstance;
     beforeEach(() => {
         logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
         dbClientInstance = {};
@@ -81,6 +82,30 @@ describe('MysqlImporter', () => {
             expect(dbClientInstance.getConnection).toHaveBeenCalled();
             expect(imp.cnx).toBe(fakeConnection);
             expect(imp.getLastDbUpdate).toBe(dbClientInstance.getLastDbUpdate);
+        });
+    });
+
+    describe('import', () => {
+        it('should cache the last database update before skipping an unchanged feed', async () => {
+            const lastDbUpdate = new Date('2026-06-29T00:00:00.000Z');
+            const filesLastModifiedDate = new Date('2026-06-28T00:00:00.000Z');
+            const dbClientInstance = {
+                getConnection: vi.fn().mockResolvedValue({}),
+                getLastDbUpdate: vi.fn().mockResolvedValue(lastDbUpdate)
+            };
+            const imp = new MysqlImporter({
+                agencies: [{
+                    agency_key: 'agency',
+                    url: 'https://example.com/gtfs.zip'
+                }]
+            }, logger, dbClientInstance, {});
+            vi.spyOn(imp, 'getFilesLastModifiedDate').mockResolvedValue(filesLastModifiedDate);
+            vi.spyOn(imp, 'downloadFiles');
+
+            await imp.import();
+
+            expect(dbClientInstance.lastDbUpdate).toBe(lastDbUpdate);
+            expect(imp.downloadFiles).not.toHaveBeenCalled();
         });
     });
 
