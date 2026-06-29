@@ -529,6 +529,7 @@ class MysqlImporter {
             };
             // Get last modified date from database
             const lastDbUpdate = this.getLastDbUpdate ? await this.getLastDbUpdate() : null;
+            this.db.lastDbUpdate = lastDbUpdate;
             // Get last modified date of the GTFS schedule data.
             const filesLastModifiedDate = await this.getFilesLastModifiedDate(task);
 
