@@ -42,9 +42,13 @@ describe('getStopTimes (with CacheService)', () => {
 				}
 			}
 		};
-		db = { queries: {
-			getStopTimesByTripId: vi.fn()
-		}};
+		db = {
+			lastDbUpdate: '2026-06-29T00:00:00.000Z',
+			getLastDbUpdate: vi.fn().mockResolvedValue('2026-06-29T00:00:00.000Z'),
+			queries: {
+				getStopTimesByTripId: vi.fn()
+			}
+		};
 		mockGetDatabaseClient.mockReturnValue(db);
 		mockGetUnixTimestamp.mockReturnValue(1234567890);
 		mockGetRealtimeTripUpdatesClient.mockReturnValue({

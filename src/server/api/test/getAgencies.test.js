@@ -39,7 +39,11 @@ describe('getAgencies (with CacheService)', () => {
 				}
 			}
 		};
-		db = { queries: { getAgencyById: vi.fn(), getAllAgencies: vi.fn() } };
+		db = {
+			lastDbUpdate: '2026-06-29T00:00:00.000Z',
+			getLastDbUpdate: vi.fn().mockResolvedValue('2026-06-29T00:00:00.000Z'),
+			queries: { getAgencyById: vi.fn(), getAllAgencies: vi.fn() }
+		};
 		mockGetDatabaseClient.mockReturnValue(db);
 		mockGetUnixTimestamp.mockReturnValue(67890);
 		h = { response: vi.fn((payload) => ({ code: vi.fn().mockReturnValue({ payload, code: true }) })) };

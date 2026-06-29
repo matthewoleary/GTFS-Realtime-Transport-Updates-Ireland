@@ -38,6 +38,7 @@ export default function getTrips(server) {
         handler: async (request, handler) => {
             try {
                 const db = getDatabaseClient(request);
+                const dbLastUpdated = db.lastDbUpdate || await db.getLastDbUpdate();
                 const realtimeVehiclePositions = getRealtimeVehiclePositionsClient(request);
                 const realtimeTripUpdates = getRealtimeTripUpdatesClient(request);
                 let cacheService = null;
@@ -71,6 +72,7 @@ export default function getTrips(server) {
                 }
                 let payload = {
                     query_timestamp: unixTimestamp,
+                    db_last_updated: dbLastUpdated,
                     response: trip
                 };
                 payload = await realtimeVehiclePositions.queryProcessor.updateResultsWithRealtimeVehiclePositions(payload);

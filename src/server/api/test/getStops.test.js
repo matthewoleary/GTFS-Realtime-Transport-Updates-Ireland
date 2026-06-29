@@ -39,11 +39,15 @@ describe('getStops (with CacheService)', () => {
 				}
 			}
 		};
-		db = { queries: {
-			getStopById: vi.fn(),
-			getAllStops: vi.fn(),
-			getAllStopsByAgencyId: vi.fn()
-		}};
+		db = {
+			lastDbUpdate: '2026-06-29T00:00:00.000Z',
+			getLastDbUpdate: vi.fn().mockResolvedValue('2026-06-29T00:00:00.000Z'),
+			queries: {
+				getStopById: vi.fn(),
+				getAllStops: vi.fn(),
+				getAllStopsByAgencyId: vi.fn()
+			}
+		};
 		mockGetDatabaseClient.mockReturnValue(db);
 		mockGetUnixTimestamp.mockReturnValue(88888);
 		h = { response: vi.fn((payload) => ({ code: vi.fn().mockReturnValue({ payload, code: true }) })) };

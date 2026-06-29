@@ -39,7 +39,11 @@ describe('getShapes (with CacheService)', () => {
 				}
 			}
 		};
-		db = { queries: { getShapeById: vi.fn() } };
+		db = {
+			lastDbUpdate: '2026-06-29T00:00:00.000Z',
+			getLastDbUpdate: vi.fn().mockResolvedValue('2026-06-29T00:00:00.000Z'),
+			queries: { getShapeById: vi.fn() }
+		};
 		mockGetDatabaseClient.mockReturnValue(db);
 		mockGetUnixTimestamp.mockReturnValue(55555);
 		h = { response: vi.fn((payload) => ({ code: vi.fn().mockReturnValue({ payload, code: true }) })) };

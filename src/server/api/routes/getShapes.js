@@ -62,6 +62,7 @@ export default function getShapes(server) {
         handler: async (request, handler) => {
             try {
                 const db = getDatabaseClient(request);
+                const dbLastUpdated = await db.lastDbUpdate || await db.getLastDbUpdate();
                 let cacheService = null;
                 try {
                     cacheService = getCacheService(request);
@@ -77,6 +78,7 @@ export default function getShapes(server) {
                 }
                 const payload = {
                     query_timestamp: unixTimestamp,
+                    db_last_updated: dbLastUpdated,
                     response: shapes
                 };
                 return handler.response(payload);

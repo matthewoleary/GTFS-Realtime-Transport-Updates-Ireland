@@ -58,6 +58,7 @@ export default function getTripsAtStop(server) {
         handler: async (request, handler) => {
             const logger = new ServerLogger({ client: 'getTripsAtStop' });
             const dbClient = getDatabaseClient(request);
+            const dbLastUpdated = await dbClient.lastDbUpdate || await dbClient.getLastDbUpdate();
             let cacheService = null;
             try {
                 cacheService = getCacheService(request);
@@ -92,6 +93,7 @@ export default function getTripsAtStop(server) {
 
                 let payload = {
                     query_timestamp: unixTimestamp,
+                    db_last_updated: dbLastUpdated,
                     response: []
                 };
 

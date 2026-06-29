@@ -87,6 +87,7 @@ export default function getRoutes(server) {
         handler: async (request, handler) => {
             try {
                 const db = getDatabaseClient(request);
+                const dbLastUpdated = await db.lastDbUpdate || await db.getLastDbUpdate();
                 let cacheService = null;
                 try {
                     cacheService = getCacheService(request);
@@ -103,6 +104,7 @@ export default function getRoutes(server) {
                 }
                 const payload = {
                     query_timestamp: unixTimestamp,
+                    db_last_updated: dbLastUpdated,
                     response: sortedRecords
                 };
                 return handler.response(payload);
@@ -133,6 +135,7 @@ export default function getRoutes(server) {
         handler: async (request, handler) => {
             try {
                 const db = getDatabaseClient(request);
+                const dbLastUpdated = await db.lastDbUpdate || await db.getLastDbUpdate();
                 let cacheService = null;
                 try {
                     cacheService = getCacheService(request);
@@ -148,6 +151,7 @@ export default function getRoutes(server) {
                 }
                 const payload = {
                     query_timestamp: unixTimestamp,
+                    db_last_updated: dbLastUpdated,
                     response: route
                 };
                 return handler.response(payload);

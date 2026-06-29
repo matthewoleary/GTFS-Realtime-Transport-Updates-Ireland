@@ -38,6 +38,7 @@ export default function getStopTimes(server) {
         handler: async (request, handler) => {
             try {
                 const db = getDatabaseClient(request);
+                const dbLastUpdated = db.lastDbUpdate || await db.getLastDbUpdate();
                 const realtimeTripUpdates = getRealtimeTripUpdatesClient(request);
                 let cacheService = null;
                 try {
@@ -66,6 +67,7 @@ export default function getStopTimes(server) {
                 }
                 let payload = {
                     query_timestamp: unixTimestamp,
+                    db_last_updated: dbLastUpdated,
                     response: stopTimes
                 };
                 payload = await realtimeTripUpdates.queryProcessor.updateStopTimesWithRealtimeUpdates(payload);
