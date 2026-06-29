@@ -10,7 +10,11 @@ const mockGetRealtimeTripUpdatesClient = vi.fn();
 const mockGetUnixTimestamp = vi.fn();
 
 const mockCacheService = { getOrSetCache: vi.fn() };
-const mockDb = { queries: { getTripById: vi.fn() } };
+const mockDb = {
+	lastDbUpdate: '2026-06-29T00:00:00.000Z',
+	getLastDbUpdate: vi.fn().mockResolvedValue('2026-06-29T00:00:00.000Z'),
+	queries: { getTripById: vi.fn() }
+};
 const mockRealtimeVehiclePositions = { queryProcessor: { updateResultsWithRealtimeVehiclePositions: vi.fn(async (p) => p) } };
 const mockRealtimeTripUpdates = { queryProcessor: { updateTripWithRealtimeUpdates: vi.fn(async (p) => p) } };
 

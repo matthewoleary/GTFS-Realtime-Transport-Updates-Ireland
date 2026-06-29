@@ -22,12 +22,16 @@ const mockBuildServiceDay = vi.fn();
 const mockRealtimeTripUpdates = { queryProcessor: { updateStopWithRealtimeUpdates: vi.fn(async (payload) => payload) } };
 const mockRealtimeVehiclePositions = { queryProcessor: { updateResultsWithRealtimeVehiclePositions: vi.fn(async (payload) => payload) } };
 const mockCacheService = { getOrSetCache: vi.fn() };
-const mockDb = { queries: {
-	getTripsAtStopId: vi.fn(),
-	getTripsAtStopIdWithNightServices: vi.fn(),
-	getLastStops: vi.fn(),
-	getMaximumDepartureTimestamp: vi.fn()
-}};
+const mockDb = {
+	lastDbUpdate: '2026-06-29T00:00:00.000Z',
+	getLastDbUpdate: vi.fn().mockResolvedValue('2026-06-29T00:00:00.000Z'),
+	queries: {
+		getTripsAtStopId: vi.fn(),
+		getTripsAtStopIdWithNightServices: vi.fn(),
+		getLastStops: vi.fn(),
+		getMaximumDepartureTimestamp: vi.fn()
+	}
+};
 
 vi.mock('../../serverLogger.js', () => ({
 	default: function(...args) { return mockLogger(...args); }

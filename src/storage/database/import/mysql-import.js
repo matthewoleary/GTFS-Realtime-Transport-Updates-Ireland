@@ -563,6 +563,7 @@ class MysqlImporter {
             await this.addForeignKeys();
             await addFeedInfoLastUpdatedColumn(task); // Add last updated column to feed_info table
             await updateFeedInfoLastUpdatedValues(task); // Update last updated column in feed_info table
+            this.db.lastDbUpdate = await this.getLastDbUpdate(); // Update lastDbUpdate property in db client
 
             this.logger.info('Completed GTFS import for agency: ' + task.agency_key + '.');
 

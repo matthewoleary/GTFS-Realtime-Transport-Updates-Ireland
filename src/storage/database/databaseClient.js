@@ -29,6 +29,7 @@ class DatabaseClient {
         this.pool = null;
         this.logger = new DatabaseLogger({ client: 'MYSQLDB' });
         this.queries = null;
+        this.lastDbUpdate = null;
     }
 
     /**
@@ -145,7 +146,8 @@ export const databaseClient = async (server, config) => {
         queries: dbClient.queries,
         getConnection: dbClient.connect.bind(dbClient),
         closePool: dbClient.disconnect.bind(dbClient),
-        getLastDbUpdate: dbClient.getLastDbUpdate.bind(dbClient)
+        getLastDbUpdate: dbClient.getLastDbUpdate.bind(dbClient),
+        lastDbUpdate: dbClient.lastDbUpdate
     };
 };
 

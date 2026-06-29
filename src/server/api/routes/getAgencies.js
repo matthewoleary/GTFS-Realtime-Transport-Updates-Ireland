@@ -72,6 +72,7 @@ export default function getAgencies(server) {
         handler: async (request, handler) => {
             try {
                 const db = getDatabaseClient(request);
+                const dbLastUpdated = await db.lastDbUpdate || await db.getLastDbUpdate();
                 let cacheService = null;
                 try {
                     cacheService = getCacheService(request);
@@ -86,6 +87,7 @@ export default function getAgencies(server) {
                 }
                 const payload = {
                     query_timestamp: unixTimestamp,
+                    db_last_updated: dbLastUpdated,
                     response: response
                 };
                 return handler.response(payload);
@@ -116,6 +118,7 @@ export default function getAgencies(server) {
         handler: async (request, handler) => {
             try {
                 const db = getDatabaseClient(request);
+                const dbLastUpdated = db.lastDbUpdate || await db.getLastDbUpdate();
                 let cacheService = null;
                 try {
                     cacheService = getCacheService(request);
@@ -131,6 +134,7 @@ export default function getAgencies(server) {
                 }
                 const payload = {
                     query_timestamp: unixTimestamp,
+                    db_last_updated: dbLastUpdated,
                     response: agency
                 };
                 return handler.response(payload);
