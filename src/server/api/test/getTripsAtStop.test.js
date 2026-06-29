@@ -112,6 +112,7 @@ describe('getTripsAtStop (with CacheService)', () => {
 		expect(mockCacheService.getOrSetCache).toHaveBeenCalled();
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
 			query_timestamp: 1234567890,
+			db_last_updated: '2026-06-29T00:00:00.000Z',
 			response: [{ trip_id: 'T1' }]
 		}));
 		expect(mockRealtimeTripUpdates.queryProcessor.updateStopWithRealtimeUpdates).toHaveBeenCalled();
@@ -132,6 +133,7 @@ describe('getTripsAtStop (with CacheService)', () => {
 		await handler(req, h);
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
 			query_timestamp: 1234567890,
+			db_last_updated: '2026-06-29T00:00:00.000Z',
 			response: [{ trip_id: 'T2', stop_sequence: 4 }]
 		}));
 	});

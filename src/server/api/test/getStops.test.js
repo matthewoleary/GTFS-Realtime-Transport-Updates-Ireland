@@ -79,6 +79,7 @@ describe('getStops (with CacheService)', () => {
 		expect(mockCacheService.getOrSetCache).toHaveBeenCalledWith(expect.objectContaining({ cacheKey: 'stops:stop:S1' }));
 		expect(db.queries.getStopById).toHaveBeenCalledWith('S1');
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
+			db_last_updated: '2026-06-29T00:00:00.000Z',
 			response: { id: 'S1' }
 		}));
 	});
@@ -92,6 +93,7 @@ describe('getStops (with CacheService)', () => {
 		expect(mockCacheService.getOrSetCache).toHaveBeenCalledWith(expect.objectContaining({ cacheKey: 'stops:stop:S1' }));
 		expect(db.queries.getStopById).not.toHaveBeenCalled();
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
+			db_last_updated: '2026-06-29T00:00:00.000Z',
 			response: { id: 'S1' }
 		}));
 	});
@@ -110,6 +112,7 @@ describe('getStops (with CacheService)', () => {
 		expect(db.queries.getAllStopsByAgencyId).toHaveBeenCalledWith('A1');
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
 			query_timestamp: 88888,
+			db_last_updated: '2026-06-29T00:00:00.000Z',
 			response: [{ id: 'A1' }]
 		}));
 	});
@@ -124,6 +127,7 @@ describe('getStops (with CacheService)', () => {
 		expect(db.queries.getAllStopsByAgencyId).not.toHaveBeenCalled();
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
 			query_timestamp: 88888,
+			db_last_updated: '2026-06-29T00:00:00.000Z',
 			response: [{ id: 'A1' }]
 		}));
 	});
@@ -143,6 +147,7 @@ describe('getStops (with CacheService)', () => {
 		expect(db.queries.getAllStops).toHaveBeenCalled();
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
 			query_timestamp: 88888,
+			db_last_updated: '2026-06-29T00:00:00.000Z',
 			response: stops
 		}));
 	});
@@ -158,6 +163,7 @@ describe('getStops (with CacheService)', () => {
 		expect(db.queries.getAllStops).not.toHaveBeenCalled();
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
 			query_timestamp: 88888,
+			db_last_updated: '2026-06-29T00:00:00.000Z',
 			response: stops
 		}));
 	});
@@ -173,6 +179,7 @@ describe('getStops (with CacheService)', () => {
 		expect(db.queries.getAllStops).toHaveBeenCalled();
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
 			query_timestamp: 88888,
+			db_last_updated: '2026-06-29T00:00:00.000Z',
 			response: stops
 		}));
 	});

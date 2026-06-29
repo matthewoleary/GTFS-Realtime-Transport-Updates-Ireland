@@ -92,6 +92,7 @@ describe('getRoutes (with CacheService)', () => {
 		expect(db.queries.getAllRoutes).toHaveBeenCalled();
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
 			query_timestamp: 12345,
+			db_last_updated: '2026-06-29T00:00:00.000Z',
 			response: routes
 		}));
 	});
@@ -107,6 +108,7 @@ describe('getRoutes (with CacheService)', () => {
 		expect(db.queries.getAllRoutes).not.toHaveBeenCalled();
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
 			query_timestamp: 12345,
+			db_last_updated: '2026-06-29T00:00:00.000Z',
 			response: routes
 		}));
 	});
@@ -121,6 +123,7 @@ describe('getRoutes (with CacheService)', () => {
 		expect(mockCacheService.getOrSetCache).toHaveBeenCalledWith(expect.objectContaining({ cacheKey: 'routes:route:R1' }));
 		expect(db.queries.getRouteById).toHaveBeenCalledWith('R1');
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
+			db_last_updated: '2026-06-29T00:00:00.000Z',
 			response: { id: 'R1' }
 		}));
 	});
@@ -134,6 +137,7 @@ describe('getRoutes (with CacheService)', () => {
 		expect(mockCacheService.getOrSetCache).toHaveBeenCalledWith(expect.objectContaining({ cacheKey: 'routes:route:R1' }));
 		expect(db.queries.getRouteById).not.toHaveBeenCalled();
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
+			db_last_updated: '2026-06-29T00:00:00.000Z',
 			response: { id: 'R1' }
 		}));
 	});
@@ -151,6 +155,7 @@ describe('getRoutes (with CacheService)', () => {
 		expect(mockCacheService.getOrSetCache).toHaveBeenCalledWith(expect.objectContaining({ cacheKey: 'routes:agency:A1' }));
 		expect(db.queries.getAllRoutesByAgencyId).toHaveBeenCalledWith('A1');
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
+			db_last_updated: '2026-06-29T00:00:00.000Z',
 			response: [{ id: 'A1' }]
 		}));
 	});
@@ -164,6 +169,7 @@ describe('getRoutes (with CacheService)', () => {
 		expect(mockCacheService.getOrSetCache).toHaveBeenCalledWith(expect.objectContaining({ cacheKey: 'routes:agency:A1' }));
 		expect(db.queries.getAllRoutesByAgencyId).not.toHaveBeenCalled();
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
+			db_last_updated: '2026-06-29T00:00:00.000Z',
 			response: [{ id: 'A1' }]
 		}));
 	});
@@ -179,6 +185,7 @@ describe('getRoutes (with CacheService)', () => {
 		expect(db.queries.getAllRoutes).toHaveBeenCalled();
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
 			query_timestamp: 12345,
+			db_last_updated: '2026-06-29T00:00:00.000Z',
 			response: routes
 		}));
 	});

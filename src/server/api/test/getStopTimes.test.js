@@ -75,6 +75,7 @@ describe('getStopTimes (with CacheService)', () => {
 		mockCacheService.getOrSetCache.mockResolvedValueOnce([{ stop_id: 'stop1' }]);
 		mockUpdateStopTimesWithRealtimeUpdates.mockResolvedValueOnce({
 			query_timestamp: 1234567890,
+			db_last_updated: '2026-06-29T00:00:00.000Z',
 			response: [{ stop_id: 'stop1', stopTimeUpdate: { stopId: 'stop1' } }]
 		});
 		mockGetRealtimeTripUpdatesClient.mockReturnValue({
@@ -89,11 +90,13 @@ describe('getStopTimes (with CacheService)', () => {
 		expect(mockCacheService.getOrSetCache).toHaveBeenCalledWith(expect.objectContaining({ cacheKey: 'stopTimes:trip:T1' }));
 		expect(mockUpdateStopTimesWithRealtimeUpdates).toHaveBeenCalledWith(expect.objectContaining({
 			query_timestamp: 1234567890,
+			db_last_updated: '2026-06-29T00:00:00.000Z',
 			response: [{ stop_id: 'stop1' }]
 		}));
 		expect(db.queries.getStopTimesByTripId).not.toHaveBeenCalled();
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
 			query_timestamp: 1234567890,
+			db_last_updated: '2026-06-29T00:00:00.000Z',
 			response: [{ stop_id: 'stop1', stopTimeUpdate: { stopId: 'stop1' } }]
 		}));
 	});
@@ -108,6 +111,7 @@ describe('getStopTimes (with CacheService)', () => {
 		expect(db.queries.getStopTimesByTripId).toHaveBeenCalledWith('TDB');
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
 			query_timestamp: 1234567890,
+			db_last_updated: '2026-06-29T00:00:00.000Z',
 			response: [{ stop_id: 'stop-db' }]
 		}));
 	});

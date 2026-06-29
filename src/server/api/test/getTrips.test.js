@@ -66,7 +66,8 @@ describe('getTrips.js handler', () => {
 		expect(mockCacheService.getOrSetCache).toHaveBeenCalled();
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
 			response: { id: 'T1', foo: 'bar' },
-			query_timestamp: 12345
+			query_timestamp: 12345,
+			db_last_updated: '2026-06-29T00:00:00.000Z'
 		}));
 		expect(mockRealtimeVehiclePositions.queryProcessor.updateResultsWithRealtimeVehiclePositions).toHaveBeenCalled();
 		expect(mockRealtimeTripUpdates.queryProcessor.updateTripWithRealtimeUpdates).toHaveBeenCalled();
@@ -82,7 +83,8 @@ describe('getTrips.js handler', () => {
 		expect(mockDb.queries.getTripById).toHaveBeenCalledWith('T2');
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
 			response: { id: 'T2', foo: 'baz' },
-			query_timestamp: 12345
+			query_timestamp: 12345,
+			db_last_updated: '2026-06-29T00:00:00.000Z'
 		}));
 		expect(mockRealtimeVehiclePositions.queryProcessor.updateResultsWithRealtimeVehiclePositions).toHaveBeenCalled();
 		expect(mockRealtimeTripUpdates.queryProcessor.updateTripWithRealtimeUpdates).toHaveBeenCalled();
