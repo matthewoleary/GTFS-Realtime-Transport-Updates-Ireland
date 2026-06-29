@@ -85,6 +85,7 @@ describe('getAgencies (with CacheService)', () => {
 		expect(db.queries.getAllAgencies).toHaveBeenCalled();
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
 			query_timestamp: 67890,
+			db_last_updated: '2026-06-29T00:00:00.000Z',
 			response: agencies
 		}));
 	});
@@ -100,6 +101,24 @@ describe('getAgencies (with CacheService)', () => {
 		expect(db.queries.getAllAgencies).not.toHaveBeenCalled();
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
 			query_timestamp: 67890,
+			db_last_updated: '2026-06-29T00:00:00.000Z',
+			response: agencies
+		}));
+	});
+
+	test('uses getLastDbUpdate when the cached value is null', async () => {
+		const fallbackLastDbUpdate = '2026-06-30T00:00:00.000Z';
+		const agencies = [{ id: 1 }];
+		db.lastDbUpdate = null;
+		db.getLastDbUpdate.mockResolvedValueOnce(fallbackLastDbUpdate);
+		mockCacheService.getOrSetCache.mockResolvedValueOnce(agencies);
+		getAgencies(server);
+		handler = server.route.mock.calls[0][0].handler;
+		const req = { query: {}, server };
+		await handler(req, h);
+		expect(db.getLastDbUpdate).toHaveBeenCalledOnce();
+		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
+			db_last_updated: fallbackLastDbUpdate,
 			response: agencies
 		}));
 	});
@@ -114,6 +133,7 @@ describe('getAgencies (with CacheService)', () => {
 		expect(mockCacheService.getOrSetCache).toHaveBeenCalledWith(expect.objectContaining({ cacheKey: 'agencies:agency:A1' }));
 		expect(db.queries.getAgencyById).toHaveBeenCalledWith('A1');
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
+			db_last_updated: '2026-06-29T00:00:00.000Z',
 			response: { id: 'A1' }
 		}));
 	});
@@ -127,6 +147,7 @@ describe('getAgencies (with CacheService)', () => {
 		expect(mockCacheService.getOrSetCache).toHaveBeenCalledWith(expect.objectContaining({ cacheKey: 'agencies:agency:A1' }));
 		expect(db.queries.getAgencyById).not.toHaveBeenCalled();
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
+			db_last_updated: '2026-06-29T00:00:00.000Z',
 			response: { id: 'A1' }
 		}));
 	});
@@ -140,6 +161,7 @@ describe('getAgencies (with CacheService)', () => {
 		const res = await handler(req, h);
 		expect(db.queries.getAgencyById).toHaveBeenCalledWith('A1');
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
+			db_last_updated: '2026-06-29T00:00:00.000Z',
 			response: { id: 'A1' }
 		}));
 	});
@@ -155,6 +177,7 @@ describe('getAgencies (with CacheService)', () => {
 		expect(db.queries.getAllAgencies).toHaveBeenCalled();
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
 			query_timestamp: 67890,
+			db_last_updated: '2026-06-29T00:00:00.000Z',
 			response: agencies
 		}));
 	});

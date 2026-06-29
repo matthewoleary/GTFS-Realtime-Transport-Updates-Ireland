@@ -71,6 +71,7 @@ describe('getShapes (with CacheService)', () => {
 		expect(db.queries.getShapeById).toHaveBeenCalledWith('S1');
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
 			query_timestamp: 55555,
+			db_last_updated: '2026-06-29T00:00:00.000Z',
 			response: [{ id: 'S1' }]
 		}));
 	});
@@ -85,6 +86,7 @@ describe('getShapes (with CacheService)', () => {
 		expect(db.queries.getShapeById).not.toHaveBeenCalled();
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
 			query_timestamp: 55555,
+			db_last_updated: '2026-06-29T00:00:00.000Z',
 			response: [{ id: 'S1' }]
 		}));
 	});
@@ -99,6 +101,7 @@ describe('getShapes (with CacheService)', () => {
 		expect(db.queries.getShapeById).toHaveBeenCalledWith('S1');
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
 			query_timestamp: 55555,
+			db_last_updated: '2026-06-29T00:00:00.000Z',
 			response: [{ id: 'S1' }]
 		}));
 	});
