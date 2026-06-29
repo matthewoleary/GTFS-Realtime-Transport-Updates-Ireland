@@ -2,6 +2,9 @@ openapi: 3.0.3
 info:
   title: Realtime Transport Updates API
   version: 0.1.0
+  license:
+    name: MIT
+    url: https://opensource.org/license/mit
   description: |
     Node.js API for Irish GTFS schedule and real-time public transport updates. Provides endpoints for agencies, routes, stops, trips, shapes, and more, with robust cache/DB fallback and real-time GTFS-R integration.
 
@@ -17,12 +20,14 @@ info:
     - `vehicle`
 
     On vehicle-enriched endpoints, the vehicle field is always present and nullable, with a null value when no matching realtime vehicle position update exists for the trip.
+security: []
 servers:
   - url: http://localhost:3000
     description: Local development server
 paths:
   /api/agencies:
     get:
+      operationId: getAllAgencies
       summary: List all agencies
       responses:
         '200':
@@ -78,6 +83,7 @@ paths:
           description: Internal Server Error
   /api/agencies/{agencyId}:
     get:
+      operationId: getAgencyById
       summary: Get details for a specific agency
       parameters:
         - in: path
@@ -122,6 +128,7 @@ paths:
           description: Internal Server Error
   /api/routes:
     get:
+      operationId: getAllRoutes
       summary: List all routes
       parameters:
         - in: query
@@ -204,6 +211,7 @@ paths:
           description: Internal Server Error
   /api/routes/{routeId}:
     get:
+      operationId: getRouteById
       summary: Get details for a specific route
       parameters:
         - in: path
@@ -256,6 +264,7 @@ paths:
           description: Internal Server Error
   /api/stops:
     get:
+      operationId: getAllStops
       summary: List all stops
       parameters:
         - in: query
@@ -342,12 +351,36 @@ paths:
                           type: string
                           description: Platform code
                           nullable: true
+                        routes:
+                          type: array
+                          description: Unique routes serving the stop
+                          items:
+                            type: object
+                            properties:
+                              route_id:
+                                type: string
+                                description: Unique route identifier
+                              agency_id:
+                                type: string
+                                description: Agency operating the route
+                              route_short_name:
+                                type: string
+                                description: Short name for the route
+                                nullable: true
+                              route_long_name:
+                                type: string
+                                description: Long name for the route
+                                nullable: true
+                              route_type:
+                                type: integer
+                                description: GTFS route type
         '404':
           description: No stops found
         '500':
           description: Internal Server Error
   /api/stops/{stopId}:
     get:
+      operationId: getStopById
       summary: Get details for a specific stop
       parameters:
         - in: path
@@ -377,6 +410,10 @@ paths:
                       stop_id:
                         type: string
                         description: Stop ID
+                      stop_code:
+                        type: string
+                        description: Public stop code
+                        nullable: true
                       stop_name:
                         type: string
                         description: Stop name
@@ -388,12 +425,36 @@ paths:
                         type: number
                         format: float
                         description: Longitude
+                      routes:
+                        type: array
+                        description: Unique routes serving the stop
+                        items:
+                          type: object
+                          properties:
+                            route_id:
+                              type: string
+                              description: Unique route identifier
+                            agency_id:
+                              type: string
+                              description: Agency operating the route
+                            route_short_name:
+                              type: string
+                              description: Short name for the route
+                              nullable: true
+                            route_long_name:
+                              type: string
+                              description: Long name for the route
+                              nullable: true
+                            route_type:
+                              type: integer
+                              description: GTFS route type
         '404':
           description: Stop not found
         '500':
           description: Internal Server Error
   /api/trips/{tripId}:
     get:
+      operationId: getTripById
       summary: Get details for a specific trip
       parameters:
         - in: path
@@ -507,6 +568,7 @@ paths:
           description: Internal Server Error
   /api/shapes/{shapeId}:
     get:
+      operationId: getShapeById
       summary: Get details for a specific shape
       parameters:
         - in: path
@@ -559,6 +621,7 @@ paths:
           description: Internal Server Error
   /api/stops/{stopId}/trips:
     get:
+      operationId: getTripsAtStop
       summary: Get incoming trips at a stop (with real-time updates)
       parameters:
         - in: path
@@ -762,6 +825,7 @@ paths:
           description: Internal Server Error
   /api/trips/{tripId}/stopTimes:
     get:
+      operationId: getStopTimesByTripId
       summary: Get stop times for a specific trip
       parameters:
         - in: path

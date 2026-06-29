@@ -10,6 +10,35 @@ const mockCacheService = {
 	getOrSetCache: vi.fn(),
 };
 
+const route = {
+	route_id: 'R1',
+	agency_id: 'A1',
+	route_short_name: '1',
+	route_long_name: 'Route 1',
+	route_type: 3
+};
+
+const stop = {
+	stop_id: 'S1',
+	routes: [route]
+};
+
+const agencyStops = [{
+	stop_id: 'S1',
+	routes: [route]
+}];
+
+const allStops = [
+	{
+		stop_id: 'S1',
+		routes: [route]
+	},
+	{
+		stop_id: 'S2',
+		routes: []
+	}
+];
+
 vi.mock('../../serverLogger.js', () => ({
 	default: function(...args) { return mockLogger(...args); }
 }));
@@ -70,7 +99,7 @@ describe('getStops (with CacheService)', () => {
 	});
 
 	test('returns stop by id (detail endpoint, cache miss)', async () => {
-		db.queries.getStopById.mockResolvedValueOnce([{ id: 'S1' }]);
+		db.queries.getStopById.mockResolvedValueOnce([stop]);
 		mockCacheService.getOrSetCache.mockImplementationOnce(async ({ cacheKey, dbFetchFn }) => dbFetchFn());
 		getStops(server);
 		handler = server.route.mock.calls[1][0].handler;
@@ -80,12 +109,12 @@ describe('getStops (with CacheService)', () => {
 		expect(db.queries.getStopById).toHaveBeenCalledWith('S1');
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
 			db_last_updated: '2026-06-29T00:00:00.000Z',
-			response: { id: 'S1' }
+			response: stop
 		}));
 	});
 
 	test('returns stop by id from cache if present (detail endpoint, cache hit)', async () => {
-		mockCacheService.getOrSetCache.mockResolvedValueOnce({ id: 'S1' });
+		mockCacheService.getOrSetCache.mockResolvedValueOnce(stop);
 		getStops(server);
 		handler = server.route.mock.calls[1][0].handler;
 		const req = { params: { stopId: 'S1' }, server };
@@ -94,12 +123,12 @@ describe('getStops (with CacheService)', () => {
 		expect(db.queries.getStopById).not.toHaveBeenCalled();
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
 			db_last_updated: '2026-06-29T00:00:00.000Z',
-			response: { id: 'S1' }
+			response: stop
 		}));
 	});
 
 	test('returns all stops by agencyId if agencyId param is present and caches result (list endpoint, cache miss)', async () => {
-		db.queries.getAllStopsByAgencyId.mockResolvedValue([{ id: 'A1' }]);
+		db.queries.getAllStopsByAgencyId.mockResolvedValue(agencyStops);
 		mockCacheService.getOrSetCache.mockImplementation(async ({ cacheKey, dbFetchFn }) => {
 			expect(cacheKey).toBe('stops:agency:A1');
 			return dbFetchFn();
@@ -113,12 +142,12 @@ describe('getStops (with CacheService)', () => {
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
 			query_timestamp: 88888,
 			db_last_updated: '2026-06-29T00:00:00.000Z',
-			response: [{ id: 'A1' }]
+			response: agencyStops
 		}));
 	});
 
 	test('returns all stops by agencyId from cache if present (cache hit)', async () => {
-		mockCacheService.getOrSetCache.mockResolvedValue([{ id: 'A1' }]);
+		mockCacheService.getOrSetCache.mockResolvedValue(agencyStops);
 		getStops(server);
 		handler = server.route.mock.calls[0][0].handler;
 		const req = { query: { agencyId: 'A1' }, server };
@@ -128,13 +157,12 @@ describe('getStops (with CacheService)', () => {
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
 			query_timestamp: 88888,
 			db_last_updated: '2026-06-29T00:00:00.000Z',
-			response: [{ id: 'A1' }]
+			response: agencyStops
 		}));
 	});
 
 	test('returns all stops (list endpoint, cache miss)', async () => {
-		const stops = [{ id: 1 }, { id: 2 }];
-		db.queries.getAllStops.mockResolvedValue(stops);
+		db.queries.getAllStops.mockResolvedValue(allStops);
 		mockCacheService.getOrSetCache.mockImplementation(async ({ cacheKey, dbFetchFn }) => {
 			expect(cacheKey).toBe('stops:all');
 			return dbFetchFn();
@@ -148,13 +176,12 @@ describe('getStops (with CacheService)', () => {
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
 			query_timestamp: 88888,
 			db_last_updated: '2026-06-29T00:00:00.000Z',
-			response: stops
+			response: allStops
 		}));
 	});
 
 	test('returns all stops from cache if present (list endpoint, cache hit)', async () => {
-		const stops = [{ id: 1 }, { id: 2 }];
-		mockCacheService.getOrSetCache.mockResolvedValue(stops);
+		mockCacheService.getOrSetCache.mockResolvedValue(allStops);
 		getStops(server);
 		handler = server.route.mock.calls[0][0].handler;
 		const req = { query: {}, server };
@@ -164,14 +191,13 @@ describe('getStops (with CacheService)', () => {
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
 			query_timestamp: 88888,
 			db_last_updated: '2026-06-29T00:00:00.000Z',
-			response: stops
+			response: allStops
 		}));
 	});
 
 	test('returns all stops from DB if cacheService is unavailable (list endpoint)', async () => {
 		server.plugins.cache.cacheService = null;
-		const stops = [{ id: 1 }];
-		db.queries.getAllStops.mockResolvedValue(stops);
+		db.queries.getAllStops.mockResolvedValue(allStops);
 		getStops(server);
 		handler = server.route.mock.calls[0][0].handler;
 		const req = { query: {}, server };
@@ -180,7 +206,7 @@ describe('getStops (with CacheService)', () => {
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
 			query_timestamp: 88888,
 			db_last_updated: '2026-06-29T00:00:00.000Z',
-			response: stops
+			response: allStops
 		}));
 	});
 

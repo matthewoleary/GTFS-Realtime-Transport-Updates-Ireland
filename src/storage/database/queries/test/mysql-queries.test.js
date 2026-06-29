@@ -21,6 +21,24 @@ afterAll(async () => {
   if (connection) await connection.end();
 });
 
+const expectUniqueRoutes = (routes, agencyId) => {
+  expect(Array.isArray(routes)).toBe(true);
+
+  const routeIds = routes.map(route => route.route_id);
+  expect(new Set(routeIds).size).toBe(routeIds.length);
+
+  for (const route of routes) {
+    expect(route).toHaveProperty('route_id');
+    expect(route).toHaveProperty('agency_id');
+    expect(route).toHaveProperty('route_short_name');
+    expect(route).toHaveProperty('route_long_name');
+    expect(route).toHaveProperty('route_type');
+    if (agencyId) {
+      expect(route.agency_id).toBe(agencyId);
+    }
+  }
+};
+
 describe('MySQL Query Tests (uses gtfs-db-testing docker container)', () => {
   describe('Agencies', () => {
     it('should return agencies from getAllAgencies.sql', async () => {
@@ -122,10 +140,16 @@ describe('MySQL Query Tests (uses gtfs-db-testing docker container)', () => {
       );
       const [rows] = await connection.query(sql);
       expect(Array.isArray(rows)).toBe(true);
-      if (rows.length > 0) {
-        expect(rows[0]).toHaveProperty('stop_id');
+      expect(rows.length).toBeGreaterThan(0);
+
+      for (const stop of rows) {
+        expect(stop).toHaveProperty('stop_id');
+        expect(stop).toHaveProperty('routes');
+        expectUniqueRoutes(stop.routes);
       }
-    });
+
+      expect(rows.some(stop => stop.routes.length > 0)).toBe(true);
+    }, 15000);
 
     it('should return stops by agency id from getAllStopsByAgencyId.sql', async () => {
       const sql = fs.readFileSync(
@@ -135,24 +159,35 @@ describe('MySQL Query Tests (uses gtfs-db-testing docker container)', () => {
       const agencyId = '7778019'; // Dublin Bus sample agency_id for testing
       const [rows] = await connection.query(sql, [agencyId]);
       expect(Array.isArray(rows)).toBe(true);
-      if (rows.length > 0) {
-        expect(rows[0]).toHaveProperty('stop_id');
+      expect(rows.length).toBeGreaterThan(0);
+
+      for (const stop of rows) {
+        expect(stop).toHaveProperty('stop_id');
+        expect(stop).toHaveProperty('routes');
+        expectUniqueRoutes(stop.routes, agencyId);
       }
-    }, 7000);
+    }, 15000);
 
     it('should return stop by id from getStopById.sql', async () => {
       const sql = fs.readFileSync(
         path.join(__dirname, '../mysql/stops/getStopById.sql'),
         'utf8'
       );
-      const sampleStopId = '8220DB000001'; // Use a real stop_id from your test DB
+      const [sampleStops] = await connection.query(
+        'SELECT DISTINCT stop_id FROM stop_times WHERE stop_id IS NOT NULL LIMIT 1'
+      );
+      expect(sampleStops).toHaveLength(1);
+      const sampleStopId = sampleStops[0].stop_id;
       const [rows] = await connection.query(sql, [sampleStopId]);
       expect(Array.isArray(rows)).toBe(true);
-      if (rows.length > 0) {
-        expect(rows[0]).toHaveProperty('stop_id');
-        expect(rows[0].stop_id).toBe(sampleStopId);
-      }
-    });
+      expect(rows).toHaveLength(1);
+
+      const [stop] = rows;
+      expect(stop).toHaveProperty('stop_id');
+      expect(stop.stop_id).toBe(sampleStopId);
+      expect(stop).toHaveProperty('routes');
+      expectUniqueRoutes(stop.routes);
+    }, 7000);
   });
 
   describe('StopTimes', () => {
