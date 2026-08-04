@@ -62,6 +62,12 @@ describe('getStopTimes (with CacheService)', () => {
 		mockExtractIdsFromParam.mockReset();
 	});
 
+	test('accepts an encoded slash after Hapi decodes the trip ID', () => {
+		getStopTimes(server);
+		const route = server.route.mock.calls[0][0];
+		expect(route.options.validate.params.validate({ tripId: 'DUB-DRO/DUN O' }).error).toBeUndefined();
+	});
+
 	test('registers the route on the server', () => {
 		getStopTimes(server);
 		expect(server.route).toHaveBeenCalledWith(expect.objectContaining({
