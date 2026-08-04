@@ -5,7 +5,8 @@ const mockRoute = vi.fn();
 const mockLogger = vi.fn().mockImplementation(() => ({ error: vi.fn(), warn: vi.fn(), info: vi.fn() }));
 const mockExtractIdsFromParam = vi.fn();
 const mockGetDatabaseClient = vi.fn();
-const mockGetUnixTimestamp = vi.fn();
+const mockCreateCacheableResponse = vi.fn((handler, payload) => handler.response(payload));
+const mockCreateRevisionValidator = vi.fn();
 const mockCacheService = {
 	getOrSetCache: vi.fn(),
 };
@@ -20,8 +21,9 @@ vi.mock('../index.js', () => ({
 	getDatabaseClient: (...args) => mockGetDatabaseClient(...args),
 	getCacheService: (req) => req?.server?.plugins?.cache?.cacheService,
 }));
-vi.mock('../../../utils/timestampUtils.js', () => ({
-	getUnixTimestamp: (...args) => mockGetUnixTimestamp(...args)
+vi.mock('../routes/cacheableResponse.js', () => ({
+	createCacheableResponse: (...args) => mockCreateCacheableResponse(...args),
+	createRevisionValidator: (...args) => mockCreateRevisionValidator(...args)
 }));
 
 describe('getAgencies (with CacheService)', () => {
@@ -45,7 +47,7 @@ describe('getAgencies (with CacheService)', () => {
 			queries: { getAgencyById: vi.fn(), getAllAgencies: vi.fn() }
 		};
 		mockGetDatabaseClient.mockReturnValue(db);
-		mockGetUnixTimestamp.mockReturnValue(67890);
+		mockCreateRevisionValidator.mockReset();
 		h = { response: vi.fn((payload) => ({ code: vi.fn().mockReturnValue({ payload, code: true }) })) };
 		mockCacheService.getOrSetCache.mockReset();
 		mockExtractIdsFromParam.mockReset();
@@ -84,7 +86,6 @@ describe('getAgencies (with CacheService)', () => {
 		}));
 		expect(db.queries.getAllAgencies).toHaveBeenCalled();
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
-			query_timestamp: 67890,
 			db_last_updated: '2026-06-29T00:00:00.000Z',
 			response: agencies
 		}));
@@ -100,7 +101,6 @@ describe('getAgencies (with CacheService)', () => {
 		expect(mockCacheService.getOrSetCache).toHaveBeenCalledWith(expect.objectContaining({ cacheKey: 'agencies:all' }));
 		expect(db.queries.getAllAgencies).not.toHaveBeenCalled();
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
-			query_timestamp: 67890,
 			db_last_updated: '2026-06-29T00:00:00.000Z',
 			response: agencies
 		}));
@@ -176,7 +176,6 @@ describe('getAgencies (with CacheService)', () => {
 		const res = await handler(req, h);
 		expect(db.queries.getAllAgencies).toHaveBeenCalled();
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
-			query_timestamp: 67890,
 			db_last_updated: '2026-06-29T00:00:00.000Z',
 			response: agencies
 		}));

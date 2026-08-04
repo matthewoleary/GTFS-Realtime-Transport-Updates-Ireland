@@ -5,7 +5,13 @@ import { register as routesRegister } from './server/index.js';
 const app = async config => {
 	const { host, port } = config;
 
-	const hapiServer = server({ host, port });
+	const hapiServer = server({
+		host,
+		port,
+		compression: {
+			minBytes: 1024
+		}
+	});
 
 	hapiServer.app.config = config;
 

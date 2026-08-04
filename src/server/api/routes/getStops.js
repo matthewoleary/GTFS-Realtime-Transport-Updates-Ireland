@@ -1,7 +1,7 @@
 import Joi from 'joi';
+import { createCacheableResponse, createRevisionValidator } from './cacheableResponse.js';
 import ServerLogger from '../../serverLogger.js';
 import { getDatabaseClient, getCacheService } from '../index.js';
-import { getUnixTimestamp } from '../../../utils/timestampUtils.js';
 
 /**
  * Registers the following GTFS stop endpoints:
@@ -121,6 +121,15 @@ export default function getStops(server) {
             try {
                 const db = getDatabaseClient(request);
                 const dbLastUpdated = db.lastDbUpdate || await db.getLastDbUpdate();
+                const agencyId = request.query.agencyId;
+                const resourceKey = agencyId
+                    ? `${cacheKeyBase}:agency:${agencyId}`
+                    : `${cacheKeyBase}:all`;
+                const validator = createRevisionValidator(resourceKey, dbLastUpdated);
+                const notModified = validator && handler.entity(validator);
+                if (notModified) {
+                    return notModified;
+                }
                 let cacheService = null;
                 try {
                     cacheService = getCacheService(request);
@@ -128,8 +137,6 @@ export default function getStops(server) {
                     logger.warn('Cache service not available or failed to initialize, proceeding without cache. Error: ' + error.message);
                     cacheService = null;
                 }
-                const agencyId = request.query.agencyId;
-                const unixTimestamp = getUnixTimestamp();
                 let response;
                 if (agencyId) {
                     response = await getStopsByAgencyId(agencyId, db, cacheService, cacheKeyBase);
@@ -140,11 +147,10 @@ export default function getStops(server) {
                     return handler.response({ error: 'No stops found' }).code(404);
                 }
                 const payload = {
-                    query_timestamp: unixTimestamp,
                     db_last_updated: dbLastUpdated,
                     response: response
                 };
-                return handler.response(payload);
+                return createCacheableResponse(handler, payload, validator);
             } catch (error) {
                 logger.error(error);
                 return handler.response({ error: 'Internal Server Error' }).code(500);
@@ -173,7 +179,13 @@ export default function getStops(server) {
         handler: async (request, handler) => {
             try {
                 const db = getDatabaseClient(request);
-                const dbLastUpdated = await db.lastDbUpdate || await db.getLastDbUpdate();
+                const dbLastUpdated = db.lastDbUpdate || await db.getLastDbUpdate();
+                const stopId = request.params.stopId;
+                const validator = createRevisionValidator(`${cacheKeyBase}:stop:${stopId}`, dbLastUpdated);
+                const notModified = validator && handler.entity(validator);
+                if (notModified) {
+                    return notModified;
+                }
                 let cacheService = null;
                 try {
                     cacheService = getCacheService(request);
@@ -181,18 +193,15 @@ export default function getStops(server) {
                     logger.warn('Cache service not available or failed to initialize, proceeding without cache. Error: ' + error.message);
                     cacheService = null;
                 }
-                const stopId = request.params.stopId;
-                const unixTimestamp = getUnixTimestamp();
                 const stop = await getStopById(stopId, db, cacheService, cacheKeyBase);
                 if (!stop) {
                     return handler.response({ error: `Stop with ID ${stopId} not found` }).code(404);
                 }
                 const payload = {
-                    query_timestamp: unixTimestamp,
                     db_last_updated: dbLastUpdated,
                     response: stop
                 };
-                return handler.response(payload);
+                return createCacheableResponse(handler, payload, validator);
             } catch (error) {
                 logger.error(error);
                 return handler.response({ error: 'Internal Server Error' }).code(500);
