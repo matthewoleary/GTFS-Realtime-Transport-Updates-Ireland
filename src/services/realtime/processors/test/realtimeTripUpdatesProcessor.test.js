@@ -243,4 +243,82 @@ describe('RealtimeTripUpdatesProcessor', () => {
       expect(sorted.map(e => e.id)).toEqual(['previous-service', 'next-day']);
     });
   });
+
+  describe('realtime response contract', () => {
+    it('propagates the latest delay regardless of feed ordering', () => {
+      const element = { stop_sequence: 4, departure_timestamp: 100, arrival_timestamp: 200 };
+      const result = processor.findNearestStopSequenceDelay(element, [
+        { stopSequence: 3, departure: { delay: 30 } },
+        { stopSequence: 1, departure: { delay: 10 } }
+      ]);
+
+      expect(result.realtime_departure_timestamp).toBe(130);
+      expect(result.realtime_arrival_timestamp).toBe(230);
+      expect(result.realtime_source).toBe('PROPAGATED');
+    });
+
+    it('stops propagation at NO_DATA', () => {
+      const element = { stop_sequence: 4, departure_timestamp: 100, arrival_timestamp: 200 };
+      const result = processor.findNearestStopSequenceDelay(element, [
+        { stopSequence: 1, departure: { delay: 30 } },
+        { stopSequence: 3, scheduleRelationship: 2 }
+      ]);
+
+      expect(result.realtime_departure_timestamp).toBeUndefined();
+      expect(result.realtime_source).toBeUndefined();
+    });
+
+    it('continues propagation across SKIPPED stops', () => {
+      const element = { stop_sequence: 3, departure_timestamp: 100, arrival_timestamp: 200 };
+      const result = processor.findNearestStopSequenceDelay(element, [
+        { stopSequence: 1, arrival: { delay: 20 } },
+        { stopSequence: 2, scheduleRelationship: 1 }
+      ]);
+
+      expect(result.realtime_departure_timestamp).toBe(120);
+      expect(result.realtime_arrival_timestamp).toBe(220);
+      expect(result.realtime_source).toBe('PROPAGATED');
+    });
+
+    it('normalizes relationships and event times without mutating the feed', async () => {
+      const tripUpdate = {
+        trip: { tripId: 'trip-1', scheduleRelationship: 3 },
+        stopTimeUpdate: [{
+          stopSequence: 1,
+          scheduleRelationship: 1,
+          arrival: { time: '1753456789', delay: 30 }
+        }]
+      };
+
+      const result = await processor.processTripResponse(
+        { trip_id: 'trip-1' },
+        new Map([['trip-1', { tripUpdate }]])
+      );
+
+      expect(result.tripUpdate.trip.scheduleRelationship).toBe('CANCELED');
+      expect(result.tripUpdate.stopTimeUpdate[0].scheduleRelationship).toBe('SKIPPED');
+      expect(result.tripUpdate.stopTimeUpdate[0].arrival.time).toBe(1753456789);
+      expect(tripUpdate.trip.scheduleRelationship).toBe(3);
+      expect(tripUpdate.stopTimeUpdate[0].arrival.time).toBe('1753456789');
+    });
+
+    it('rejects event times that cannot be represented safely as JSON integers', () => {
+      expect(() => processor.normalizeStopTimeUpdate({
+        departure: { time: '9007199254740992' }
+      })).toThrow('Invalid GTFS-realtime event time');
+    });
+
+    it('returns only trip identity and timestamp in minimal trip updates', () => {
+      const result = processor.getMinimalTripUpdate({
+        trip: { tripId: 'trip-1', scheduleRelationship: 0 },
+        timestamp: 123,
+        stopTimeUpdate: [{ stopSequence: 1 }]
+      });
+
+      expect(result).toEqual({
+        trip: { tripId: 'trip-1', scheduleRelationship: 'SCHEDULED' },
+        timestamp: 123
+      });
+    });
+  });
 });

@@ -49,8 +49,10 @@ class RealtimeVehiclePositionsProcessor {
 			for (const element of queryResponse) {
 				await this.getElementVehiclePositionIfExists(element, feedEntityMap);
 			}
-		} else {
+		} else if (queryResponse) {
 			await this.getElementVehiclePositionIfExists(queryResponse, feedEntityMap);
+		} else {
+			this.logger.warn('Query response is empty, skipping vehicle positions processing.');
 		}
 		return queryResponse;
 	}
@@ -58,8 +60,9 @@ class RealtimeVehiclePositionsProcessor {
 	/**
 	 * Attaches vehicle position information to a single element if available in the feed entity map.
 	 *
-	 * - If a feed entity exists for the element's trip_id and contains vehicle data, sets element.vehicle to that data.
-	 * - Otherwise, sets element.vehicle to null.
+	 * - If a feed entity exists for the element's trip_id, attaches its vehicle data without
+	 *   the duplicate trip descriptor.
+	 * - Otherwise, sets element.realtime_vehicle to null.
 	 *
 	 * @param {Object} element - The vehicle/trip element to update.
 	 * @param {Map<string, Object>} feedEntityMap - Map of trip_id to GTFS-realtime feed entity.
@@ -68,9 +71,10 @@ class RealtimeVehiclePositionsProcessor {
 	async getElementVehiclePositionIfExists(element, feedEntityMap) {
 		const vehicleEntity = feedEntityMap.get(element.trip_id);
 		if (vehicleEntity && vehicleEntity.vehicle) {
-			element.vehicle = vehicleEntity.vehicle;
+			const { trip, ...vehicleWithoutTrip } = vehicleEntity.vehicle;
+			element.realtime_vehicle = vehicleWithoutTrip;
 		} else {
-			element.vehicle = null;
+			element.realtime_vehicle = null;
 		}
 	}
 }

@@ -1,4 +1,10 @@
-import { unwrapTimes, getTripDescriptorScheduleRelationshipName, findFeedEntityForTrip, getTimestampAsTimeFormatted } from "./utils.js";
+import {
+	unwrapTimes,
+	getTripDescriptorScheduleRelationshipName,
+	getStopTimeScheduleRelationshipName,
+	findFeedEntityForTrip,
+	getTimestampAsTimeFormatted
+} from "./utils.js";
 import { getSecondsSinceMidnightTimestamp } from "../../../utils/timestampUtils.js";
 
 class RealtimeTripUpdatesProcessor {
@@ -107,20 +113,24 @@ class RealtimeTripUpdatesProcessor {
 		for (const origElement of stopResponse) {
 			let element = { ...origElement };
 			const feedEntity = findFeedEntityForTrip(element, feedEntityMap);
-			element.tripUpdate = feedEntity?.tripUpdate;
-			element.stopUpdate = feedEntity?.tripUpdate?.stopTimeUpdate?.find(update => {
+			const tripUpdate = feedEntity?.tripUpdate;
+			const numericTripRelationship = tripUpdate?.trip?.scheduleRelationship;
+			element.tripUpdate = this.getMinimalTripUpdate(tripUpdate);
+			element.trip_scheduleRelationship = getTripDescriptorScheduleRelationshipName(numericTripRelationship);
+			const stopUpdate = tripUpdate?.stopTimeUpdate?.find(update => {
 				if (element.stop_sequence !== undefined && update.stopSequence !== undefined) {
 					return update.stopSequence === element.stop_sequence;
 				}
 				return update.stopId === element.stop_id;
 			});
+			element.stopUpdate = stopUpdate ? this.normalizeStopTimeUpdate(stopUpdate) : undefined;
 			// If the tripScheduleRelationship is not CANCELED (3), apply real-time delay
-			if (feedEntity && element.tripUpdate?.trip.scheduleRelationship !== 3) {
+			if (feedEntity && numericTripRelationship !== 3) {
 				element = this.applyRealtimeDelay(element, feedEntity);
 			}
 			const arrived = this.checkArrival(element, secondsSinceMidnightTimestamp);
 			element = unwrapTimes(element);
-			if (!arrived) {
+			if (!arrived && numericTripRelationship !== 7) {
 				filteredResponse.push(element);
 			}
 		}
@@ -135,10 +145,11 @@ class RealtimeTripUpdatesProcessor {
 	 * @returns {Array<Object>} The enriched stop time response array with attached stopTimeUpdate data when available.
 	 */
 	async processStopTimesResponse(stopTimesResponse, feedEntityMap) {
-		const feedEntity = findFeedEntityForTrip(stopTimesResponse[0], feedEntityMap);
+		const response = stopTimesResponse.map(stopTime => ({ ...stopTime }));
+		const feedEntity = findFeedEntityForTrip(response[0], feedEntityMap);
 		if (feedEntity) {
 			if (feedEntity.tripUpdate && feedEntity.tripUpdate.stopTimeUpdate) {
-				for (const stopTime of stopTimesResponse) {
+				for (const stopTime of response) {
 					const stopTimeUpdate = feedEntity.tripUpdate.stopTimeUpdate.find(update => {
 						if (stopTime.stop_sequence !== undefined && update.stopSequence !== undefined) {
 							return update.stopSequence === stopTime.stop_sequence;
@@ -146,12 +157,13 @@ class RealtimeTripUpdatesProcessor {
 						return update.stopId === stopTime.stop_id;
 					});
 					if (stopTimeUpdate) {
-						stopTime.stopTimeUpdate = stopTimeUpdate;
+						stopTime.stopTimeUpdate = this.normalizeStopTimeUpdate(stopTimeUpdate);
 					}
+					this.applyRealtimeDelay(stopTime, feedEntity);
 				}
 			}
 		}
-		return stopTimesResponse;
+		return response;
 	}
 
 	/**
@@ -163,8 +175,10 @@ class RealtimeTripUpdatesProcessor {
 	 */
 	async processTripResponse(tripResponse, feedEntityMap) {
 		const feedEntity = findFeedEntityForTrip(tripResponse, feedEntityMap);
-		tripResponse.tripUpdate = feedEntity?.tripUpdate;
-		return tripResponse;
+		return {
+			...tripResponse,
+			tripUpdate: this.normalizeTripUpdate(feedEntity?.tripUpdate)
+		};
 	}
 
 	/**
@@ -211,20 +225,30 @@ class RealtimeTripUpdatesProcessor {
 	 * set when an applicable update is found.
 	 */
 	findNearestStopSequenceDelay(element, stopTimeUpdates) {
-		for (let index = stopTimeUpdates.length - 1; index >= 0; index--) {
-			const update = stopTimeUpdates[index];
-			if (
-				update.stopSequence <= element.stop_sequence &&
-				(update.scheduleRelationship === 0 || update.scheduleRelationship === 2)
-			) {
-				const departureDelay = update.departure ? update.departure.delay : 0;
-				const arrivalDelay = update.arrival ? update.arrival.delay : 0;
-				element.realtime_departure_timestamp = element.departure_timestamp + departureDelay;
-				element.realtime_arrival_timestamp = element.arrival_timestamp + arrivalDelay;
-				element.realtime_departure_time = getTimestampAsTimeFormatted(element.realtime_departure_timestamp);
-				element.realtime_arrival_time = getTimestampAsTimeFormatted(element.realtime_arrival_timestamp);
-				break;
+		const applicableUpdates = stopTimeUpdates
+			.filter(update => update.stopSequence <= element.stop_sequence)
+			.sort((a, b) => a.stopSequence - b.stopSequence);
+		let selectedUpdate;
+		for (const update of applicableUpdates) {
+			if (update.scheduleRelationship === 2) {
+				selectedUpdate = undefined;
+				continue;
 			}
+			if (update.scheduleRelationship === 1) {
+				continue;
+			}
+			selectedUpdate = update;
+		}
+		if (selectedUpdate) {
+			const departureDelay = selectedUpdate.departure?.delay ?? selectedUpdate.arrival?.delay ?? 0;
+			const arrivalDelay = selectedUpdate.arrival?.delay ?? selectedUpdate.departure?.delay ?? 0;
+			element.realtime_departure_timestamp = element.departure_timestamp + departureDelay;
+			element.realtime_arrival_timestamp = element.arrival_timestamp + arrivalDelay;
+			element.realtime_departure_time = getTimestampAsTimeFormatted(element.realtime_departure_timestamp);
+			element.realtime_arrival_time = getTimestampAsTimeFormatted(element.realtime_arrival_timestamp);
+			element.realtime_source = selectedUpdate.stopSequence === element.stop_sequence
+				? 'DIRECT'
+				: 'PROPAGATED';
 		}
 		return element;
 	}
@@ -238,10 +262,60 @@ class RealtimeTripUpdatesProcessor {
 				return update.stopId === element.stop_id;
 			});
 			if (stopTimeUpdateForStop && stopTimeUpdateForStop.scheduleRelationship !== undefined) {
-				element.stopScheduleRelationship = getTripDescriptorScheduleRelationshipName(stopTimeUpdateForStop.scheduleRelationship);
+				element.stopScheduleRelationship = getStopTimeScheduleRelationshipName(stopTimeUpdateForStop.scheduleRelationship);
 			}
 		}
 		return element;
+	}
+
+	normalizeTripUpdate(tripUpdate) {
+		if (!tripUpdate) {
+			return undefined;
+		}
+		return {
+			...tripUpdate,
+			trip: tripUpdate.trip ? {
+				...tripUpdate.trip,
+				scheduleRelationship: getTripDescriptorScheduleRelationshipName(
+					tripUpdate.trip.scheduleRelationship
+				)
+			} : undefined,
+			stopTimeUpdate: tripUpdate.stopTimeUpdate?.map(update => this.normalizeStopTimeUpdate(update))
+		};
+	}
+
+	normalizeStopTimeUpdate(stopTimeUpdate) {
+		const normalizeEvent = event => {
+			if (!event) {
+				return event;
+			}
+			const normalized = { ...event };
+			if (normalized.time !== undefined && normalized.time !== null) {
+				const time = Number(normalized.time);
+				if (!Number.isSafeInteger(time)) {
+					throw new Error('Invalid GTFS-realtime event time');
+				}
+				normalized.time = time;
+			}
+			return normalized;
+		};
+		return {
+			...stopTimeUpdate,
+			scheduleRelationship: getStopTimeScheduleRelationshipName(stopTimeUpdate.scheduleRelationship),
+			arrival: normalizeEvent(stopTimeUpdate.arrival),
+			departure: normalizeEvent(stopTimeUpdate.departure)
+		};
+	}
+
+	getMinimalTripUpdate(tripUpdate) {
+		if (!tripUpdate) {
+			return undefined;
+		}
+		const normalized = this.normalizeTripUpdate(tripUpdate);
+		return {
+			trip: normalized.trip,
+			timestamp: normalized.timestamp
+		};
 	}
 
 	/**

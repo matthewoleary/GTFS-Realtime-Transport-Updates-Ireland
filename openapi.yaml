@@ -518,10 +518,10 @@ paths:
                         type: string
                         description: Shape ID
                         nullable: true
-                      vehicle:
+                      realtime_vehicle:
                         type: object
                         nullable: true
-                        description: GTFS-realtime vehicle position data for the trip. This field is always present on vehicle-enriched responses and is null when no matching vehicle update exists.
+                        description: GTFS-realtime vehicle position data without the duplicate trip descriptor. This field is null when no matching vehicle update exists.
                       tripUpdate:
                         type: object
                         nullable: true
@@ -534,7 +534,8 @@ paths:
                                 type: string
                                 nullable: true
                               scheduleRelationship:
-                                type: integer
+                                type: string
+                                enum: [SCHEDULED, ADDED, UNSCHEDULED, CANCELED, REPLACEMENT, DUPLICATED, DELETED]
                                 nullable: true
                           stopTimeUpdate:
                             type: array
@@ -548,7 +549,8 @@ paths:
                                   type: string
                                   nullable: true
                                 scheduleRelationship:
-                                  type: integer
+                                  type: string
+                                  enum: [SCHEDULED, SKIPPED, NO_DATA, UNSCHEDULED]
                                   nullable: true
                                 departure:
                                   type: object
@@ -733,6 +735,11 @@ paths:
                           type: string
                           nullable: true
                           description: Real-time departure time formatted as HH:MM:SS.
+                        realtime_source:
+                          type: string
+                          enum: [DIRECT, PROPAGATED]
+                          nullable: true
+                          description: Whether realtime timestamps came from this stop or were propagated from an earlier update.
                         unwrapped_arrival_timestamp:
                           type: integer
                           nullable: true
@@ -749,10 +756,10 @@ paths:
                           type: string
                           nullable: true
                           description: Unwrapped departure time formatted as HH:MM:SS.
-                        vehicle:
+                        realtime_vehicle:
                           type: object
                           nullable: true
-                          description: GTFS-realtime vehicle position data for the trip. This field is always present on vehicle-enriched responses and is null when no matching vehicle update exists.
+                          description: GTFS-realtime vehicle position data without the duplicate trip descriptor. This field is null when no matching vehicle update exists.
                         tripUpdate:
                           type: object
                           nullable: true
@@ -765,34 +772,13 @@ paths:
                                   type: string
                                   nullable: true
                                 scheduleRelationship:
-                                  type: integer
+                                  type: string
+                                  enum: [SCHEDULED, ADDED, UNSCHEDULED, CANCELED, REPLACEMENT, DUPLICATED, DELETED]
                                   nullable: true
-                            stopTimeUpdate:
-                              type: array
-                              items:
-                                type: object
-                                properties:
-                                  stopSequence:
-                                    type: integer
-                                    nullable: true
-                                  stopId:
-                                    type: string
-                                    nullable: true
-                                  scheduleRelationship:
-                                    type: integer
-                                    nullable: true
-                                  departure:
-                                    type: object
-                                    properties:
-                                      delay:
-                                        type: integer
-                                        nullable: true
-                                  arrival:
-                                    type: object
-                                    properties:
-                                      delay:
-                                        type: integer
-                                        nullable: true
+                            timestamp:
+                              type: integer
+                              nullable: true
+                              description: Timestamp of the GTFS-realtime trip update.
                         stopUpdate:
                           type: object
                           nullable: true
@@ -805,7 +791,8 @@ paths:
                               type: string
                               nullable: true
                             scheduleRelationship:
-                              type: integer
+                              type: string
+                              enum: [SCHEDULED, SKIPPED, NO_DATA, UNSCHEDULED]
                               nullable: true
                             departure:
                               type: object
@@ -873,6 +860,19 @@ paths:
                         departure_timestamp:
                           type: integer
                           description: Departure time as Unix timestamp (seconds)
+                        realtime_arrival_timestamp:
+                          type: integer
+                          nullable: true
+                          description: Realtime arrival timestamp after applying a direct or propagated update.
+                        realtime_departure_timestamp:
+                          type: integer
+                          nullable: true
+                          description: Realtime departure timestamp after applying a direct or propagated update.
+                        realtime_source:
+                          type: string
+                          enum: [DIRECT, PROPAGATED]
+                          nullable: true
+                          description: Whether realtime timestamps came from this stop or were propagated from an earlier update.
                         stop_id:
                           type: string
                           description: Stop ID
@@ -922,7 +922,8 @@ paths:
                               type: string
                               nullable: true
                             scheduleRelationship:
-                              type: integer
+                              type: string
+                              enum: [SCHEDULED, SKIPPED, NO_DATA, UNSCHEDULED]
                               nullable: true
                             departure:
                               type: object
