@@ -1,8 +1,8 @@
 import Joi from 'joi';
+import { createCacheableResponse, createRevisionValidator } from './cacheableResponse.js';
 import ServerLogger from '../../serverLogger.js';
 import { sortByRouteShortNameAsInt } from './utils.js';
 import { getDatabaseClient, getCacheService } from '../index.js';
-import { getUnixTimestamp } from '../../../utils/timestampUtils.js';
 
 /**
  * Registers the /api/routes and /api/routes/{routeId} GET routes for fetching GTFS route data.
@@ -87,7 +87,16 @@ export default function getRoutes(server) {
         handler: async (request, handler) => {
             try {
                 const db = getDatabaseClient(request);
-                const dbLastUpdated = await db.lastDbUpdate || await db.getLastDbUpdate();
+                const dbLastUpdated = db.lastDbUpdate || await db.getLastDbUpdate();
+                const agencyId = request.query.agencyId;
+                const resourceKey = agencyId
+                    ? `${cacheKeyBase}:agency:${agencyId}`
+                    : `${cacheKeyBase}:all`;
+                const validator = createRevisionValidator(resourceKey, dbLastUpdated);
+                const notModified = validator && handler.entity(validator);
+                if (notModified) {
+                    return notModified;
+                }
                 let cacheService = null;
                 try {
                     cacheService = getCacheService(request);
@@ -95,19 +104,16 @@ export default function getRoutes(server) {
                     logger.warn('Cache service not available or failed to initialize, proceeding without cache. Error: ' + error.message);
                     cacheService = null;
                 }
-                const agencyId = request.query.agencyId;
-                const unixTimestamp = getUnixTimestamp();
                 const response = await getAllRoutes(db, cacheService, agencyId);
                 const sortedRecords = await sortByRouteShortNameAsInt(response || []);
                 if (!sortedRecords || sortedRecords.length === 0) {
                     return handler.response({ error: 'No routes found' }).code(404);
                 }
                 const payload = {
-                    query_timestamp: unixTimestamp,
                     db_last_updated: dbLastUpdated,
                     response: sortedRecords
                 };
-                return handler.response(payload);
+                return createCacheableResponse(handler, payload, validator);
             } catch (error) {
                 logger.error(error);
                 return handler.response({ error: 'Internal Server Error' }).code(500);
@@ -137,7 +143,13 @@ export default function getRoutes(server) {
         handler: async (request, handler) => {
             try {
                 const db = getDatabaseClient(request);
-                const dbLastUpdated = await db.lastDbUpdate || await db.getLastDbUpdate();
+                const dbLastUpdated = db.lastDbUpdate || await db.getLastDbUpdate();
+                const { routeId } = request.params;
+                const validator = createRevisionValidator(`${cacheKeyBase}:route:${routeId}`, dbLastUpdated);
+                const notModified = validator && handler.entity(validator);
+                if (notModified) {
+                    return notModified;
+                }
                 let cacheService = null;
                 try {
                     cacheService = getCacheService(request);
@@ -145,18 +157,15 @@ export default function getRoutes(server) {
                     logger.warn('Cache service not available or failed to initialize, proceeding without cache. Error: ' + error.message);
                     cacheService = null;
                 }
-                const { routeId } = request.params;
-                const unixTimestamp = getUnixTimestamp();
                 const route = await getRouteById(routeId, db, cacheService);
                 if (!route) {
                     return handler.response({ error: 'Route not found' }).code(404);
                 }
                 const payload = {
-                    query_timestamp: unixTimestamp,
                     db_last_updated: dbLastUpdated,
                     response: route
                 };
-                return handler.response(payload);
+                return createCacheableResponse(handler, payload, validator);
             } catch (error) {
                 logger.error(error);
                 return handler.response({ error: 'Internal Server Error' }).code(500);

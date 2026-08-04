@@ -1,8 +1,8 @@
 
 import Joi from 'joi';
+import { createCacheableResponse, createRevisionValidator } from './cacheableResponse.js';
 import ServerLogger from '../../serverLogger.js';
 import { getDatabaseClient, getCacheService } from '../index.js';
-import { getUnixTimestamp } from '../../../utils/timestampUtils.js';
 
 /**
  * Registers the /api/shapes/{shapeId} GET route for fetching GTFS shape data by shape ID.
@@ -62,7 +62,13 @@ export default function getShapes(server) {
         handler: async (request, handler) => {
             try {
                 const db = getDatabaseClient(request);
-                const dbLastUpdated = await db.lastDbUpdate || await db.getLastDbUpdate();
+                const dbLastUpdated = db.lastDbUpdate || await db.getLastDbUpdate();
+                const { shapeId } = request.params;
+                const validator = createRevisionValidator(`shapes:shape:${shapeId}`, dbLastUpdated);
+                const notModified = validator && handler.entity(validator);
+                if (notModified) {
+                    return notModified;
+                }
                 let cacheService = null;
                 try {
                     cacheService = getCacheService(request);
@@ -70,18 +76,15 @@ export default function getShapes(server) {
                     logger.warn(`Cache service not available, proceeding without cache. Error: ${error.message}`);
                     cacheService = null;
                 }
-                const { shapeId } = request.params;
-                const unixTimestamp = getUnixTimestamp();
                 const shapes = await getShapesById(shapeId, db, cacheService);
                 if (!shapes || shapes.length === 0) {
                     return handler.response({ error: 'No shapes found for the specified shapeId' }).code(404);
                 }
                 const payload = {
-                    query_timestamp: unixTimestamp,
                     db_last_updated: dbLastUpdated,
                     response: shapes
                 };
-                return handler.response(payload);
+                return createCacheableResponse(handler, payload, validator);
             } catch (error) {
                 logger.error(error);
                 return handler.response({ error: 'Internal Server Error' }).code(500);

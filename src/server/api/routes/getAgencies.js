@@ -1,7 +1,7 @@
 import Joi from 'joi';
+import { createCacheableResponse, createRevisionValidator } from './cacheableResponse.js';
 import ServerLogger from '../../serverLogger.js';
 import { getDatabaseClient, getCacheService } from '../index.js';
-import { getUnixTimestamp } from '../../../utils/timestampUtils.js';
 
 /**
  * Registers the /api/agencies and /api/agencies/{agencyId} GET routes for fetching GTFS agency data.
@@ -72,7 +72,12 @@ export default function getAgencies(server) {
         handler: async (request, handler) => {
             try {
                 const db = getDatabaseClient(request);
-                const dbLastUpdated = await db.lastDbUpdate || await db.getLastDbUpdate();
+                const dbLastUpdated = db.lastDbUpdate || await db.getLastDbUpdate();
+                const validator = createRevisionValidator(`${cacheKeyBase}:all`, dbLastUpdated);
+                const notModified = validator && handler.entity(validator);
+                if (notModified) {
+                    return notModified;
+                }
                 let cacheService = null;
                 try {
                     cacheService = getCacheService(request);
@@ -80,17 +85,15 @@ export default function getAgencies(server) {
                     logger.warn('Cache service not available or failed to initialize, proceeding without cache. Error: ' + error.message);
                     cacheService = null;
                 }
-                const unixTimestamp = getUnixTimestamp();
                 const response = await getAllAgencies(db, cacheService);
                 if (!response || response.length === 0) {
                     return handler.response({ error: 'No agencies found' }).code(404);
                 }
                 const payload = {
-                    query_timestamp: unixTimestamp,
                     db_last_updated: dbLastUpdated,
                     response: response
                 };
-                return handler.response(payload);
+                return createCacheableResponse(handler, payload, validator);
             } catch (error) {
                 logger.error(error);
                 return handler.response({ error: 'Internal Server Error' }).code(500);
@@ -119,6 +122,12 @@ export default function getAgencies(server) {
             try {
                 const db = getDatabaseClient(request);
                 const dbLastUpdated = db.lastDbUpdate || await db.getLastDbUpdate();
+                const { agencyId } = request.params;
+                const validator = createRevisionValidator(`${cacheKeyBase}:agency:${agencyId}`, dbLastUpdated);
+                const notModified = validator && handler.entity(validator);
+                if (notModified) {
+                    return notModified;
+                }
                 let cacheService = null;
                 try {
                     cacheService = getCacheService(request);
@@ -126,18 +135,15 @@ export default function getAgencies(server) {
                     logger.warn('Cache service not available or failed to initialize, proceeding without cache. Error: ' + error.message);
                     cacheService = null;
                 }
-                const { agencyId } = request.params;
-                const unixTimestamp = getUnixTimestamp();
                 const agency = await getAgencyById(agencyId, db, cacheService);
                 if (!agency) {
                     return handler.response({ error: 'Agency not found' }).code(404);
                 }
                 const payload = {
-                    query_timestamp: unixTimestamp,
                     db_last_updated: dbLastUpdated,
                     response: agency
                 };
-                return handler.response(payload);
+                return createCacheableResponse(handler, payload, validator);
             } catch (error) {
                 logger.error(error);
                 return handler.response({ error: 'Internal Server Error' }).code(500);

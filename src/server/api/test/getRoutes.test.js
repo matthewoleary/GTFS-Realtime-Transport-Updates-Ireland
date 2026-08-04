@@ -6,7 +6,8 @@ const mockLogger = vi.fn().mockImplementation(() => ({ error: vi.fn(), warn: vi.
 const mockExtractIdsFromParam = vi.fn();
 const mockSortByRouteShortNameAsInt = vi.fn(async (arr) => arr);
 const mockGetDatabaseClient = vi.fn();
-const mockGetUnixTimestamp = vi.fn();
+const mockCreateCacheableResponse = vi.fn((handler, payload) => handler.response(payload));
+const mockCreateRevisionValidator = vi.fn();
 const mockCacheService = {
 	getOrSetCache: vi.fn(),
 };
@@ -22,8 +23,9 @@ vi.mock('../index.js', () => ({
 	getDatabaseClient: (...args) => mockGetDatabaseClient(...args),
 	getCacheService: (req) => req?.server?.plugins?.cache?.cacheService,
 }));
-vi.mock('../../../utils/timestampUtils.js', () => ({
-	getUnixTimestamp: (...args) => mockGetUnixTimestamp(...args)
+vi.mock('../routes/cacheableResponse.js', () => ({
+	createCacheableResponse: (...args) => mockCreateCacheableResponse(...args),
+	createRevisionValidator: (...args) => mockCreateRevisionValidator(...args)
 }));
 
 describe('getRoutes (with CacheService)', () => {
@@ -51,7 +53,7 @@ describe('getRoutes (with CacheService)', () => {
 			}
 		};
 		mockGetDatabaseClient.mockReturnValue(db);
-		mockGetUnixTimestamp.mockReturnValue(12345);
+		mockCreateRevisionValidator.mockReset();
 		h = { response: vi.fn((payload) => ({ code: vi.fn().mockReturnValue({ payload, code: true }) })) };
 		mockCacheService.getOrSetCache.mockReset();
 		mockExtractIdsFromParam.mockReset();
@@ -111,7 +113,6 @@ describe('getRoutes (with CacheService)', () => {
 		}));
 		expect(db.queries.getAllRoutes).toHaveBeenCalled();
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
-			query_timestamp: 12345,
 			db_last_updated: '2026-06-29T00:00:00.000Z',
 			response: routes
 		}));
@@ -127,7 +128,6 @@ describe('getRoutes (with CacheService)', () => {
 		expect(mockCacheService.getOrSetCache).toHaveBeenCalledWith(expect.objectContaining({ cacheKey: 'routes:all' }));
 		expect(db.queries.getAllRoutes).not.toHaveBeenCalled();
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
-			query_timestamp: 12345,
 			db_last_updated: '2026-06-29T00:00:00.000Z',
 			response: routes
 		}));
@@ -204,7 +204,6 @@ describe('getRoutes (with CacheService)', () => {
 		const res = await handler(req, h);
 		expect(db.queries.getAllRoutes).toHaveBeenCalled();
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
-			query_timestamp: 12345,
 			db_last_updated: '2026-06-29T00:00:00.000Z',
 			response: routes
 		}));
