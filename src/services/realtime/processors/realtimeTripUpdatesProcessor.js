@@ -134,7 +134,7 @@ class RealtimeTripUpdatesProcessor {
 				filteredResponse.push(element);
 			}
 		}
-		return this.sortByArrival(filteredResponse);
+		return this.sortByArrival(filteredResponse, secondsSinceMidnightTimestamp);
 	}
 
 	/**
@@ -345,12 +345,13 @@ class RealtimeTripUpdatesProcessor {
 	/**
 	* Sorts a list of trip elements by arrival timestamp (soonest first).
 	* @param {Array<Object>} tripList - List of trip elements.
+	* @param {number} secondsSinceMidnightTimestamp - Current service-day timestamp.
 	* @returns {Array<Object>} Sorted list by arrival time.
 	*/
-	sortByArrival(tripList) {
+	sortByArrival(tripList, secondsSinceMidnightTimestamp = 0) {
 		return tripList.sort((a, b) => {
-			const aArrival = a.unwrapped_arrival_timestamp ?? a.realtime_arrival_timestamp ?? a.arrival_timestamp;
-			const bArrival = b.unwrapped_arrival_timestamp ?? b.realtime_arrival_timestamp ?? b.arrival_timestamp;
+			const aArrival = this.getComparableServiceTimestamp(a, secondsSinceMidnightTimestamp);
+			const bArrival = this.getComparableServiceTimestamp(b, secondsSinceMidnightTimestamp);
 	
 			if (aArrival > bArrival) {
 				return 1;
@@ -362,6 +363,27 @@ class RealtimeTripUpdatesProcessor {
 	
 			return 0;
 		});
+	}
+
+	/**
+	 * Places scheduled and realtime timestamps onto the same service-day timeline.
+	 *
+	 * @param {Object} element - Trip element containing arrival timestamps.
+	 * @param {number} secondsSinceMidnightTimestamp - Current service-day timestamp.
+	 * @returns {number} Timestamp suitable for chronological comparison.
+	 */
+	getComparableServiceTimestamp(element, secondsSinceMidnightTimestamp) {
+		let timestamp = element.realtime_arrival_timestamp ?? element.arrival_timestamp;
+		if (timestamp === undefined) {
+			return Number.POSITIVE_INFINITY;
+		}
+
+		if (secondsSinceMidnightTimestamp < 43_200 && timestamp >= 86_400) {
+			timestamp -= 86_400;
+		} else if (secondsSinceMidnightTimestamp >= 43_200 && timestamp < secondsSinceMidnightTimestamp) {
+			timestamp += 86_400;
+		}
+		return timestamp;
 	}
 }
 

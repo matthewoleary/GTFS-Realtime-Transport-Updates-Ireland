@@ -234,13 +234,41 @@ describe('RealtimeTripUpdatesProcessor', () => {
       expect(sorted.map(e => e.arrival_timestamp)).toEqual([100, 200, 300]);
     });
 
-    it('should prefer unwrapped arrival timestamps when present', () => {
+    it('orders a wrapped previous-service departure correctly after midnight', () => {
       const arr = [
-        { id: 'previous-service', arrival_timestamp: 90000, unwrapped_arrival_timestamp: 3600 },
-        { id: 'next-day', arrival_timestamp: 5400 }
+        { id: 'current-service', arrival_timestamp: 5_400 },
+        { id: 'previous-service', arrival_timestamp: 90_000, unwrapped_arrival_timestamp: 3_600 }
       ];
-      const sorted = processor.sortByArrival(arr);
-      expect(sorted.map(e => e.id)).toEqual(['previous-service', 'next-day']);
+      const sorted = processor.sortByArrival(arr, 3_000);
+      expect(sorted.map(e => e.id)).toEqual(['previous-service', 'current-service']);
+    });
+
+    it('orders a wrapped after-midnight departure after late-evening departures', () => {
+      const arr = [
+        { id: 'after-midnight', arrival_timestamp: 86_226, realtime_arrival_timestamp: 86_751 },
+        { id: 'eleven', arrival_timestamp: 82_827, realtime_arrival_timestamp: 82_827 },
+        { id: 'half-eleven', arrival_timestamp: 84_627, realtime_arrival_timestamp: 84_627 }
+      ];
+      const sorted = processor.sortByArrival(arr, 81_000);
+      expect(sorted.map(e => e.id)).toEqual(['eleven', 'half-eleven', 'after-midnight']);
+    });
+
+    it('orders an unwrapped next-day departure after late-evening departures', () => {
+      const arr = [
+        { id: 'after-midnight', arrival_timestamp: 240 },
+        { id: 'late-evening', arrival_timestamp: 84_600 }
+      ];
+      const sorted = processor.sortByArrival(arr, 82_800);
+      expect(sorted.map(e => e.id)).toEqual(['late-evening', 'after-midnight']);
+    });
+
+    it('places trips without an arrival timestamp last', () => {
+      const arr = [
+        { id: 'unknown' },
+        { id: 'known', arrival_timestamp: 300 }
+      ];
+      const sorted = processor.sortByArrival(arr, 100);
+      expect(sorted.map(e => e.id)).toEqual(['known', 'unknown']);
     });
   });
 
