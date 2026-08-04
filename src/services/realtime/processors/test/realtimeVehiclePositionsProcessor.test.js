@@ -28,8 +28,8 @@ describe('RealtimeVehiclePositionsProcessor', () => {
         ['trip2', { vehicle: { id: 'veh2' } }]
       ]);
       const result = await processor.processVehicleResponse(queryResponse, feedEntityMap);
-      expect(result[0].vehicle).toEqual({ id: 'veh1' });
-      expect(result[1].vehicle).toEqual({ id: 'veh2' });
+      expect(result[0].realtime_vehicle).toEqual({ id: 'veh1' });
+      expect(result[1].realtime_vehicle).toEqual({ id: 'veh2' });
     });
     it('should set vehicle to null if vehicleEntity missing or no vehicle', async () => {
       const queryResponse = [
@@ -42,9 +42,20 @@ describe('RealtimeVehiclePositionsProcessor', () => {
         ['trip2', {}]
       ]);
       const result = await processor.processVehicleResponse(queryResponse, feedEntityMap);
-      expect(result[0].vehicle).toEqual({ id: 'veh1' });
-      expect(result[1].vehicle).toBeNull();
-      expect(result[2].vehicle).toBeNull();
+      expect(result[0].realtime_vehicle).toEqual({ id: 'veh1' });
+      expect(result[1].realtime_vehicle).toBeNull();
+      expect(result[2].realtime_vehicle).toBeNull();
+    });
+
+    it('strips the duplicate trip descriptor from the vehicle payload', async () => {
+      const result = await processor.processVehicleResponse(
+        [{ trip_id: 'trip1' }],
+        new Map([['trip1', {
+          vehicle: { id: 'veh1', latitude: 52.1, trip: { tripId: 'trip1' } }
+        }]])
+      );
+
+      expect(result[0].realtime_vehicle).toEqual({ id: 'veh1', latitude: 52.1 });
     });
   });
 
@@ -58,7 +69,7 @@ describe('RealtimeVehiclePositionsProcessor', () => {
       const { updateResultsWithRealtimeVehiclePositions } = await RealtimeVehiclePositionsProcessor.register(getFeedTimestamp, getFeedTripIdMap, logger);
       const updated = await updateResultsWithRealtimeVehiclePositions(payload);
       expect(updated.realtime_vehicle_positions_feed_timestamp).toBe(123);
-      expect(updated.response[0].vehicle).toEqual({ id: 'veh1' });
+      expect(updated.response[0].realtime_vehicle).toEqual({ id: 'veh1' });
       expect(getFeedTimestamp).toHaveBeenCalled();
       expect(getFeedTripIdMap).toHaveBeenCalled();
     });

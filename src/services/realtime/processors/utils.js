@@ -35,6 +35,17 @@ export function getTripDescriptorScheduleRelationshipName(value) {
 }
 
 /**
+* Maps a numeric StopTimeUpdate.ScheduleRelationship value to its string representation.
+*
+* @param {number|undefined} value - The numeric stop-time schedule relationship.
+* @returns {string|undefined} The relationship name, or undefined when not found.
+*/
+export function getStopTimeScheduleRelationshipName(value) {
+    const ScheduleRelationship = gtfsRealtimeBindings.transit_realtime.TripUpdate.StopTimeUpdate.ScheduleRelationship;
+    return Object.keys(ScheduleRelationship).find(key => ScheduleRelationship[key] === value);
+}
+
+/**
 * Unwraps departure and arrival timestamps that exceed 86400 seconds (24 hours).
 * Mutates the input element in place.
 * @param {Object} element - The stop/trip object. This object will be modified directly.
