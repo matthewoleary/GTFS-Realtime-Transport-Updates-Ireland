@@ -24,12 +24,14 @@ export default function getTrips(server) {
         options: {
             validate: {
                 params: Joi.object({
-                    tripId: Joi.string().trim().min(1).max(64).regex(/^[a-zA-Z0-9_.:+-]+$/)
+                    tripId: Joi.string().min(1).max(32).pattern(/^[\p{L}\p{N} ._:+/%-]+$/u)
+                        .custom((value, helpers) => value === value.trim() ? value : helpers.error('string.surroundingWhitespace'))
                         .required()
                         .messages({
                             'string.base': 'tripId must be a string',
                             'string.empty': 'tripId cannot be empty',
                             'string.pattern.base': 'tripId contains invalid characters',
+                            'string.surroundingWhitespace': 'tripId cannot start or end with whitespace',
                             'any.required': 'tripId is required'
                         })
                 })

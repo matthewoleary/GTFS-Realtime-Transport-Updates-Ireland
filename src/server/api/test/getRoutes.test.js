@@ -72,6 +72,26 @@ describe('getRoutes (with CacheService)', () => {
 		}));
 	});
 
+	test('preserves route IDs containing spaces and slashes', async () => {
+		const routeId = '10000 GREEN/DUN-O';
+		db.queries.getRouteById.mockResolvedValueOnce([{ id: routeId }]);
+		mockCacheService.getOrSetCache.mockImplementationOnce(async ({ dbFetchFn }) => dbFetchFn());
+		getRoutes(server);
+		const route = server.route.mock.calls[1][0];
+
+		expect(route.options.validate.params.validate({ routeId }).error).toBeUndefined();
+		await route.handler({ params: { routeId }, server }, h);
+		expect(db.queries.getRouteById).toHaveBeenCalledWith(routeId);
+	});
+
+	test('rejects route IDs containing characters outside the allowlist', () => {
+		getRoutes(server);
+		const route = server.route.mock.calls[1][0];
+		expect(route.options.validate.params.validate({ routeId: '<script>' }).error).toBeDefined();
+		expect(route.options.validate.params.validate({ routeId: ' DUB-DRO/DUN-O' }).error).toBeDefined();
+		expect(route.options.validate.params.validate({ routeId: 'R'.repeat(33) }).error).toBeDefined();
+	});
+
 	test('returns all routes (list endpoint, cache miss)', async () => {
 		const routes = [{ id: 1 }, { id: 2 }];
 		db.queries.getAllRoutes.mockResolvedValue(routes);

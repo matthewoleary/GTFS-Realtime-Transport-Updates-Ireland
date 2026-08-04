@@ -57,6 +57,27 @@ describe('getTrips.js handler', () => {
 		}));
 	});
 
+	test('rejects trip IDs containing characters outside the allowlist', () => {
+		getTrips(server);
+		const route = server.route.mock.calls[0][0];
+		expect(route.options.validate.params.validate({ tripId: 'trip\\id' }).error).toBeDefined();
+		expect(route.options.validate.params.validate({ tripId: 'trip-id ' }).error).toBeDefined();
+		expect(route.options.validate.params.validate({ tripId: 'T'.repeat(33) }).error).toBeDefined();
+	});
+
+	test('preserves trip IDs containing spaces and slashes', async () => {
+		const tripId = 'DUB-DRO/DUN O';
+		mockCacheService.getOrSetCache.mockResolvedValueOnce({ id: tripId });
+		getTrips(server);
+		const route = server.route.mock.calls[0][0];
+
+		expect(route.options.validate.params.validate({ tripId }).error).toBeUndefined();
+		await route.handler({ params: { tripId } }, h);
+		expect(mockCacheService.getOrSetCache).toHaveBeenCalledWith(expect.objectContaining({
+			cacheKey: `trips:trip:${tripId}`
+		}));
+	});
+
 	test('returns trip from cache (cache hit)', async () => {
 		mockCacheService.getOrSetCache.mockResolvedValueOnce({ id: 'T1', foo: 'bar' });
 		getTrips(server);
