@@ -1,7 +1,6 @@
 import Joi from 'joi';
 import ServerLogger from '../../serverLogger.js';
 import { getDatabaseClient, getCacheService, getRealtimeTripUpdatesClient } from '../index.js';
-import { getUnixTimestamp } from '../../../utils/timestampUtils.js';
 
 /**
  * Registers the /api/trips/{tripId}/stopTimes GET route for fetching GTFS stop times for a specific trip.
@@ -50,7 +49,6 @@ export default function getStopTimes(server) {
                     cacheService = null;
                 }
                 const tripId = request.params.tripId;
-                const unixTimestamp = getUnixTimestamp();
                 const cacheKey = `${cacheKeyBase}:trip:${tripId}`;
                 let stopTimes;
                 if (cacheService) {
@@ -68,7 +66,6 @@ export default function getStopTimes(server) {
                     return handler.response({ error: `No stop times found for tripId ${tripId}` }).code(404);
                 }
                 let payload = {
-                    query_timestamp: unixTimestamp,
                     db_last_updated: dbLastUpdated,
                     response: stopTimes
                 };

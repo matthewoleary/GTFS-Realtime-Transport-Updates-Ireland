@@ -11,7 +11,6 @@ import { getCurrentDay, getCurrentDate, getPreviousDay, getPreviousDate, getNext
  * - Accepts a required `stopId` path parameter for the stop ID.
  * - Optionally accepts `lowerBoundMinutes` and `upperBoundMinutes` query parameters to define the time window (default: ±90 minutes).
  * - Returns all trips at the specified stop, including real-time updates and handling night services (spanning two service days).
- * - Adds current and Unix timestamps to the response payload for client-side reference.
  * - Handles MySQL backend via the dynamic SQL client and supports caching.
  *
  * Example endpoint: /api/stops/{stopId}/trips?lowerBoundMinutes=60&upperBoundMinutes=120
@@ -92,7 +91,6 @@ export default function getTripsAtStop(server) {
                 }
 
                 let payload = {
-                    query_timestamp: unixTimestamp,
                     db_last_updated: dbLastUpdated,
                     response: []
                 };
