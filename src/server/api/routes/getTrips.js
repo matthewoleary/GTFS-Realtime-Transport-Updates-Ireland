@@ -1,7 +1,6 @@
 import Joi from 'joi';
 import ServerLogger from '../../serverLogger.js';
 import { getDatabaseClient, getRealtimeVehiclePositionsClient, getRealtimeTripUpdatesClient, getCacheService } from '../index.js';
-import { getUnixTimestamp } from '../../../utils/timestampUtils.js';
 
 /**
  * Registers the /api/trips/{tripId} GET route for fetching a GTFS trip by ID.
@@ -51,7 +50,6 @@ export default function getTrips(server) {
                     cacheService = null;
                 }
                 const tripId = request.params.tripId;
-                const unixTimestamp = getUnixTimestamp();
                 const cacheKey = `${cacheKeyBase}:trip:${tripId}`;
                 let trip;
                 if (cacheService) {
@@ -73,7 +71,6 @@ export default function getTrips(server) {
                     return handler.response({ error: `Trip with ID ${tripId} not found` }).code(404);
                 }
                 let payload = {
-                    query_timestamp: unixTimestamp,
                     db_last_updated: dbLastUpdated,
                     response: trip
                 };

@@ -37,8 +37,6 @@ paths:
               schema:
                 type: object
                 properties:
-                  query_timestamp:
-                    type: integer
                   db_last_updated:
                     type: string
                     format: date-time
@@ -100,8 +98,6 @@ paths:
               schema:
                 type: object
                 properties:
-                  query_timestamp:
-                    type: integer
                   db_last_updated:
                     type: string
                     format: date-time
@@ -145,8 +141,6 @@ paths:
               schema:
                 type: object
                 properties:
-                  query_timestamp:
-                    type: integer
                   db_last_updated:
                     type: string
                     format: date-time
@@ -228,8 +222,6 @@ paths:
               schema:
                 type: object
                 properties:
-                  query_timestamp:
-                    type: integer
                   db_last_updated:
                     type: string
                     format: date-time
@@ -281,8 +273,6 @@ paths:
               schema:
                 type: object
                 properties:
-                  query_timestamp:
-                    type: integer
                   db_last_updated:
                     type: string
                     format: date-time
@@ -397,8 +387,6 @@ paths:
               schema:
                 type: object
                 properties:
-                  query_timestamp:
-                    type: integer
                   db_last_updated:
                     type: string
                     format: date-time
@@ -471,8 +459,6 @@ paths:
               schema:
                 type: object
                 properties:
-                  query_timestamp:
-                    type: integer
                   db_last_updated:
                     type: string
                     format: date-time
@@ -587,8 +573,6 @@ paths:
               schema:
                 type: object
                 properties:
-                  query_timestamp:
-                    type: integer
                   db_last_updated:
                     type: string
                     format: date-time
@@ -652,8 +636,6 @@ paths:
               schema:
                 type: object
                 properties:
-                  query_timestamp:
-                    type: integer
                   db_last_updated:
                     type: string
                     format: date-time
@@ -829,8 +811,6 @@ paths:
               schema:
                 type: object
                 properties:
-                  query_timestamp:
-                    type: integer
                   db_last_updated:
                     type: string
                     format: date-time

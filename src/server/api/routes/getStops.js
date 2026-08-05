@@ -10,7 +10,6 @@ import { getDatabaseClient, getCacheService } from '../index.js';
  * - GET /api/stops?agencyId={agencyId}: List all stops for a specific agency
  * - GET /api/stops/{stopId}: Get details for a specific stop by ID
  *
- * All endpoints add `query_timestamp` to the response payload for client-side reference.
  * Uses Redis for caching at the stop, agency, and all-stops levels. Handles corrupted cache entries gracefully.
  *
  * @param {object} server - Hapi server instance to register the routes on.

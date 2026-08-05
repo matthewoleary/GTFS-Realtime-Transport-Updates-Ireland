@@ -7,7 +7,6 @@ const mockGetDatabaseClient = vi.fn();
 const mockGetCacheService = vi.fn();
 const mockGetRealtimeVehiclePositionsClient = vi.fn();
 const mockGetRealtimeTripUpdatesClient = vi.fn();
-const mockGetUnixTimestamp = vi.fn();
 
 const mockCacheService = { getOrSetCache: vi.fn() };
 const mockDb = {
@@ -27,9 +26,6 @@ vi.mock('../index.js', () => ({
 	getRealtimeVehiclePositionsClient: (...args) => mockGetRealtimeVehiclePositionsClient(...args),
 	getRealtimeTripUpdatesClient: (...args) => mockGetRealtimeTripUpdatesClient(...args)
 }));
-vi.mock('../../../utils/timestampUtils.js', () => ({
-	getUnixTimestamp: (...args) => mockGetUnixTimestamp(...args)
-}));
 
 describe('getTrips.js handler', () => {
 	let server, handler, h;
@@ -40,7 +36,6 @@ describe('getTrips.js handler', () => {
 		mockGetCacheService.mockReturnValue(mockCacheService);
 		mockGetRealtimeVehiclePositionsClient.mockReturnValue(mockRealtimeVehiclePositions);
 		mockGetRealtimeTripUpdatesClient.mockReturnValue(mockRealtimeTripUpdates);
-		mockGetUnixTimestamp.mockReturnValue(12345);
 		h = { response: vi.fn((payload) => ({ code: vi.fn().mockReturnValue({ payload, code: true }) })) };
 		mockCacheService.getOrSetCache.mockReset();
 		mockDb.queries.getTripById.mockReset();
@@ -87,7 +82,6 @@ describe('getTrips.js handler', () => {
 		expect(mockCacheService.getOrSetCache).toHaveBeenCalled();
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
 			response: { id: 'T1', foo: 'bar' },
-			query_timestamp: 12345,
 			db_last_updated: '2026-06-29T00:00:00.000Z'
 		}));
 		expect(mockRealtimeVehiclePositions.queryProcessor.updateResultsWithRealtimeVehiclePositions).toHaveBeenCalled();
@@ -104,7 +98,6 @@ describe('getTrips.js handler', () => {
 		expect(mockDb.queries.getTripById).toHaveBeenCalledWith('T2');
 		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
 			response: { id: 'T2', foo: 'baz' },
-			query_timestamp: 12345,
 			db_last_updated: '2026-06-29T00:00:00.000Z'
 		}));
 		expect(mockRealtimeVehiclePositions.queryProcessor.updateResultsWithRealtimeVehiclePositions).toHaveBeenCalled();
