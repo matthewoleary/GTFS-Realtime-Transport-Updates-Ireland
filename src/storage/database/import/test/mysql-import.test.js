@@ -69,6 +69,19 @@ describe('MysqlImporter', () => {
         });
     });
 
+    describe('timed', () => {
+        it('logs failed operations as failures and rethrows the error', async () => {
+            const error = new Error('failed operation');
+
+            await expect(importer.timed('Example phase', async () => {
+                throw error;
+            })).rejects.toBe(error);
+
+            expect(logger.info).not.toHaveBeenCalledWith(expect.stringContaining('Example phase completed'));
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Example phase failed after'));
+        });
+    });
+
     describe('connectDb', () => {
         it('should call dbClientInstance.getConnection() and set importer.cnx', async () => {
             const fakeConnection = { some: 'connection' };
@@ -90,7 +103,11 @@ describe('MysqlImporter', () => {
             const lastDbUpdate = new Date('2026-06-29T00:00:00.000Z');
             const filesLastModifiedDate = new Date('2026-06-28T00:00:00.000Z');
             const dbClientInstance = {
-                getConnection: vi.fn().mockResolvedValue({}),
+                getConnection: vi.fn().mockResolvedValue({
+                    query: vi.fn()
+                        .mockResolvedValueOnce([[{ count: 1 }]])
+                        .mockResolvedValueOnce([[{ count: 6 }]])
+                }),
                 getLastDbUpdate: vi.fn().mockResolvedValue(lastDbUpdate)
             };
             const imp = new MysqlImporter({
@@ -415,85 +432,33 @@ describe('MysqlImporter', () => {
         });
     });
 
-    describe('createIndexesForAllTables', () => {
-        it('should create single and composite indexes', async () => {
-            importer.cnx = { query: vi.fn().mockResolvedValue([[{ count: 0 }]]) };
+    describe('finalizeTables', () => {
+        it('should combine indexes and foreign keys into one alter per table', async () => {
+            importer.cnx = { query: vi.fn().mockResolvedValue() };
             importer.customModels = [
                 {
                     filenameBase: 'table1',
                     schema: [
+                        { name: 'id', primary: true, index: true },
                         { name: 'col1', index: true },
-                        { name: 'col2', index: 'unique' }
+                        { name: 'col2', unique: true },
+                        { name: 'parent_id', foreign_key: { table: 'parent', column: 'id' } }
                     ],
                     indexes: [
                         { fields: ['col1', 'col2'], unique: true }
                     ]
                 }
             ];
-            await importer.createIndexesForAllTables();
-            // Single-column
-            expect(importer.cnx.query).toHaveBeenCalledWith(expect.stringContaining('CREATE  INDEX idx_table1_col1 ON table1 (col1)'));
-            expect(importer.cnx.query).toHaveBeenCalledWith(expect.stringContaining('CREATE UNIQUE INDEX idx_table1_col2 ON table1 (col2)'));
-            // Composite
-            expect(importer.cnx.query).toHaveBeenCalledWith(expect.stringContaining('CREATE UNIQUE INDEX idx_table1_col1_col2 ON table1 (col1, col2)'));
-        });
-    });
+            await importer.finalizeTables();
 
-    describe('addForeignKeys', () => {
-        it('should add foreign key constraints if not present', async () => {
-            importer.cnx = { query: vi.fn().mockResolvedValue([[{ count: 0 }]]) };
-            importer.customModels = [
-                {
-                    filenameBase: 'table1',
-                    schema: [
-                        { name: 'col1', foreign_key: { table: 'other', column: 'id' } }
-                    ]
-                }
-            ];
-            await importer.addForeignKeys();
-            expect(importer.cnx.query).toHaveBeenCalledWith(expect.stringContaining('ADD CONSTRAINT fk_table1_col1'));
-        });
-        it('should not add constraint if already present', async () => {
-            importer.cnx = { query: vi.fn().mockResolvedValue([[{ count: 1 }]]) };
-            importer.customModels = [
-                {
-                    filenameBase: 'table1',
-                    schema: [
-                        { name: 'col1', foreign_key: { table: 'other', column: 'id' } }
-                    ]
-                }
-            ];
-            await importer.addForeignKeys();
-            expect(importer.cnx.query).not.toHaveBeenCalledWith(expect.stringContaining('ADD CONSTRAINT fk_table1_col1'));
-        });
-    });
-
-    describe('addUniqueConstraints', () => {
-        it('should add unique constraint if not present', async () => {
-            importer.cnx = { query: vi.fn().mockResolvedValue([[{ count: 0 }]]) };
-            importer.customModels = [
-                {
-                    filenameBase: 'table1',
-                    schema: [
-                        { name: 'col1', unique: true }
-                    ]
-                }
-            ];
-            await importer.addUniqueConstraints();
-            expect(importer.cnx.query).toHaveBeenCalledWith(expect.stringContaining('CREATE UNIQUE INDEX idx_unique_table1_col1'));
-        });
-        it('should not add unique constraint if already present', async () => {
-            importer.cnx = { query: vi.fn().mockResolvedValue([[{ count: 1 }]]) };
-            importer.customModels = [
-                {
-                    filenameBase: 'table1',
-                    schema: [
-                        { name: 'col1', unique: true }
-                    ]
-                }
-            ];
-            await importer.addUniqueConstraints();
-            expect(importer.cnx.query).not.toHaveBeenCalledWith(expect.stringContaining('CREATE UNIQUE INDEX idx_unique_table1_col1'));
+            expect(importer.cnx.query).toHaveBeenCalledTimes(1);
+            const sql = importer.cnx.query.mock.calls[0][0];
+            expect(sql).toContain('ALTER TABLE table1');
+            expect(sql).toContain('ADD INDEX idx_table1_col1 (col1)');
+            expect(sql).toContain('ADD UNIQUE INDEX idx_unique_table1_col2 (col2)');
+            expect(sql).toContain('ADD UNIQUE INDEX idx_table1_col1_col2 (col1, col2)');
+            expect(sql).toContain('ADD CONSTRAINT fk_table1_parent_id');
+            expect(sql).not.toContain('idx_table1_id');
         });
     });
 
