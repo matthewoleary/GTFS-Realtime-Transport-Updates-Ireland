@@ -5,6 +5,28 @@ import { getDatabaseClient, getRealtimeTripUpdatesClient, getRealtimeVehiclePosi
 import { getSecondsSinceMidnightTimestamp, getUnixTimestamp, getTimestampMinusNumberMinutes, getTimestampPlusNumberMinutes, checkIfNightServices, getWrappedTimestamp, getUnwrappedTimestamp } from '../../../utils/timestampUtils.js';
 import { getCurrentDay, getCurrentDate, getPreviousDay, getPreviousDate, getNextDay, getNextDayDate } from '../../../utils/dateUtils.js';
 
+const realtimeCandidateLookbackMinutes = 90;
+
+export function filterTripsByEffectiveDepartureWindow(trips, lowerBoundTimestamp, upperBoundTimestamp) {
+    return trips.filter(trip => {
+        const effectiveTimestamp = trip.realtime_departure_timestamp
+            ?? trip.realtime_arrival_timestamp
+            ?? trip.departure_timestamp;
+
+        // Preserve malformed legacy rows for the existing response path to handle.
+        // Every current stop-time row is expected to have a scheduled timestamp.
+        if (!Number.isFinite(effectiveTimestamp)) return true;
+
+        return [
+            effectiveTimestamp,
+            effectiveTimestamp - (24 * 3600),
+            effectiveTimestamp + (24 * 3600)
+        ].some(timestamp =>
+            timestamp >= lowerBoundTimestamp && timestamp <= upperBoundTimestamp
+        );
+    });
+}
+
 /**
  * Registers the /api/stops/{stopId}/trips GET route for fetching GTFS trip data at a specific stop.
  *
@@ -79,7 +101,11 @@ export default function getTripsAtStop(server) {
                     : 90;
                 const unixTimestamp = getUnixTimestamp();
                 const secondsSinceMidnightTimestamp = getSecondsSinceMidnightTimestamp(unixTimestamp);
-                const querySearchLowerBoundTimestamp = getTimestampMinusNumberMinutes(secondsSinceMidnightTimestamp, scheduleSearchWindowLowerBound);
+                const responseLowerBoundTimestamp = getTimestampMinusNumberMinutes(secondsSinceMidnightTimestamp, scheduleSearchWindowLowerBound);
+                const querySearchLowerBoundTimestamp = getTimestampMinusNumberMinutes(
+                    secondsSinceMidnightTimestamp,
+                    Math.max(scheduleSearchWindowLowerBound, realtimeCandidateLookbackMinutes)
+                );
                 const querySearchUpperBoundTimestamp = getTimestampPlusNumberMinutes(secondsSinceMidnightTimestamp, scheduleSearchWindowUpperBound);
                 const querySearchUpperBoundTimestampUnWrapped = getUnwrappedTimestamp(querySearchUpperBoundTimestamp);
 
@@ -126,6 +152,11 @@ export default function getTripsAtStop(server) {
                     const serviceDay = buildServiceDay(scheduleDay, scheduleDate, querySearchLowerBoundTimestamp, querySearchUpperBoundTimestamp);
                     result = await service.getTrips(stopId, realtimeTripUpdates, realtimeVehiclePositions, payload, serviceDay);
                 }
+                payload.response = filterTripsByEffectiveDepartureWindow(
+                    payload.response,
+                    responseLowerBoundTimestamp,
+                    querySearchUpperBoundTimestamp
+                );
                 if (payload.response.length === 0) {
                     return handler.response({ error: 'No trips found' }).code(404);
                 }

@@ -136,6 +136,49 @@ describe('getTripsAtStop (with CacheService)', () => {
 		}));
 	});
 
+	test('includes a delayed trip after applying realtime updates to the widened candidate window', async () => {
+		mockCacheService.getOrSetCache
+			.mockResolvedValueOnce(86400)
+			.mockResolvedValueOnce([
+				{
+					trip_id: 'delayed-trip',
+					stop_sequence: 7,
+					departure_timestamp: 800
+				},
+				{
+					trip_id: 'departed-trip',
+					stop_sequence: 7,
+					departure_timestamp: 850
+				}
+			])
+			.mockResolvedValueOnce([
+				[{ stop_sequence: 20 }],
+				[{ stop_sequence: 20 }]
+			]);
+		mockRealtimeTripUpdates.queryProcessor.updateStopWithRealtimeUpdates
+			.mockImplementationOnce(async payload => {
+				payload.response[0].realtime_departure_timestamp = 1050;
+				return payload;
+			});
+
+		getTripsAtStop(server);
+		handler = server.route.mock.calls[0][0].handler;
+		const req = {
+			params: { stopId: 'S1' },
+			query: { lowerBoundMinutes: 1, upperBoundMinutes: 120 },
+			server
+		};
+		await handler(req, h);
+
+		expect(mockGetTimestampMinusNumberMinutes).toHaveBeenCalledWith(1000, 90);
+		expect(h.response).toHaveBeenCalledWith(expect.objectContaining({
+			response: [expect.objectContaining({
+				trip_id: 'delayed-trip',
+				realtime_departure_timestamp: 1050
+			})]
+		}));
+	});
+
 	test('returns 500 on handler error', async () => {
 		mockDb.queries.getTripsAtStopId.mockImplementation(() => { throw new Error('fail'); });
 		getTripsAtStop(server);
