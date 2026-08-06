@@ -3,6 +3,8 @@ import { describe, it, expect, vi } from 'vitest';
 vi.mock('../realtimeFeedClient.js', () => {
     const MockFeedClient = vi.fn().mockImplementation(function () {
         this.start = vi.fn();
+        this.getFeedTimestamp = vi.fn();
+        this.getFeedTripIdMap = vi.fn();
         this.registerQueryProcessor = vi.fn().mockResolvedValue({ process: vi.fn() });
     });
     return { default: MockFeedClient };
@@ -81,6 +83,8 @@ describe('createRealtimeVehiclePositionsClient', () => {
         const { createRealtimeVehiclePositionsClient } = await import('../realtimeVehiclePositionsClient.js');
         const result = await createRealtimeVehiclePositionsClient({}, config, 10, 20);
         expect(result).toHaveProperty('start');
+        expect(result).toHaveProperty('getFeedTimestamp');
+        expect(result).toHaveProperty('getFeedTripIdMap');
         expect(result).toHaveProperty('queryProcessor');
         expect(typeof result.start).toBe('function');
         expect(result.queryProcessor).toHaveProperty('process');
