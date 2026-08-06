@@ -36,7 +36,6 @@ export default {
             type: 'tinyint unsigned',
             primary: true,
             required: true,
-            index: true,
             min: 0
         },
         {

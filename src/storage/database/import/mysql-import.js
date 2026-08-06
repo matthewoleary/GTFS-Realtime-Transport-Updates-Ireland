@@ -11,6 +11,7 @@ import modelsDefault from '../models/models.js';
 import { unzip } from './utils/file-utils.js';
 import { calculateHourTimestamp, pluralize } from './utils/utils.js';
 import { addFeedInfoLastUpdatedColumn, updateFeedInfoLastUpdatedValues, addCustomTimestampColumns } from '../queries/custom-queries.js';
+import { calculateResourceRevisions, hasCompleteResourceRevisions, saveResourceRevisions } from './resource-revisions.js';
 
 /**
  * MysqlImporter class for importing GTFS data into MySQL.
@@ -31,6 +32,18 @@ class MysqlImporter {
         // Connect to the MySQL database using the database client
         this.cnx = await this.db.getConnection();
         this.getLastDbUpdate = this.db.getLastDbUpdate;
+    }
+
+    async timed(name, operation) {
+        const startedAt = performance.now();
+        try {
+            const result = await operation();
+            this.logger.info(`${name} completed in ${Math.round(performance.now() - startedAt)} ms.`);
+            return result;
+        } catch (error) {
+            this.logger.error(`${name} failed after ${Math.round(performance.now() - startedAt)} ms: ${error.message}`);
+            throw error;
+        }
     }
 
     /**
@@ -170,116 +183,44 @@ class MysqlImporter {
         await this.cnx.query('SET FOREIGN_KEY_CHECKS = 1;');
     }
 
-    async createIndexesForAllTables() {
-        // Iterate over the custom models to include any with added columns
-        this.logger.info('Creating indexes for all GTFS tables.');
-        await Promise.all(this.customModels.map(async model => {
-            if (!model.schema) return;
-            // Single-column indexes
-            await Promise.all(model.schema.map(async column => {
-                if (column.index) {
-                    // Check if index already exists
-                    const [rows] = await this.cnx.query(`
-                        SELECT COUNT(*) AS count 
-                        FROM information_schema.statistics 
-                        WHERE table_schema = DATABASE() 
-                            AND table_name = ? 
-                            AND index_name = ?
-                    `, [model.filenameBase, `idx_${model.filenameBase}_${column.name}`]);
-                    if (rows[0].count > 0) {
-                        await this.cnx.query(`DROP INDEX idx_${model.filenameBase}_${column.name} ON ${model.filenameBase}`);
-                    }
-                    const unique = column.index === 'unique' ? 'UNIQUE' : '';
-                    await this.cnx.query(`CREATE ${unique} INDEX idx_${model.filenameBase}_${column.name} ON ${model.filenameBase} (${column.name})`);
-                }
-            }));
-
-            // Composite indexes
-            if (Array.isArray(model.indexes)) {
-                for (const idx of model.indexes) {
-                    const indexName = `idx_${model.filenameBase}_${idx.fields.join('_')}`;
-                    const fieldsList = idx.fields.join(', ');
-                    const unique = idx.unique ? 'UNIQUE' : '';
-                    // Check if composite index already exists
-                    const [rows] = await this.cnx.query(`
-                        SELECT COUNT(*) AS count
-                        FROM information_schema.statistics
-                        WHERE table_schema = DATABASE()
-                            AND table_name = ?
-                            AND index_name = ?
-                    `, [model.filenameBase, indexName]);
-                    if (rows[0].count > 0) {
-                        await this.cnx.query(`DROP INDEX ${indexName} ON ${model.filenameBase}`);
-                    }
-                    await this.cnx.query(`CREATE ${unique} INDEX ${indexName} ON ${model.filenameBase} (${fieldsList})`);
-                }
-            }
-        }));
-    }
-
-    /**
-     * Add foreign key constraints to GTFS tables.
-     */
-    async addForeignKeys() {
-        this.logger.info('Adding foreign keys');
-        // Iterate over the custom models to include any with added columns
+    async finalizeTables() {
+        this.logger.info('Creating indexes and foreign keys for all GTFS tables.');
         for (const model of this.customModels) {
             if (!model.schema) continue;
-            for (const column of model.schema) {
-                if (column.foreign_key) {
-                    const constraintName = `fk_${model.filenameBase}_${column.name}`;
-                    // Check if foreign key constraint already exists
-                    const [rows] = await this.cnx.query(`
-                        SELECT COUNT(*) AS count 
-                        FROM information_schema.TABLE_CONSTRAINTS 
-                        WHERE CONSTRAINT_TYPE = 'FOREIGN KEY'
-                        AND TABLE_SCHEMA = DATABASE()
-                        AND TABLE_NAME = ?
-                        AND CONSTRAINT_NAME = ?
-                    `, [model.filenameBase, constraintName]);
-                    if (rows[0].count === 0) {
-                        // Add foreign key constraint
-                        await this.cnx.query(`
-                            ALTER TABLE ${model.filenameBase}
-                            ADD CONSTRAINT ${constraintName}
-                            FOREIGN KEY (${column.name})
-                            REFERENCES ${column.foreign_key.table}(${column.foreign_key.column})
-                            ON DELETE CASCADE
-                        `);
-                    }
-                }
-            }
-        }
-    }
+            await this.timed(`Finalizing ${model.filenameBase}`, async () => {
+                const primaryKey = model.schema.filter(column => column.primary).map(column => column.name);
+                const clauses = [];
+                const indexNames = new Set();
+                const addIndex = (fields, unique = false, namePrefix = 'idx') => {
+                    const coveredByPrimaryKey = fields.every((field, index) => primaryKey[index] === field);
+                    if (coveredByPrimaryKey) return;
+                    const indexName = `${namePrefix}_${model.filenameBase}_${fields.join('_')}`;
+                    if (indexNames.has(indexName)) return;
+                    indexNames.add(indexName);
+                    clauses.push(`ADD ${unique ? 'UNIQUE ' : ''}INDEX ${indexName} (${fields.join(', ')})`);
+                };
 
-    /**
-     * Add unique constraints to GTFS tables.
-     */
-    async addUniqueConstraints() {
-        this.logger.info('Adding unique constraints.');
-        // Iterate over the custom models to include any with added columns
-        for (const model of this.customModels) {
-            if (!model.schema) continue;
-            for (const column of model.schema) {
-                if (column.unique) {
-                    const indexName = `idx_unique_${model.filenameBase}_${column.name}`;
-                    // Check if unique index already exists
-                    const [rows] = await this.cnx.query(`
-                        SELECT COUNT(*) AS count 
-                        FROM information_schema.statistics 
-                        WHERE table_schema = DATABASE()
-                        AND table_name = ?
-                        AND index_name = ?
-                        AND non_unique = 0
-                    `, [model.filenameBase, indexName]);
-                    if (rows[0].count === 0) {
-                        await this.cnx.query(`
-                            CREATE UNIQUE INDEX ${indexName} 
-                            ON ${model.filenameBase} (${column.name})
-                        `);
-                    }
+                for (const column of model.schema) {
+                    if (column.index) addIndex([column.name], column.index === 'unique');
+                    if (column.unique) addIndex([column.name], true, 'idx_unique');
                 }
-            }
+                for (const index of model.indexes || []) {
+                    addIndex(index.fields, index.unique);
+                }
+                for (const column of model.schema) {
+                    if (!column.foreign_key) continue;
+                    clauses.push(
+                        `ADD CONSTRAINT fk_${model.filenameBase}_${column.name} `
+                        + `FOREIGN KEY (${column.name}) `
+                        + `REFERENCES ${column.foreign_key.table}(${column.foreign_key.column}) `
+                        + 'ON DELETE CASCADE'
+                    );
+                }
+
+                if (clauses.length > 0) {
+                    await this.cnx.query(`ALTER TABLE ${model.filenameBase} ${clauses.join(', ')}`);
+                }
+            });
         }
     }
 
@@ -402,7 +343,7 @@ class MysqlImporter {
      */
     async importFiles(task) {
         // Loop through each GTFS file
-        return Promise.mapSeries(this.models, async model => {
+        return Promise.mapSeries(this.models, async model => this.timed(`Importing ${model.filenameBase}`, async () => {
             // Filter out excluded files from config
             if (task.exclude && task.exclude.includes(model.filenameBase)) {
                 task.log(`Skipping - ${model.filenameBase}.txt\r`);
@@ -485,7 +426,8 @@ class MysqlImporter {
                     }
                 })();
             });
-        });
+            task.log(`Imported - ${model.filenameBase}.txt - ${totalLineCount} total lines`);
+        }));
     }
 
     async flushCache() {
@@ -538,9 +480,13 @@ class MysqlImporter {
             this.logger.info('Files Last Modified Date:', filesLastModifiedDate);
             if (lastDbUpdate && filesLastModifiedDate) {
                 if (filesLastModifiedDate <= lastDbUpdate) {
-                    task.log('GTFS schedule has not been updated since last import. Skipping import.');
-                    await cleanup();
-                    return;
+                    const hasRevisions = await hasCompleteResourceRevisions(this.cnx);
+                    if (hasRevisions) {
+                        task.log('GTFS schedule has not been updated since last import. Skipping import.');
+                        await cleanup();
+                        return;
+                    }
+					task.log('GTFS schedule is unchanged, but resource revisions are missing. Reimporting once.');
                 }
             } else if (filesLastModifiedDate === null) {
                 task.log('Could not determine last modified date of GTFS schedule. Skipping import.');
@@ -548,28 +494,34 @@ class MysqlImporter {
                 return;
             }
 
-            // Download files if agency_url is provided
+            // Download and validate the archive before modifying the live tables.
             this.logger.info('New GTFS data available. Downloading files.');
             if (task.agency_url) {
-                await this.dropAllTables();
-                await this.downloadFiles(task);
+                await this.timed('GTFS download', () => this.downloadFiles(task));
             }
 
-            await this.readFiles(task);
+            await this.timed('GTFS extraction', () => this.readFiles(task));
+            const textFiles = await this.getTextFiles(task.downloadDir);
+            const resourceRevisions = await this.timed(
+                'Resource revision calculation',
+                () => calculateResourceRevisions(task.downloadDir, textFiles)
+            );
+            await this.timed('Dropping old GTFS tables', () => this.dropAllTables());
             await this.importFiles(task);
-            // Adding after import to avoid checks during insertion.
-            // This speeds up inserts since MySQL doesn't validate references for each row.
-            await this.createIndexesForAllTables();
-            await this.addUniqueConstraints();
-            await this.addForeignKeys();
+            // Add indexes and constraints together after import to minimize table rebuilds.
+            await this.finalizeTables();
             await addFeedInfoLastUpdatedColumn(task); // Add last updated column to feed_info table
             await updateFeedInfoLastUpdatedValues(task); // Update last updated column in feed_info table
+            await this.timed(
+                'Saving resource revisions',
+                () => saveResourceRevisions(this.cnx, resourceRevisions)
+            );
             this.db.lastDbUpdate = await this.getLastDbUpdate(); // Update lastDbUpdate property in db client
 
             this.logger.info('Completed GTFS import for agency: ' + task.agency_key + '.');
 
-            await this.flushCache(); // Clear cache after import to ensure new data is served
-            await cleanup();
+            await this.timed('Cache flush', () => this.flushCache());
+            await this.timed('Temporary file cleanup', cleanup);
         });
 
         this.logger.info(`Completed GTFS import for ${agencyCount} ${pluralize('file', agencyCount)}.`);
