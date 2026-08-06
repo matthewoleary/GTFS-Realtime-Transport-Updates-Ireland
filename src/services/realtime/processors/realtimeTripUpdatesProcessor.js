@@ -25,7 +25,7 @@ class RealtimeTripUpdatesProcessor {
 		const processor = new RealtimeTripUpdatesProcessor(logger);
 
 		/**
-		 * Update the query for a single trip with the realtime trip update object if available.
+		 * Update one or more trips with realtime trip update objects when available.
 		 * @param {Object} query - The query object to update.
 		 * @returns {Object} The updated query object.
 		 */
@@ -35,7 +35,11 @@ class RealtimeTripUpdatesProcessor {
 			if (feedTimestamp && feedTripIdMap) {
 				try {
 					query.realtime_trip_updates_feed_timestamp = feedTimestamp;
-					query.response = await processor.processTripResponse(query.response, feedTripIdMap);
+					query.response = Array.isArray(query.response)
+						? await Promise.all(query.response.map(
+							trip => processor.processTripResponse(trip, feedTripIdMap)
+						))
+						: await processor.processTripResponse(query.response, feedTripIdMap);
 				} catch (error) {
 					processor.logger.error(`No realtime trip updates information available. Error: ${error.message}`);
 				}

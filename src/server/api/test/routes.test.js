@@ -8,6 +8,8 @@ vi.mock('../routes/getStopTimes.js', () => ({ default: vi.fn() }));
 vi.mock('../routes/getTrips.js', () => ({ default: vi.fn() }));
 vi.mock('../routes/getShapes.js', () => ({ default: vi.fn() }));
 vi.mock('../routes/getTripsAtStop.js', () => ({ default: vi.fn() }));
+vi.mock('../routes/getRouteStops.js', () => ({ default: vi.fn() }));
+vi.mock('../routes/getActiveTripsOnRoute.js', () => ({ default: vi.fn() }));
 
 describe('registerRoutes', () => {
   test('calls all route registration functions', async () => {
@@ -20,6 +22,8 @@ describe('registerRoutes', () => {
     const getTrips = (await import('../routes/getTrips.js')).default;
     const getShapes = (await import('../routes/getShapes.js')).default;
     const getTripsAtStop = (await import('../routes/getTripsAtStop.js')).default;
+    const getRouteStops = (await import('../routes/getRouteStops.js')).default;
+    const getActiveTripsOnRoute = (await import('../routes/getActiveTripsOnRoute.js')).default;
     expect(getStops).toHaveBeenCalledWith(server);
     expect(getRoutes).toHaveBeenCalledWith(server);
     expect(getAgencies).toHaveBeenCalledWith(server);
@@ -27,5 +31,7 @@ describe('registerRoutes', () => {
     expect(getTrips).toHaveBeenCalledWith(server);
     expect(getShapes).toHaveBeenCalledWith(server);
     expect(getTripsAtStop).toHaveBeenCalledWith(server);
+    expect(getRouteStops).toHaveBeenCalledWith(server);
+    expect(getActiveTripsOnRoute).toHaveBeenCalledWith(server);
   });
 });

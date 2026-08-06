@@ -59,6 +59,8 @@ export async function createRealtimeTripUpdatesClient(server, config, dayService
 	await client.start();
 	return {
 		start: client.start.bind(client),
+		getFeedTimestamp: client.getFeedTimestamp.bind(client),
+		getFeedTripIdMap: client.getFeedTripIdMap.bind(client),
 		queryProcessor: await client.registerQueryProcessor(logger)
 	};
 }

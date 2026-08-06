@@ -254,6 +254,112 @@ paths:
           description: Route not found
         '500':
           description: Internal Server Error
+  /api/routes/{routeId}/stops:
+    get:
+      operationId: getRouteStops
+      summary: Get the stop patterns and shapes for a route
+      parameters:
+        - in: path
+          name: routeId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Static route topology grouped into distinct trip patterns
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  db_last_updated:
+                    type: string
+                    format: date-time
+                    nullable: true
+                  response:
+                    type: object
+                    properties:
+                      route_id:
+                        type: string
+                      patterns:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            pattern_id: { type: string }
+                            direction_id: { type: integer, nullable: true }
+                            headsign: { type: string, nullable: true }
+                            shape_id: { type: string, nullable: true }
+                            stops:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  stop_id: { type: string }
+                                  stop_code: { type: string, nullable: true }
+                                  stop_name: { type: string }
+                                  stop_lat: { type: number }
+                                  stop_lon: { type: number }
+                                  stop_sequence: { type: integer }
+                                  pickup_type: { type: integer, nullable: true }
+                                  drop_off_type: { type: integer, nullable: true }
+                      shapes:
+                        type: object
+                        additionalProperties:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              latitude: { type: number }
+                              longitude: { type: number }
+                              sequence: { type: integer }
+                              distance_traveled: { type: number, nullable: true }
+        '404':
+          description: Route not found
+        '500':
+          description: Internal Server Error
+  /api/routes/{routeId}/activeTrips:
+    get:
+      operationId: getActiveTripsOnRoute
+      summary: Get scheduled trips on a route that appear in a realtime feed
+      parameters:
+        - in: path
+          name: routeId
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: vehiclePositionsOnly
+          required: false
+          description: When true, return only trips currently present in the vehicle positions feed and omit trip-update realtime data.
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Active trips enriched with trip updates and vehicle positions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  realtime_trip_updates_feed_timestamp: { type: integer, nullable: true }
+                  realtime_vehicle_positions_feed_timestamp: { type: integer, nullable: true }
+                  response:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                      properties:
+                        trip_id: { type: string }
+                        route_id: { type: string }
+                        pattern_id: { type: string, nullable: true }
+                        realtime_vehicle: { type: object, nullable: true }
+                        tripUpdate: { type: object, nullable: true }
+        '404':
+          description: Route not found
+        '500':
+          description: Internal Server Error
   /api/stops:
     get:
       operationId: getAllStops

@@ -190,6 +190,21 @@ describe('RealtimeTripUpdatesProcessor', () => {
       expect(getFeedTripIdMap).toHaveBeenCalled();
     });
 
+    it('should update an array of trips with realtime updates', async () => {
+      const feedEntity = { tripUpdate: { trip: { tripId: 'trip1' } } };
+      const getFeedTimestamp = vi.fn().mockResolvedValue(123);
+      const getFeedTripIdMap = vi.fn().mockResolvedValue(new Map([['trip1', feedEntity]]));
+      const query = { response: [{ trip_id: 'trip1' }, { trip_id: 'trip2' }] };
+      const { updateTripWithRealtimeUpdates } = await RealtimeTripUpdatesProcessor.register(getFeedTimestamp, getFeedTripIdMap, logger);
+
+      const updated = await updateTripWithRealtimeUpdates(query);
+
+      expect(updated.realtime_trip_updates_feed_timestamp).toBe(123);
+      expect(updated.response).toHaveLength(2);
+      expect(updated.response[0].tripUpdate).toBeDefined();
+      expect(updated.response[1].tripUpdate).toBeUndefined();
+    });
+
     it('should log error if processTripResponse throws', async () => {
       const getFeedTimestamp = vi.fn().mockResolvedValue(123);
       const getFeedTripIdMap = vi.fn().mockResolvedValue(new Map());

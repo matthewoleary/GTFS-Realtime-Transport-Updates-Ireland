@@ -4,6 +4,8 @@ vi.mock('../realtimeFeedClient.js', () => {
     class MockFeedClient {
         constructor() {
             this.start = vi.fn();
+            this.getFeedTimestamp = vi.fn();
+            this.getFeedTripIdMap = vi.fn();
             this.registerQueryProcessor = vi.fn().mockResolvedValue({ process: vi.fn() });
         }
     }
@@ -102,6 +104,8 @@ describe('createRealtimeTripUpdatesClient', () => {
         const { createRealtimeTripUpdatesClient } = await import('../realtimeTripUpdatesClient.js');
         const result = await createRealtimeTripUpdatesClient({}, config, 10, 20);
         expect(result).toHaveProperty('start');
+        expect(result).toHaveProperty('getFeedTimestamp');
+        expect(result).toHaveProperty('getFeedTripIdMap');
         expect(result).toHaveProperty('queryProcessor');
         expect(typeof result.start).toBe('function');
         expect(result.queryProcessor).toHaveProperty('process');

@@ -46,6 +46,25 @@ const register = async ({ getConnection, loadSqlQueries: injectedLoadSqlQueries 
 		return rows;
 	};
 
+	const getTripsByRouteId = async routeId => {
+		const cnx = await getConnection();
+		const [rows] = await cnx.query(sqlQueries.getTripsByRouteId, [routeId]);
+		return rows;
+	};
+
+	const getRoutePatternRows = async routeId => {
+		const cnx = await getConnection();
+		const [rows] = await cnx.query(sqlQueries.getRoutePatternRows, [routeId]);
+		return rows;
+	};
+
+	const getShapesByIds = async shapeIds => {
+		if (!shapeIds?.length) return [];
+		const cnx = await getConnection();
+		const [rows] = await cnx.query(sqlQueries.getShapesByIds, [shapeIds]);
+		return rows;
+	};
+
 	const getLastStops = async trips => {
 		const cnx = await getConnection();
 		const results = [];
@@ -132,12 +151,15 @@ const register = async ({ getConnection, loadSqlQueries: injectedLoadSqlQueries 
 		getLastStops,
 		getMaximumDepartureTimestamp,
 		getRouteById,
+		getRoutePatternRows,
+		getShapesByIds,
 		getShapeById,
 		getStopById,
 		getStopTimesByTripId,
 		getTripsAtStopId,
 		getTripsAtStopIdWithNightServices,
-		getTripById
+		getTripById,
+		getTripsByRouteId
 	};
 };
 /* eslint-enable new-cap */
