@@ -14,7 +14,7 @@ const mockDb = {
 };
 const mockLogger = { error: vi.fn(), warn: vi.fn(), info: vi.fn() };
 const mockRemoveTripsAtLastStop = vi.fn(async (lastStops, trips) => trips);
-const mockRealtimeTripUpdates = { queryProcessor: { updateResultsWithRealtimeTripUpdates: vi.fn(async (payload) => payload) } };
+const mockRealtimeTripUpdates = { queryProcessor: { updateStopWithRealtimeUpdates: vi.fn(async (payload) => payload) } };
 const mockRealtimeVehiclePositions = { queryProcessor: { updateResultsWithRealtimeVehiclePositions: vi.fn(async (payload) => payload) } };
 
 vi.mock('../routes/utils.js', () => ({
@@ -26,6 +26,8 @@ describe('TripsAtStopService', () => {
   beforeEach(() => {
     mockCacheService.getOrSetCache.mockReset();
     Object.values(mockDb.queries).forEach(fn => fn.mockReset && fn.mockReset());
+    mockRealtimeTripUpdates.queryProcessor.updateStopWithRealtimeUpdates.mockClear();
+    mockRealtimeVehiclePositions.queryProcessor.updateResultsWithRealtimeVehiclePositions.mockClear();
     service = new TripsAtStopService(mockDb, mockCacheService, mockLogger);
   });
 
@@ -72,7 +74,7 @@ describe('TripsAtStopService', () => {
       { dayColumn: 'monday', date: '20260427', lowerBoundTimestamp: 900, upperBoundTimestamp: 1100 }
     );
     expect(payload.response).toEqual([{ trip_id: 'T1' }]);
-    expect(mockRealtimeTripUpdates.queryProcessor.updateResultsWithRealtimeTripUpdates).toHaveBeenCalled();
+    expect(mockRealtimeTripUpdates.queryProcessor.updateStopWithRealtimeUpdates).toHaveBeenCalled();
     expect(mockRealtimeVehiclePositions.queryProcessor.updateResultsWithRealtimeVehiclePositions).toHaveBeenCalled();
   });
 
@@ -91,7 +93,7 @@ describe('TripsAtStopService', () => {
       unwrappedServiceDay,
     );
     expect(payload.response).toEqual([{ trip_id: 'T2' }]);
-    expect(mockRealtimeTripUpdates.queryProcessor.updateResultsWithRealtimeTripUpdates).toHaveBeenCalled();
+    expect(mockRealtimeTripUpdates.queryProcessor.updateStopWithRealtimeUpdates).toHaveBeenCalled();
     expect(mockRealtimeVehiclePositions.queryProcessor.updateResultsWithRealtimeVehiclePositions).toHaveBeenCalled();
   });
 
