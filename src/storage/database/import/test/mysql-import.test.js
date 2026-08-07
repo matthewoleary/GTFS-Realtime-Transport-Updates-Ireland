@@ -82,6 +82,25 @@ describe('MysqlImporter', () => {
         });
     });
 
+    describe('canUseBulkImport', () => {
+        it('caches enabled capability checks', async () => {
+            importer.cnx = { query: vi.fn().mockResolvedValue([[{ Value: 'ON' }]]) };
+
+            await expect(importer.canUseBulkImport()).resolves.toBe(true);
+            await expect(importer.canUseBulkImport()).resolves.toBe(true);
+
+            expect(importer.cnx.query).toHaveBeenCalledTimes(1);
+        });
+
+        it('falls back to batches and warns when local infile is disabled', async () => {
+            importer.cnx = { query: vi.fn().mockResolvedValue([[{ Value: 'OFF' }]]) };
+
+            await expect(importer.canUseBulkImport()).resolves.toBe(false);
+
+            expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('using batched GTFS inserts'));
+        });
+    });
+
     describe('connectDb', () => {
         it('should call dbClientInstance.getConnection() and set importer.cnx', async () => {
             const fakeConnection = { some: 'connection' };
@@ -102,11 +121,17 @@ describe('MysqlImporter', () => {
         it('should cache the last database update before skipping an unchanged feed', async () => {
             const lastDbUpdate = new Date('2026-06-29T00:00:00.000Z');
             const filesLastModifiedDate = new Date('2026-06-28T00:00:00.000Z');
+            const resourceNames = [
+                'schedule', 'agencies', 'routes', 'shapes', 'stops', 'trips',
+                'file:agency.txt', 'file:calendar.txt', 'file:calendar_dates.txt',
+                'file:feed_info.txt', 'file:routes.txt', 'file:shapes.txt',
+                'file:stops.txt', 'file:stop_times.txt', 'file:trips.txt',
+            ];
             const dbClientInstance = {
                 getConnection: vi.fn().mockResolvedValue({
-                    query: vi.fn()
-                        .mockResolvedValueOnce([[{ count: 1 }]])
-                        .mockResolvedValueOnce([[{ count: 6 }]])
+                    query: vi.fn().mockResolvedValue([
+                        resourceNames.map(resource_name => ({ resource_name, revision: 'abc' }))
+                    ])
                 }),
                 getLastDbUpdate: vi.fn().mockResolvedValue(lastDbUpdate)
             };
@@ -284,6 +309,21 @@ describe('MysqlImporter', () => {
     });
 
     describe('createEmptyTable', () => {
+        it('creates a physical staging table while retaining the GTFS resource name', async () => {
+            importer.cnx = { query: vi.fn().mockResolvedValue() };
+            const model = {
+                filenameBase: 'stops',
+                tableName: 'stops_stage_test',
+                schema: [{ name: 'stop_id', type: 'VARCHAR(16)', primary: true }]
+            };
+
+            await importer.createEmptyTable(model);
+
+            expect(importer.cnx.query).toHaveBeenCalledWith(
+                expect.stringContaining('CREATE TABLE stops_stage_test')
+            );
+        });
+
         it('should handle no primary key', async () => {
             importer.cnx = { query: vi.fn().mockResolvedValue() };
             const model = {
@@ -408,6 +448,110 @@ describe('MysqlImporter', () => {
         });
     });
 
+    describe('staging publication', () => {
+        it('creates unique physical names for every configured GTFS table', () => {
+            const names = importer.createStagingTableNames();
+
+            expect(names.agency).toMatch(/^agency_stage_[a-z0-9]+$/);
+            expect(names.stop_times).toMatch(/^stop_times_stage_[a-z0-9]+$/);
+            expect(new Set(Object.values(names)).size).toBe(importer.models.length);
+        });
+
+        it('publishes all imported tables in one atomic rename', async () => {
+            importer.stagingTableNames = {
+                agency: 'agency_stage_test',
+                stops: 'stops_stage_test'
+            };
+            importer.models = [
+                { filenameBase: 'agency', schema: [{}] },
+                { filenameBase: 'stops', schema: [{}] }
+            ];
+            importer.customModels = [
+                { filenameBase: 'agency', tableName: 'agency_stage_test', schema: [{}] },
+                { filenameBase: 'stops', tableName: 'stops_stage_test', schema: [{}] }
+            ];
+            importer.cnx = {
+                query: vi.fn().mockResolvedValueOnce([[
+                    { TABLE_NAME: 'agency' },
+                    { TABLE_NAME: 'stops' }
+                ]]).mockResolvedValue()
+            };
+            vi.spyOn(importer, 'dropPhysicalTables').mockResolvedValue();
+
+            await importer.publishStagingTables();
+
+            expect(importer.cnx.query).toHaveBeenCalledWith(
+                'RENAME TABLE agency TO agency_previous, agency_stage_test TO agency, stops TO stops_previous, stops_stage_test TO stops'
+            );
+            expect(importer.dropPhysicalTables).toHaveBeenCalledWith([
+                'agency_previous', 'stops_previous'
+            ]);
+        });
+
+        it('rejects an incomplete staging dataset before publication', () => {
+            importer.models = [
+                { filenameBase: 'agency', schema: [{}] },
+                { filenameBase: 'stops', schema: [{}] }
+            ];
+            importer.customModels = [
+                { filenameBase: 'agency', schema: [{}] }
+            ];
+
+            expect(() => importer.ensureStagingDatasetIsComplete()).toThrow(
+                'missing tables: stops'
+            );
+        });
+
+        it('allows explicitly excluded staging tables', () => {
+            importer.models = [
+                { filenameBase: 'agency', schema: [{}] },
+                { filenameBase: 'stops', schema: [{}] }
+            ];
+            importer.customModels = [
+                { filenameBase: 'agency', schema: [{}] }
+            ];
+
+            expect(() => importer.ensureStagingDatasetIsComplete(['stops'])).not.toThrow();
+        });
+
+        it('selects only tables whose source file changed while always rebuilding feed info', () => {
+            importer.models = [
+                { filenameBase: 'stops', schema: [{}] },
+                { filenameBase: 'shapes', schema: [{}] },
+                { filenameBase: 'feed_info', schema: [{}] }
+            ];
+            const current = {
+                'file:stops.txt': 'new-stops',
+                'file:shapes.txt': 'same-shapes',
+                'file:feed_info.txt': 'same-feed'
+            };
+            const stored = {
+                'file:stops.txt': 'old-stops',
+                'file:shapes.txt': 'same-shapes',
+                'file:feed_info.txt': 'same-feed'
+            };
+
+            expect([...importer.selectChangedTables(current, stored)]).toEqual([
+                'stops', 'feed_info'
+            ]);
+        });
+
+        it('validates relationships only when a related table is rebuilt', () => {
+            expect(importer.shouldValidateStopTimeRelationships(new Set(['feed_info']))).toBe(false);
+            expect(importer.shouldValidateStopTimeRelationships(new Set(['routes']))).toBe(false);
+            expect(importer.shouldValidateStopTimeRelationships(new Set(['stops']))).toBe(true);
+            expect(importer.shouldValidateStopTimeRelationships(new Set(['trips']))).toBe(true);
+            expect(importer.shouldValidateStopTimeRelationships(new Set(['stop_times']))).toBe(true);
+        });
+
+        it('flushes the cache only when an API-facing GTFS table is rebuilt', () => {
+            expect(importer.shouldFlushCache(new Set())).toBe(false);
+            expect(importer.shouldFlushCache(new Set(['feed_info']))).toBe(false);
+            expect(importer.shouldFlushCache(new Set(['feed_info', 'stops']))).toBe(true);
+            expect(importer.shouldFlushCache(new Set(['routes']))).toBe(true);
+        });
+    });
+
     describe('truncateAllTables', () => {
         it('should disable FK checks, truncate tables, and re-enable FK checks', async () => {
             importer.cnx = { query: vi.fn().mockResolvedValue() };
@@ -459,6 +603,91 @@ describe('MysqlImporter', () => {
             expect(sql).toContain('ADD UNIQUE INDEX idx_table1_col1_col2 (col1, col2)');
             expect(sql).toContain('ADD CONSTRAINT fk_table1_parent_id');
             expect(sql).not.toContain('idx_table1_id');
+        });
+
+        it('creates the stop departure composite index without a stop-only index', async () => {
+            importer.cnx = { query: vi.fn().mockResolvedValue() };
+            importer.customModels = [
+                {
+                    filenameBase: 'stop_times',
+                    schema: [
+                        { name: 'trip_id', primary: true },
+                        { name: 'stop_sequence', primary: true },
+                        { name: 'stop_id' },
+                        { name: 'departure_timestamp' }
+                    ],
+                    indexes: [
+                        { fields: ['stop_id', 'departure_timestamp'], unique: false }
+                    ]
+                }
+            ];
+
+            await importer.finalizeTables();
+
+            const sql = importer.cnx.query.mock.calls[0][0];
+            expect(sql).toContain(
+                'ADD INDEX idx_stop_times_stop_id_departure_timestamp (stop_id, departure_timestamp)'
+            );
+            expect(sql).not.toContain('idx_stop_times_departure_timestamp');
+            expect(sql).not.toContain('ADD INDEX idx_stop_times_stop_id (stop_id)');
+            expect(sql).not.toContain('fk_stop_times_trip_id');
+            expect(sql).not.toContain('fk_stop_times_stop_id');
+        });
+
+        it('points a staged foreign key at an unchanged live parent table', async () => {
+            importer.stagingTableNames = {
+                agency: 'agency_stage_test',
+                routes: 'routes_stage_test'
+            };
+            importer.cnx = { query: vi.fn().mockResolvedValue() };
+            importer.customModels = [
+                {
+                    filenameBase: 'routes',
+                    tableName: 'routes_stage_test',
+                    schema: [
+                        {
+                            name: 'agency_id',
+                            foreign_key: { table: 'agency', column: 'agency_id' }
+                        }
+                    ]
+                }
+            ];
+
+            await importer.finalizeTables();
+
+            expect(importer.cnx.query.mock.calls[0][0]).toContain(
+                'REFERENCES agency(agency_id)'
+            );
+            expect(importer.cnx.query.mock.calls[0][0]).not.toContain(
+                'REFERENCES agency_stage_test(agency_id)'
+            );
+        });
+    });
+
+    describe('validateStopTimeRelationships', () => {
+        it('accepts an import with no missing trip or stop references', async () => {
+            importer.cnx = {
+                query: vi.fn().mockResolvedValue([[
+                    { missing_trips: 0, missing_stops: 0 }
+                ]])
+            };
+
+            await expect(importer.validateStopTimeRelationships()).resolves.toEqual({
+                missingTrips: 0,
+                missingStops: 0
+            });
+        });
+
+        it('rejects an import containing orphaned stop times', async () => {
+            importer.cnx = {
+                query: vi.fn().mockResolvedValue([[
+                    { missing_trips: 3, missing_stops: 2 }
+                ]])
+            };
+
+            await expect(importer.validateStopTimeRelationships()).rejects.toThrow(
+                '3 missing trip references, 2 missing stop references'
+            );
         });
     });
 

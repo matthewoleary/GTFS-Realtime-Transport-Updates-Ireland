@@ -11,7 +11,14 @@ import modelsDefault from '../models/models.js';
 import { unzip } from './utils/file-utils.js';
 import { calculateHourTimestamp, pluralize } from './utils/utils.js';
 import { addFeedInfoLastUpdatedColumn, updateFeedInfoLastUpdatedValues, addCustomTimestampColumns } from '../queries/custom-queries.js';
-import { calculateResourceRevisions, hasCompleteResourceRevisions, saveResourceRevisions } from './resource-revisions.js';
+import {
+    calculateResourceRevisions,
+    hasCompleteResourceRevisions,
+    loadResourceRevisions,
+    saveResourceRevisions,
+    TABLE_SOURCE_FILES
+} from './resource-revisions.js';
+import { importFileWithBulkLoader, isLocalInfileEnabled, supportsBulkImportFor } from './bulk-import.js';
 
 /**
  * MysqlImporter class for importing GTFS data into MySQL.
@@ -26,6 +33,8 @@ class MysqlImporter {
         this.cnx = null;
         // List of models used including those with additional modifications made, e.g. custom timestamp columns
         this.customModels = [];
+        this.bulkImportAvailable = null;
+        this.stagingTableNames = {};
     }
 
     async connectDb() {
@@ -34,6 +43,12 @@ class MysqlImporter {
         this.getLastDbUpdate = this.db.getLastDbUpdate;
     }
 
+    /**
+     * Run an importer phase with success/failure duration logging.
+     * @param {string} name - Human-readable phase name.
+     * @param {Function} operation - Synchronous or asynchronous operation to run.
+     * @returns {Promise<*>} Result returned by the operation.
+     */
     async timed(name, operation) {
         const startedAt = performance.now();
         try {
@@ -44,6 +59,20 @@ class MysqlImporter {
             this.logger.error(`${name} failed after ${Math.round(performance.now() - startedAt)} ms: ${error.message}`);
             throw error;
         }
+    }
+
+    /**
+     * Check and memoize whether this import can use LOAD DATA LOCAL INFILE.
+     * @returns {Promise<boolean>} Whether native bulk loading is available.
+     */
+    async canUseBulkImport() {
+        if (this.bulkImportAvailable === null) {
+            this.bulkImportAvailable = await isLocalInfileEnabled(this.cnx);
+            if (!this.bulkImportAvailable) {
+                this.logger.warn('MySQL local_infile is unavailable; using batched GTFS inserts.');
+            }
+        }
+        return this.bulkImportAvailable;
     }
 
     /**
@@ -149,7 +178,132 @@ class MysqlImporter {
         }).join(', ');
         // Define the composite primary key clause
         const primaryKeyClause = primaryKeys.length > 0 ? `, PRIMARY KEY (${primaryKeys.join(', ')})` : '';
-        await this.cnx.query(`CREATE TABLE ${model.filenameBase} (${columns}${primaryKeyClause});`);
+        await this.cnx.query(`CREATE TABLE ${model.tableName || model.filenameBase} (${columns}${primaryKeyClause});`);
+    }
+
+    /**
+     * Assign a unique physical staging table name to every GTFS model.
+     * A shared suffix keeps all tables from one import identifiable as a set.
+     * @returns {Record<string, string>} Logical-to-physical table name mapping.
+     */
+    createStagingTableNames() {
+        const suffix = `stage_${Date.now().toString(36)}`;
+        this.stagingTableNames = Object.fromEntries(
+            this.models.map(model => [model.filenameBase, `${model.filenameBase}_${suffix}`])
+        );
+        return this.stagingTableNames;
+    }
+
+    /**
+     * Drop explicitly named physical tables while temporarily disabling foreign
+     * key checks. Foreign key checks are restored even when a drop fails.
+     * @param {string[]} tableNames - Exact physical table names to remove.
+     * @returns {Promise<void>}
+     */
+    async dropPhysicalTables(tableNames) {
+        if (tableNames.length === 0) return;
+        await this.cnx.query('SET FOREIGN_KEY_CHECKS = 0;');
+        try {
+            await this.cnx.query(`DROP TABLE IF EXISTS ${tableNames.join(', ')}`);
+        } finally {
+            await this.cnx.query('SET FOREIGN_KEY_CHECKS = 1;');
+        }
+    }
+
+    /**
+     * Atomically publish all newly imported staging tables with one RENAME TABLE
+     * statement, then remove the displaced live tables.
+     * @returns {Promise<void>}
+     * @throws {Error} When no staging tables are available to publish.
+     */
+    async publishStagingTables() {
+        const baseNames = this.models.map(model => model.filenameBase);
+        const previousNames = baseNames.map(name => `${name}_previous`);
+        await this.dropPhysicalTables(previousNames);
+
+        const [existingRows] = await this.cnx.query(`
+            SELECT table_name
+            FROM information_schema.tables
+            WHERE table_schema = DATABASE()
+                AND table_name IN (?)
+        `, [baseNames]);
+        const existing = new Set(existingRows.map(row => row.TABLE_NAME || row.table_name));
+        const imported = new Set(this.customModels.map(model => model.filenameBase));
+        const renames = [];
+        for (const baseName of baseNames) {
+            if (!imported.has(baseName)) continue;
+            if (existing.has(baseName)) {
+                renames.push(`${baseName} TO ${baseName}_previous`);
+            }
+            renames.push(`${this.stagingTableNames[baseName]} TO ${baseName}`);
+        }
+        if (renames.length === 0) {
+            throw new Error('No GTFS staging tables were available to publish.');
+        }
+        await this.cnx.query(`RENAME TABLE ${renames.join(', ')}`);
+        try {
+            await this.dropPhysicalTables(previousNames);
+        } catch (error) {
+            this.logger.warn(`Published GTFS tables but could not remove previous tables: ${error.message}`);
+        }
+    }
+
+    /**
+     * Verify that each required table was staged or deliberately reused/excluded
+     * before publication.
+     * @param {string[]} excludedTables - Logical tables not expected in staging.
+     * @returns {void}
+     * @throws {Error} When a required staging table is missing.
+     */
+    ensureStagingDatasetIsComplete(excludedTables = []) {
+        const excluded = new Set(excludedTables);
+        const imported = new Set(this.customModels.map(model => model.filenameBase));
+        const missing = this.models
+            .filter(model => model.schema && !excluded.has(model.filenameBase))
+            .map(model => model.filenameBase)
+            .filter(tableName => !imported.has(tableName));
+        if (missing.length > 0) {
+            throw new Error(`GTFS staging dataset is incomplete; missing tables: ${missing.join(', ')}.`);
+        }
+    }
+
+    /**
+     * Select tables whose source-file revision changed. feed_info is always
+     * rebuilt so the database update timestamp advances after a forced import.
+     * @param {Record<string, string>} resourceRevisions - Revisions just calculated.
+     * @param {Record<string, string>} storedRevisions - Revisions saved previously.
+     * @returns {Set<string>} Logical table names that must be rebuilt.
+     */
+    selectChangedTables(resourceRevisions, storedRevisions) {
+        return new Set(
+            this.models
+                .map(model => model.filenameBase)
+                .filter(tableName => {
+                    if (tableName === 'feed_info') return true;
+                    const filename = TABLE_SOURCE_FILES[tableName];
+                    return !filename
+                        || storedRevisions[`file:${filename}`] !== resourceRevisions[`file:${filename}`];
+                })
+        );
+    }
+
+    /**
+     * Determine whether stop-time references may have changed and need checking.
+     * @param {Set<string>} changedTables - Logical tables selected for rebuilding.
+     * @returns {boolean} Whether relationship validation is required.
+     */
+    shouldValidateStopTimeRelationships(changedTables) {
+        return ['stops', 'trips', 'stop_times'].some(tableName => changedTables.has(tableName));
+    }
+
+    /**
+     * Determine whether cached API resources may be stale. A feed_info-only
+     * rebuild changes import metadata but no cached public GTFS representation.
+     * @param {Set<string>} changedTables - Logical tables selected for rebuilding.
+     * @returns {boolean} Whether Redis should be flushed.
+     */
+    shouldFlushCache(changedTables) {
+        return [...changedTables].some(tableName => tableName !== 'feed_info');
     }
 
     /**
@@ -183,11 +337,17 @@ class MysqlImporter {
         await this.cnx.query('SET FOREIGN_KEY_CHECKS = 1;');
     }
 
+    /**
+     * Add configured indexes and foreign keys to newly imported staging tables.
+     * Clauses are consolidated into one ALTER TABLE statement per table.
+     * @returns {Promise<void>}
+     */
     async finalizeTables() {
         this.logger.info('Creating indexes and foreign keys for all GTFS tables.');
         for (const model of this.customModels) {
             if (!model.schema) continue;
             await this.timed(`Finalizing ${model.filenameBase}`, async () => {
+                const tableName = model.tableName || model.filenameBase;
                 const primaryKey = model.schema.filter(column => column.primary).map(column => column.name);
                 const clauses = [];
                 const indexNames = new Set();
@@ -209,19 +369,64 @@ class MysqlImporter {
                 }
                 for (const column of model.schema) {
                     if (!column.foreign_key) continue;
+                    const referencedTable = this.customModels.some(candidate =>
+                        candidate.filenameBase === column.foreign_key.table
+                    )
+                        ? this.stagingTableNames[column.foreign_key.table]
+                        : column.foreign_key.table;
                     clauses.push(
-                        `ADD CONSTRAINT fk_${model.filenameBase}_${column.name} `
+                        `ADD CONSTRAINT fk_${tableName}_${column.name} `
                         + `FOREIGN KEY (${column.name}) `
-                        + `REFERENCES ${column.foreign_key.table}(${column.foreign_key.column}) `
+                        + `REFERENCES ${referencedTable}(${column.foreign_key.column}) `
                         + 'ON DELETE CASCADE'
                     );
                 }
 
                 if (clauses.length > 0) {
-                    await this.cnx.query(`ALTER TABLE ${model.filenameBase} ${clauses.join(', ')}`);
+                    await this.cnx.query(`ALTER TABLE ${tableName} ${clauses.join(', ')}`);
                 }
             });
         }
+    }
+
+    /**
+     * Validate stop_times references against the candidate dataset, combining
+     * staged tables with unchanged live tables as appropriate.
+     * @returns {Promise<{missingTrips: number, missingStops: number}>} Validation counts.
+     * @throws {Error} When any referenced trip or stop is missing.
+     */
+    async validateStopTimeRelationships() {
+        const candidateTable = baseName => this.customModels.some(model => model.filenameBase === baseName)
+            ? this.stagingTableNames[baseName]
+            : baseName;
+        const stopTimes = candidateTable('stop_times');
+        const trips = candidateTable('trips');
+        const stops = candidateTable('stops');
+        const [rows] = await this.cnx.query(`
+            SELECT
+                (
+                    SELECT COUNT(*)
+                    FROM ${stopTimes} st
+                    LEFT JOIN ${trips} t ON t.trip_id = st.trip_id
+                    WHERE t.trip_id IS NULL
+                ) AS missing_trips,
+                (
+                    SELECT COUNT(*)
+                    FROM ${stopTimes} st
+                    LEFT JOIN ${stops} s ON s.stop_id = st.stop_id
+                    WHERE st.stop_id IS NOT NULL
+                        AND s.stop_id IS NULL
+                ) AS missing_stops
+        `);
+        const missingTrips = Number(rows[0].missing_trips);
+        const missingStops = Number(rows[0].missing_stops);
+        if (missingTrips > 0 || missingStops > 0) {
+            throw new Error(
+                `GTFS relationship validation failed: ${missingTrips} missing trip references, `
+                + `${missingStops} missing stop references.`
+            );
+        }
+        return { missingTrips, missingStops };
     }
 
     /**
@@ -329,7 +534,7 @@ class MysqlImporter {
             formattedValues.push(formattedValue);
         }
         try {
-            await task.cnx.query(`INSERT INTO ${model.filenameBase}(${fieldNames.join(', ')}) VALUES ${formattedValues.join(',')};`);
+            await task.cnx.query(`INSERT INTO ${model.tableName || model.filenameBase}(${fieldNames.join(', ')}) VALUES ${formattedValues.join(',')};`);
         } catch (error) {
             task.warn(`Check ${model.filenameBase}.txt for invalid data between lines ${totalLineCount - linesToImportCount} and ${totalLineCount}.`);
             throw error;
@@ -341,9 +546,13 @@ class MysqlImporter {
     /**
      * Import all GTFS files for the agency.
      */
-    async importFiles(task) {
+    async importFiles(task, changedTables = null) {
         // Loop through each GTFS file
         return Promise.mapSeries(this.models, async model => this.timed(`Importing ${model.filenameBase}`, async () => {
+            if (changedTables && !changedTables.has(model.filenameBase)) {
+                task.log(`Reusing unchanged live table - ${model.filenameBase}`);
+                return;
+            }
             // Filter out excluded files from config
             if (task.exclude && task.exclude.includes(model.filenameBase)) {
                 task.log(`Skipping - ${model.filenameBase}.txt\r`);
@@ -373,12 +582,13 @@ class MysqlImporter {
                     if (header.length > 0) resolve(header.replace(/\r$/, ''));
                 });
             });
-            const fileColumns = headerLine.split(',').map(h => h.trim());
+            const fileColumns = headerLine.replace(/^\uFEFF/, '').split(',').map(h => h.trim());
             // Create table with only columns present in both schema and file header
             this.customModel = {
                 ...model,
                 // Always ensure filenameBase is present
                 filenameBase: model.filenameBase,
+                tableName: this.stagingTableNames[model.filenameBase],
                 schema: model.schema.filter(column => fileColumns.includes(column.name)),
             };
             // If no columns from schema are present in file, skip import for this file
@@ -390,12 +600,22 @@ class MysqlImporter {
             await this.createEmptyTable(this.customModel);
             // Adding custom timestamp columns if stop_times.txt
             if (this.customModel.filenameBase === 'stop_times') {
-                await addCustomTimestampColumns(task, this.customModel);
+                await addCustomTimestampColumns(task, this.customModel, this.customModel.tableName);
             }
             // Add the modified or unmodified model to the list of custom models
             this.customModels.push(this.customModel);
             // Now read and import the file line by line
             task.log(`Importing - ${model.filenameBase}.txt\r`);
+            if (supportsBulkImportFor(this.customModel) && await this.canUseBulkImport()) {
+                const importedCount = await importFileWithBulkLoader(
+                    task.cnx,
+                    filepath,
+                    fileColumns,
+                    this.customModel
+                );
+                task.log(`Imported - ${model.filenameBase}.txt - ${importedCount} total lines using MySQL bulk loading`);
+                return;
+            }
             const lines = [];
             let totalLineCount = 0;
             const maxInsertVariables = 20000;
@@ -506,22 +726,56 @@ class MysqlImporter {
                 'Resource revision calculation',
                 () => calculateResourceRevisions(task.downloadDir, textFiles)
             );
-            await this.timed('Dropping old GTFS tables', () => this.dropAllTables());
-            await this.importFiles(task);
-            // Add indexes and constraints together after import to minimize table rebuilds.
-            await this.finalizeTables();
-            await addFeedInfoLastUpdatedColumn(task); // Add last updated column to feed_info table
-            await updateFeedInfoLastUpdatedValues(task); // Update last updated column in feed_info table
-            await this.timed(
-                'Saving resource revisions',
-                () => saveResourceRevisions(this.cnx, resourceRevisions)
-            );
-            this.db.lastDbUpdate = await this.getLastDbUpdate(); // Update lastDbUpdate property in db client
+            const storedRevisions = await loadResourceRevisions(this.cnx);
+            const changedTables = this.selectChangedTables(resourceRevisions, storedRevisions);
+            this.logger.info(`GTFS tables selected for rebuild: ${[...changedTables].join(', ')}.`);
+            this.customModels = [];
+            this.createStagingTableNames();
+            let published = false;
+            try {
+                await this.importFiles(task, changedTables);
+                const reusedOrExcluded = this.models
+                    .map(model => model.filenameBase)
+                    .filter(tableName => !changedTables.has(tableName) || task.exclude?.includes(tableName));
+                this.ensureStagingDatasetIsComplete(reusedOrExcluded);
+                // Add indexes and constraints together after import to minimize table rebuilds.
+                await this.finalizeTables();
+                if (this.shouldValidateStopTimeRelationships(changedTables)) {
+                    await this.timed(
+                        'Validating GTFS relationships',
+                        () => this.validateStopTimeRelationships()
+                    );
+                } else {
+                    this.logger.info('GTFS relationship validation skipped; related tables are unchanged.');
+                }
+                const stagedFeedInfo = this.stagingTableNames.feed_info;
+                await addFeedInfoLastUpdatedColumn(task, stagedFeedInfo);
+                await updateFeedInfoLastUpdatedValues(task, stagedFeedInfo);
+                await this.timed('Publishing GTFS tables', () => this.publishStagingTables());
+                published = true;
+                await this.timed(
+                    'Saving resource revisions',
+                    () => saveResourceRevisions(this.cnx, resourceRevisions)
+                );
+                this.db.lastDbUpdate = await this.getLastDbUpdate(); // Update lastDbUpdate property in db client
 
-            this.logger.info('Completed GTFS import for agency: ' + task.agency_key + '.');
-
-            await this.timed('Cache flush', () => this.flushCache());
-            await this.timed('Temporary file cleanup', cleanup);
+                this.logger.info('Completed GTFS import for agency: ' + task.agency_key + '.');
+                if (this.shouldFlushCache(changedTables)) {
+                    await this.timed('Cache flush', () => this.flushCache());
+                } else {
+                    this.logger.info('Cache flush skipped; cached GTFS resources are unchanged.');
+                }
+            } catch (error) {
+                if (!published) {
+                    await this.timed(
+                        'Discarding GTFS staging tables',
+                        () => this.dropPhysicalTables(Object.values(this.stagingTableNames))
+                    );
+                }
+                throw error;
+            } finally {
+                await this.timed('Temporary file cleanup', cleanup);
+            }
         });
 
         this.logger.info(`Completed GTFS import for ${agencyCount} ${pluralize('file', agencyCount)}.`);
