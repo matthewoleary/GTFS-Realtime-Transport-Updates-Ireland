@@ -5,12 +5,7 @@ export default {
             name: 'trip_id',
             type: 'varchar(32)',
             primary: true,
-            required: true,
-            index: true,
-            foreign_key: {
-                table: 'trips',
-                column: 'trip_id'
-            }
+            required: true
         },
         {
             name: 'arrival_time',
@@ -24,12 +19,7 @@ export default {
         },
         {
             name: 'stop_id',
-            type: 'varchar(16)',
-            index: true,
-            foreign_key: {
-                table: 'stops',
-                column: 'stop_id'
-            }
+            type: 'varchar(16)'
         },
         {
             name: 'stop_sequence',
@@ -76,6 +66,12 @@ export default {
             type: 'tinyint unsigned',
             min: 0,
             max: 1
+        }
+    ],
+    indexes: [
+        {
+            fields: ['stop_id', 'departure_timestamp'],
+            unique: false
         }
     ]
 };

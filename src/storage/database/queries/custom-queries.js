@@ -7,13 +7,12 @@
  * @returns {Promise<void>} Resolves when columns are added and schema is updated.
  * @throws Will throw an error if the query fails.
  */
-export const addCustomTimestampColumns = async (task, model) => {
+export const addCustomTimestampColumns = async (task, model, tableName = 'stop_times') => {
 	try {
 		const departureTimestamp = {
 			name: 'departure_timestamp',
 			type: 'integer',
 			required: false,
-			index: true,
 			after: 'departure_time'
 		};
 		const arrivalTimestamp = {
@@ -22,7 +21,7 @@ export const addCustomTimestampColumns = async (task, model) => {
 			required: false,
 			after: 'arrival_time'
 		};
-		await addCustomColumns(task, 'stop_times', [departureTimestamp, arrivalTimestamp]);
+		await addCustomColumns(task, tableName, [departureTimestamp, arrivalTimestamp]);
 		// add columns to model schema
 		model.schema.push(departureTimestamp);
 		model.schema.push(arrivalTimestamp);
@@ -69,14 +68,14 @@ export const addCustomColumns = async (task, table, columns) => {
  * @returns {Promise<void>} Resolves when the column is added.
  * @throws Will throw an error if the query fails or the column already exists.
  */
-export const addFeedInfoLastUpdatedColumn = async task => {
+export const addFeedInfoLastUpdatedColumn = async (task, tableName = 'feed_info') => {
 	try {
 		const column = {
 			name: 'feed_last_updated',
 			type: 'DATETIME',
 			required: false
 		};
-		await task.cnx.query(`ALTER TABLE feed_info ADD ${column.name} ${column.type} ${column.required ? 'NOT NULL' : ''}`);
+		await task.cnx.query(`ALTER TABLE ${tableName} ADD ${column.name} ${column.type} ${column.required ? 'NOT NULL' : ''}`);
 	} catch (error) {
 		task.warn('Error adding feed_last_updated to feed_info');
 		throw error;
@@ -90,10 +89,10 @@ export const addFeedInfoLastUpdatedColumn = async task => {
  * @returns {Promise<void>} Resolves when the update is complete.
  * @throws Will throw an error if the query fails.
  */
-export const updateFeedInfoLastUpdatedValues = async task => {
+export const updateFeedInfoLastUpdatedValues = async (task, tableName = 'feed_info') => {
 	try {
 		await task.cnx.query(`
-			UPDATE feed_info
+			UPDATE ${tableName}
 			SET feed_last_updated = NOW()
 			WHERE feed_last_updated IS NULL OR feed_last_updated < NOW()
 		`);

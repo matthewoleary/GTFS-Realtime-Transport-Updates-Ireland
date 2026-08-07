@@ -12,6 +12,7 @@ services:
             - '3306:3306'
         volumes:
             - mysql-tfi-data:/var/lib/mysql
+        command: --local-infile=1
     gtfs-db-testing:
         profiles: ["testing"]
         container_name: gtfs-db-testing
@@ -24,6 +25,7 @@ services:
             MYSQL_PASSWORD: ${TEST_DOCKER_SQL_PASSWORD}
             MYSQL_ROOT_PASSWORD: ${TEST_DOCKER_SQL_ROOT_PASSWORD}
             MYSQL_DATABASE: ${TEST_DOCKER_SQL_DATABASE}
+        command: --local-infile=1
     redis:
         container_name: redis-tfi
         image: redis:7
